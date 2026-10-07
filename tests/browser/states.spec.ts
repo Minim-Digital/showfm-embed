@@ -59,7 +59,7 @@ interface Finding {
  * Runs in the page: every text node in the shadow trees of `selectors`
  * (and the shadow trees inside them) against the element's palette.
  */
-function audit(selectors: string[]): { findings: Finding[]; texts: number } {
+function audit(selectors: string[]): { findings: Finding[]; texts: number; graphics: number } {
 	type Rgba = [number, number, number, number];
 	const TEXT = [
 		'--pp-fg-strong',
@@ -115,7 +115,50 @@ function audit(selectors: string[]): { findings: Finding[]; texts: number } {
 	const inShadow = (element: Element) => element.getRootNode() instanceof ShadowRoot;
 	const findings: Finding[] = [];
 	let texts = 0;
+	let graphics = 0;
 
+	/** The colour behind an element: every background up to the first opaque one. */
+	const backdrop = (from: Element | null): Rgba => {
+		const layers: Rgba[] = [];
+		for (let at = from; at; at = parentOf(at)) {
+			const layer = parse(getComputedStyle(at).backgroundColor);
+			if (!layer || layer[3] === 0) continue;
+			layers.push(layer);
+			if (layer[3] === 1) break;
+		}
+		return layers.reverse().reduce<Rgba>((under, layer) => over(layer, under), [255, 255, 255, 1]);
+	};
+	/**
+	 * Non-text, 3:1 (WCAG 1.4.11) on what is really behind it, the tint of a
+	 * playing row or a spoken line included: the played waveform on its
+	 * canvas's backdrop, and an accent fill (a play button) on its parent's.
+	 */
+	const graphic = (where: string, element: Element) => {
+		const style = getComputedStyle(element);
+		const [wave, fill] = tokens(element, ['--pp-wave', '--pp-accent']);
+		const report = (what: string, color: string, on: Rgba) => {
+			const value = ratio(parse(color)!, on);
+			if (value < 3) {
+				findings.push({
+					where,
+					text: what,
+					problem: `${value.toFixed(2)}:1 on rgb(${on.slice(0, 3).map(Math.round).join(', ')})`
+				});
+			}
+		};
+		if (element instanceof HTMLCanvasElement && wave) {
+			graphics += 1;
+			report('the played waveform', wave, backdrop(element));
+		}
+		if (fill && style.backgroundColor === fill && style.borderRadius !== '0px') {
+			graphics += 1;
+			report(
+				`the fill of <${element.localName} class="${element.getAttribute('class')}">`,
+				fill,
+				backdrop(parentOf(element))
+			);
+		}
+	};
 	const check = (where: string, element: Element, text: string, color: string) => {
 		const style = getComputedStyle(element);
 		const size = parseFloat(style.fontSize);
@@ -158,6 +201,7 @@ function audit(selectors: string[]): { findings: Finding[]; texts: number } {
 			if (box.width <= 1 || box.height <= 1 || getComputedStyle(element).visibility === 'hidden')
 				continue;
 			if (element.closest('svg, button:disabled, input:disabled, [aria-disabled="true"]')) continue;
+			graphic(where, element);
 			for (const node of element.childNodes) {
 				const text = node.nodeType === 3 ? node.textContent!.trim() : '';
 				if (text) check(where, element, text, getComputedStyle(element).color);
@@ -178,13 +222,14 @@ function audit(selectors: string[]): { findings: Finding[]; texts: number } {
 		}
 	}
 	probe.remove();
-	return { findings, texts };
+	return { findings, texts, graphics };
 }
 
-async function expectPalette(page: Page, selectors: string[], minTexts = 1) {
-	const { findings, texts } = await page.evaluate(audit, selectors);
+async function expectPalette(page: Page, selectors: string[], minTexts = 1, minGraphics = 0) {
+	const { findings, texts, graphics } = await page.evaluate(audit, selectors);
 	expect(findings).toEqual([]);
 	expect(texts).toBeGreaterThanOrEqual(minTexts);
+	expect(graphics).toBeGreaterThanOrEqual(minGraphics);
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -315,25 +360,32 @@ for (const [name, look] of Object.entries(LOOKS)) {
 			await page.setViewportSize({ width: 1132, height: 900 });
 			await serveList(
 				page,
-				list('id="a"') +
-					list('id="b" variant="minimal"') +
+				list('id="a" layout="list"') +
+					list('id="b" variant="minimal" layout="list"') +
 					list('id="c" layout="grid"') +
 					list('id="d" variant="minimal" layout="grid"') +
 					list('id="e" layout="compact"') +
-					list('id="f" variant="minimal" layout="compact"'),
+					list('id="f" variant="minimal" layout="compact"') +
+					// An accent just over 3:1 on the card, whose tint is darker.
+					list('id="g" layout="list" accent="#0ea5e9"'),
 				{},
 				{ width: 1100, head }
 			);
 			await rowsReady(page);
-			await page.locator('#a [part="play"]').first().click();
-			await expect(
-				page
-					.locator('#a')
-					.getByText(/Now playing/)
-					.first()
-			).toBeVisible();
-			await page.locator('#a [part="play"]').first().click();
-			await expectPalette(page, ['showfm-episodes'], 30);
+			// A playing row in each list, in turn: the tint, the waveform on it,
+			// the fill of its button.
+			for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+				const button = page.locator(`#${id} [part="play"]`).first();
+				await button.click();
+				await expect(button).toHaveAccessibleName(/^Pause/);
+				// Card's list row draws the waveform on its tint.
+				if (id === 'a' || id === 'g') await expect(page.locator(`#${id} canvas`)).toHaveCount(1);
+				await expectPalette(page, ['showfm-episodes'], 30, id === 'a' || id === 'g' ? 2 : 1);
+				// Every list shows the same episodes: pause before the next.
+				await button.click();
+				await expect(button).toHaveAccessibleName(/^(Play|Resume)/);
+			}
+			await expectPalette(page, ['showfm-episodes'], 30, 1);
 
 			await serveList(page, list(), { status: 'pending' }, { head });
 			await expect(page.locator('showfm-episodes [role="status"]').first()).toBeAttached();

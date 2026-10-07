@@ -49,21 +49,21 @@
 
 	const style = d.createElement('style');
 	// The facade is in the element's light DOM, so it takes the page's font
-	// like the element will: --showfm-font, and unset that declaration is
-	// invalid, so the font is inherited.
+	// like the element will: --showfm-font, else inherited. (`flex-flow` and
+	// `place-items` say the same as the longer forms, in fewer bytes.)
 	style.textContent =
 		// A list, play button or transcript never shows its light DOM behind
 		// the facade, and is defined (a stub in v1.js) before its code mounts.
 		`[${FACADE}]:is(showfm-episodes,showfm-play,showfm-transcript,:not(:defined))>:not([${UI}]){display:none}` +
-		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 a;font-family:var(--showfm-font);text-align:left}` +
+		`[${UI}]{box-sizing:border-box;display:flex;flex-flow:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 a;font-family:var(--showfm-font,inherit);text-align:left}` +
 		`[${UI}][data-c]{padding:12px 14px}[${UI}][data-d]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}` +
 		`@media(prefers-color-scheme:dark){[${UI}][data-a]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}}` +
 		`[${UI}] div{display:flex;align-items:center;gap:14px;min-width:0}` +
-		`[${UI}] button{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;margin:0;padding:0 0 0 2px;border:0;border-radius:99px;background:var(--a);color:var(--f);cursor:pointer}` +
+		`[${UI}] button{position:relative;flex:none;display:inline-grid;place-items:center;width:56px;height:56px;margin:0;padding:0 0 0 2px;border:0;border-radius:99px;background:var(--a);color:var(--f);cursor:pointer}` +
 		`[${UI}][data-c] button{width:34px;height:34px}` +
 		`[${UI}] button[aria-busy=true]:after{content:"";position:absolute;inset:-4px;border:2px solid transparent;border-top-color:var(--a);border-radius:99px;animation:showfm-spin .9s linear infinite}` +
 		`@keyframes showfm-spin{to{transform:rotate(1turn)}}` +
-		`[${UI}] span{display:flex;flex-direction:column;gap:3px;min-width:0}` +
+		`[${UI}] span{display:flex;flex-flow:column;gap:3px;min-width:0}` +
 		`[${UI}] :is(b,small){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
 		`[${UI}] b{font-size:16px;line-height:1.3}[${UI}][data-c] b{font-size:14px;line-height:1.25}` +
 		`[${UI}] small{font-size:13px;opacity:.75}[${UI}][data-c] small{font-size:11.5px}` +

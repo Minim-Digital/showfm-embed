@@ -176,9 +176,14 @@ describe('every derivation is WCAG AA', () => {
 			}
 		}
 		expect(contrastRatio(p.accentFg, p.accent)).toBeGreaterThanOrEqual(4.5);
-		for (const graphic of [p.accent, p.focus, p.wave]) {
-			expect(contrastRatio(graphic, p.bg)).toBeGreaterThanOrEqual(3);
+		// The fill and the played waveform sit on the card and on a playing
+		// row's tint; the focus ring on anything.
+		for (const graphic of [p.accent, p.wave]) {
+			for (const on of [p.bg, solid(p.tint, p.bg)]) {
+				expect(contrastRatio(graphic, on)).toBeGreaterThanOrEqual(3);
+			}
 		}
+		for (const on of surfaces) expect(contrastRatio(p.focus, on)).toBeGreaterThanOrEqual(3);
 		if (contrastRatio(p.bg, '#ffffff') < contrastRatio(p.bg, '#000000')) {
 			expect(contrastRatio(p.logo, p.bg)).toBeGreaterThanOrEqual(4.5);
 		}
@@ -223,10 +228,31 @@ describe('every derivation is WCAG AA', () => {
 	});
 });
 
+describe('the tint of a playing row', () => {
+	it('brings an accent just over 3:1 on the card to 3:1 on its tint too (#0ea5e9)', () => {
+		const p = resolvePalette('#0ea5e9', 'light');
+		// Over 3:1 on white already, so before 1.5 it stayed #0d9ddd: 2.8:1 on its tint.
+		expect(contrastRatio(p.accent, p.tint)).toBeGreaterThanOrEqual(3);
+		expect(contrastRatio(p.wave, p.tint)).toBeGreaterThanOrEqual(3);
+		// The tint is still the fill's, mixed with the card.
+		expect(p.tint).toBe(mixHex(p.accent, p.bg, 0.92));
+	});
+
+	it('leaves an accent that already holds on the tint as it was', () => {
+		expect(resolvePalette('#7E22CE', 'light').accent).toBe('#7e22ce');
+		expect(resolvePalette('#0E7C66', 'light').accent).toBe('#0e7c66');
+	});
+});
+
 describe('dark derivations (design page 4)', () => {
-	it('fills at 3:1 (#8B38D3) and accent text at 4.5:1 on the tint', () => {
+	it('fills at 3:1 on the card and the tint, and accent text at 4.5:1 on the tint', () => {
 		const p = resolvePalette(null, 'dark');
-		expect(p.accent).toBe('#8b38d3');
+		const tint = mixHex(p.bg, '#ffffff', 0.07);
+		// The design's #8B38D3 is 3.1:1 on the card but 2.6:1 on the tint a
+		// playing row puts it on, so the fill is one step lighter.
+		expect(contrastRatio('#8B38D3', tint)).toBeLessThan(3);
+		expect(p.accent).toBe('#974cd7');
+		expect(contrastRatio(p.accent, tint)).toBeGreaterThanOrEqual(3);
 		expect(contrastRatio(p.accentText, mixHex(p.bg, '#ffffff', 0.07))).toBeGreaterThanOrEqual(4.5);
 		// The design's #B47FE3 and this are the same step towards white, within
 		// rounding of the 5% steps.

@@ -486,14 +486,18 @@
 	{#if artworkUrl}
 		<img
 			class="artwork"
-			style="width:{px}px;height:{px}px;--ar:{radius}px"
+			style="width:{px}px;height:{px}px;--ar:{radius / 0.7}px"
 			src={artworkUrl}
 			alt=""
 			loading="lazy"
 			part="artwork"
 		/>
 	{:else}
-		<div class="artwork tile" style="width:{px}px;height:{px}px;--ar:{radius}px" aria-hidden="true">
+		<div
+			class="artwork tile"
+			style="width:{px}px;height:{px}px;--ar:{radius / 0.7}px"
+			aria-hidden="true"
+		>
 			<svg
 				width={Math.round(px * 0.42)}
 				height={Math.round(px * 0.42)}
@@ -982,11 +986,10 @@
 
 <style>
 	/* The host's font unless --showfm-font sets one; nothing is downloaded.
-	   Radius hooks are clamped, and unset they leave the design's corners:
-	   --rr and --ra are invalid then, so each var() falls back. */
+	   --showfm-radius is held to 0-28px, and the artwork follows at 70%;
+	   unset, the card is 14px and the artwork its design radius (--ar, set
+	   on it as that radius / 0.7). */
 	.player {
-		--rr: clamp(0px, var(--showfm-radius), 28px);
-		--ra: calc(var(--rr) * 0.7);
 		box-sizing: border-box;
 		width: 100%;
 		font-family: var(--showfm-font, inherit);
@@ -995,7 +998,7 @@
 		color: var(--pp-fg);
 		background: var(--pp-bg);
 		border: 1px solid var(--pp-border);
-		border-radius: var(--rr, 14px);
+		border-radius: clamp(0px, var(--showfm-radius, 14px), 28px);
 		box-shadow: var(--pp-shadow);
 		overflow: hidden;
 		-webkit-font-smoothing: antialiased;
@@ -1029,7 +1032,7 @@
 	.artwork {
 		flex: none;
 		object-fit: cover;
-		border-radius: var(--ra, var(--ar));
+		border-radius: calc(clamp(0px, var(--showfm-radius, var(--ar)), 28px) * 0.7);
 	}
 	.artwork.tile {
 		display: flex;

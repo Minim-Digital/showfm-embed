@@ -269,7 +269,7 @@ export const STYLE_HOOK_DESCRIPTIONS = [
 		syntax: '<color>',
 		on: ['player', 'episodes', 'play', 'transcript'],
 		description:
-			"The accent, one colour in. The fill (3:1 on the card), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+			"The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
 	},
 	{
 		name: '--showfm-accent-text',
@@ -326,14 +326,16 @@ export const STYLE_HOOK_DESCRIPTIONS = [
 		syntax: '<color>',
 		default: 'the accent fill',
 		on: ['player', 'episodes', 'play'],
-		description: 'The played part of the waveform. Adjusted until it reaches 3:1 on the card.'
+		description:
+			'The played part of the waveform. Adjusted until it reaches 3:1 on the card and on the tint of a playing row.'
 	},
 	{
 		name: '--showfm-focus',
 		syntax: '<color>',
 		default: 'the accent text',
 		on: ['player', 'episodes', 'play', 'transcript'],
-		description: 'The keyboard focus ring. Adjusted until it reaches 3:1 on the card.'
+		description:
+			'The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls.'
 	},
 	{
 		name: '--showfm-font',
