@@ -112,6 +112,10 @@
 	let source = $state.raw<AudioEntry | null>(null);
 	/** The followed audio's owner said the show is suspended (mid-listen, design page 5). */
 	let suspendedNow = $state(false);
+	function setSuspended(value: boolean) {
+		if (value !== suspendedNow) holdFocus();
+		suspendedNow = value;
+	}
 	/** The episode shown. It stays when its audio moves on, until another plays. */
 	let shown = $state.raw<{ id: string; known: ControllerEpisode | null } | null>(null);
 
@@ -119,19 +123,12 @@
 		return forId ? document.getElementById(forId) : embedHost;
 	}
 
-	/**
-	 * Counts the times the shown episode is heard playing (or asked to) on the
-	 * page. A late answer about the episode (the API saying its show is
-	 * suspended) is stale once the episode has played since it was asked.
-	 */
-	let heard = 0;
-
 	function pick() {
 		if (embed) {
 			const audio = embed.audio();
 			const next = (audio && controller.audios().find((entry) => entry.audio === audio)) || null;
 			if (next !== source) source = next;
-			suspendedNow = next?.message === 'suspended';
+			setSuspended(next?.message === 'suspended');
 			if (shown?.id !== embed.episode.id) shown = { id: embed.episode.id, known: embed.episode };
 			return;
 		}
@@ -158,17 +155,7 @@
 									(entry.owner === snapshot.owner && entry.episode === snapshot.episode))
 					) ?? null);
 		if (next !== source) source = next;
-		suspendedNow = next?.message === 'suspended';
-		if (
-			shown &&
-			audios.some(
-				(entry) =>
-					entry.episode?.id === shown!.id &&
-					(entry.state === 'playing' || entry.state === 'loading')
-			)
-		) {
-			heard += 1;
-		}
+		setSuspended(next?.message === 'suspended');
 		const id = next?.episode?.id ?? episodeAttr ?? shown?.id ?? null;
 		if (id && id !== shown?.id) shown = { id, known: next?.episode ?? null };
 		else if (!id && shown) shown = null;
@@ -189,6 +176,11 @@
 
 	// ── loading ────────────────────────────────────────────────────────
 	let loaded = $state.raw<LoadedTranscript>({ status: 'idle' });
+	/** Every change of state goes through here, so focus can follow it. */
+	function setLoaded(next: LoadedTranscript) {
+		holdFocus();
+		loaded = next;
+	}
 	let attempt = $state(0);
 	const api = $derived(
 		attr('api') ||
@@ -210,28 +202,30 @@
 		void attempt;
 		const load = ++generation;
 		if (!episode) {
-			loaded = { status: 'idle' };
+			setLoaded({ status: 'idle' });
 			return;
 		}
 		// The API origin is live too: a new one is a new load.
 		const origin = api;
-		loaded = { status: 'loading' };
+		setLoaded({ status: 'loading' });
 		loadTranscript(episode.id, episode.known, origin, !inside).then((result) => {
 			if (load !== generation) return;
 			if (!result.vttFailed) {
-				loaded = result;
+				setLoaded(result);
 				return;
 			}
 			// The VTT failed. The show may have been suspended since: ask the API
 			// once, as the list does when a row's audio fails. Not news if the
-			// episode has played since the question was asked.
-			const asked = heard;
+			// episode has been asked to play, started or resumed on the page
+			// since (the controller counts those, not every time update).
+			const asked = controller.starts[episode.id];
 			apiGet(episodeEndpoint(origin, episode.id)).then((check) => {
 				if (load !== generation) return;
-				loaded =
-					check.status === 'unavailable' && heard === asked
+				setLoaded(
+					check.status === 'unavailable' && controller.starts[episode.id] === asked
 						? { status: 'suspended', episode: result.episode }
-						: result;
+						: result
+				);
 			});
 		});
 		return () => {
@@ -477,6 +471,27 @@
 		if (SCROLL_KEYS.includes(event.key) && event.target === scroller) onUserScroll();
 	}
 
+	/**
+	 * Back to now can go while it has focus (following resumes on its own,
+	 * or the audio goes): focus moves to the text rather than the page. By
+	 * then the button is out of the DOM and focus with it, so whether it had
+	 * focus is noted as it happens; a blur towards another element is a move
+	 * the visitor made.
+	 */
+	let backButton = $state<HTMLElement | null>(null);
+	$effect(() => {
+		const control = backButton;
+		if (!control) return;
+		let had = false;
+		const onFocus = () => (had = true);
+		const onBlur = (event: FocusEvent) => event.relatedTarget && (had = false);
+		control.addEventListener('focus', onFocus);
+		control.addEventListener('blur', onBlur);
+		return () => {
+			if (had) void tick().then(() => scroller?.focus({ preventScroll: true }));
+		};
+	});
+
 	function backToNow() {
 		detached = false;
 		scrollToLine(current, true);
@@ -534,8 +549,12 @@
 		void tick().then(() => now === generation && active && scrollToLine(active.line, true));
 	}
 
+	let field = $state<HTMLInputElement | null>(null);
+
+	/** Clear search goes with the search: focus returns to the field. */
 	function clearSearch() {
 		onQuery('');
+		field?.focus();
 	}
 
 	function onSearchKey(event: KeyboardEvent) {
@@ -548,18 +567,35 @@
 		}
 	}
 
-	// ── try again ──────────────────────────────────────────────────────
-	let refocus = false;
-	function retry(event: MouseEvent) {
-		refocus = (event.currentTarget as HTMLElement).matches(':focus');
-		attempt += 1;
+	// ── focus across states ────────────────────────────────────────────
+	// The area under the search row is replaced whenever the state changes
+	// (Try again, a new episode, a show suspended mid-listen). If focus was
+	// in it, it moves to what replaces it: the text, Try again, or the
+	// message itself, never back to the page. Nothing is announced unasked.
+	let body = $state<HTMLElement | null>(null);
+	/** The text area is the body too; letting go of it never clears what replaced it. */
+	function setScroller(element: HTMLElement | null) {
+		if (element) body = element;
+		else if (body === scroller) body = null;
+		scroller = element;
 	}
-	// Try again goes with the message: focus follows to the text.
+	let keepFocus = false;
+	/** The focused element in the transcript's own tree. */
+	const focusedHere = () => (host.shadowRoot ?? document).activeElement;
+	/**
+	 * Called just before the state changes, while the old area is still
+	 * here: if focus is in it, the next one takes it.
+	 */
+	function holdFocus() {
+		const active = focusedHere();
+		if (active && body?.contains(active)) keepFocus = true;
+	}
 	$effect(() => {
-		if (ready && scroller && refocus) {
-			refocus = false;
-			scroller.focus();
-		}
+		const area = body;
+		void status;
+		if (!area || !keepFocus) return;
+		keepFocus = false;
+		untrack(() => (area.querySelector<HTMLElement>('.retry') ?? area).focus());
 	});
 
 	// On arriving, or a new episode, start at the spoken line.
@@ -620,6 +656,9 @@
 		let stamp = el.firstElementChild as HTMLElement;
 		if ((stamp.tagName === 'BUTTON') !== linked) {
 			const next = document.createElement(linked ? 'button' : 'span');
+			// A timestamp stops being a button (its audio went) while focused:
+			// focus moves to the text, not the page.
+			if (focusedHere() === stamp) void tick().then(() => scroller?.focus({ preventScroll: true }));
 			stamp.replaceWith(next);
 			stamp = next;
 			stamp.className = 'ts';
@@ -729,26 +768,34 @@
 					aria-hidden="true"
 					><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg
 				>
+				<!-- Read-only rather than disabled while there is nothing to search:
+				     a disabled field would drop the focus of someone typing in it. -->
 				<input
+					bind:this={field}
 					type="search"
 					value={query}
-					oninput={(event) => onQuery(event.currentTarget.value)}
+					oninput={(event) => ready && onQuery(event.currentTarget.value)}
 					onkeydown={onSearchKey}
 					placeholder={t.searchTranscript}
 					aria-label={t.searchTranscript}
-					disabled={!ready}
+					readonly={!ready}
+					aria-disabled={!ready}
 					autocomplete="off"
 				/>
 			</label>
-			{#if searching && ready}
-				<span class="count" aria-live="polite"
-					>{matches.length
+			<!-- The one live region, always here so its changes are heard: the
+			     count the visitor's own search produces. -->
+			<span class="count" aria-live="polite"
+				>{searching && ready
+					? matches.length
 						? formatString(t.matchCount, {
 								n: Math.min(matchIndex, matches.length - 1) + 1,
 								total: matches.length
 							})
-						: t.noMatches}</span
-				>
+						: t.noMatches
+					: ''}</span
+			>
+			{#if searching && ready}
 				<button
 					type="button"
 					class="icon"
@@ -774,7 +821,7 @@
 		<!-- A scrolling region must be focusable, so the keyboard can scroll it. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 		<div
-			bind:this={scroller}
+			bind:this={() => scroller, setScroller}
 			class="scroll"
 			style="height:{viewHeight}px"
 			role="group"
@@ -799,35 +846,29 @@
 		</div>
 		{#if showBack}
 			<div class="back-wrap">
-				<button type="button" class="back" onclick={backToNow}>
+				<button type="button" class="back" onclick={backToNow} bind:this={backButton}>
 					{@render icon(nowAbove ? 'm5 12 7-7 7 7M12 19V5' : 'M12 5v14m7-7-7 7-7-7')}
 					{formatString(t.backToNow, { time: clock(time) })}
 				</button>
 			</div>
 		{/if}
 	{:else if status === 'loading'}
-		<div
-			class="msg skel"
-			style="height:{viewHeight}px"
-			role="status"
-			aria-label={t.loadingTranscript}
-		>
-			<div><span></span><span></span><span></span></div>
-			<div><span></span><span></span><span></span></div>
-			<div><span></span><span></span><span></span></div>
-			<div><span></span><span></span><span></span></div>
+		<!-- No live roles here: the transcript announces nothing unasked. The
+		     words are there for a screen reader that reads this far. -->
+		<div bind:this={body} class="msg skel" style="height:{viewHeight}px" tabindex="-1">
+			<p class="vh">{t.loadingTranscript}</p>
+			<div aria-hidden="true"><span></span><span></span><span></span></div>
+			<div aria-hidden="true"><span></span><span></span><span></span></div>
+			<div aria-hidden="true"><span></span><span></span><span></span></div>
+			<div aria-hidden="true"><span></span><span></span><span></span></div>
 		</div>
 	{:else if status === 'error'}
-		<div class="msg" style="height:{viewHeight}px" role="alert">
+		<div bind:this={body} class="msg" style="height:{viewHeight}px" tabindex="-1">
 			<p>{t.transcriptError}</p>
-			<button type="button" class="retry" onclick={retry}>{s.retry}</button>
+			<button type="button" class="retry" onclick={() => (attempt += 1)}>{s.retry}</button>
 		</div>
 	{:else}
-		<div
-			class="msg"
-			style="height:{viewHeight}px"
-			role={status === 'suspended' ? 'status' : undefined}
-		>
+		<div bind:this={body} class="msg" style="height:{viewHeight}px" tabindex="-1">
 			<p>
 				{status === 'suspended'
 					? s.suspended

@@ -97,12 +97,25 @@ input::placeholder {
 	color: var(--pp-muted);
 	opacity: 1;
 }
-input:disabled {
-	cursor: default;
-}
 /* The field has its own Clear search button. */
 input::-webkit-search-cancel-button {
 	-webkit-appearance: none;
+	display: none;
+}
+/* Seen by screen readers only. */
+.vh {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+input[aria-disabled='true'] {
+	cursor: default;
+}
+.count:empty {
 	display: none;
 }
 .count {

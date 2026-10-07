@@ -150,6 +150,18 @@ const $$ = (host: HTMLElement, selector: string) => [
 const lines = (host: HTMLElement) => $$(host, '.line');
 const current = (host: HTMLElement) => $(host, '.line[aria-current="true"]');
 const search = (host: HTMLElement) => $<HTMLInputElement>(host, 'input[type="search"]')!;
+/** Every element a screen reader would announce changes in. */
+const liveRegions = (host: HTMLElement) =>
+	$$(
+		host,
+		'[aria-live], [role="status"], [role="alert"], [role="log"], [role="marquee"], [role="timer"]'
+	);
+/** Nothing to search: the field says so, and keeps any focus it has. */
+function expectSearchOff(host: HTMLElement) {
+	expect(search(host).getAttribute('aria-disabled')).toBe('true');
+	expect(search(host).readOnly).toBe(true);
+	expect(search(host).disabled).toBe(false);
+}
 
 async function type(host: HTMLElement, value: string) {
 	const input = search(host);
@@ -216,7 +228,7 @@ describe('what it follows', () => {
 	it('with neither, follows whatever plays on the page', async () => {
 		const host = await transcript();
 		expect($(host, '.msg')!.textContent).toBe('Play an episode to follow its transcript here.');
-		expect(search(host).disabled).toBe(true);
+		expectSearchOff(host);
 		const { at } = playerAudio();
 		at(2);
 		await settle();
@@ -321,22 +333,27 @@ describe('search', () => {
 		search(host).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 		await settle();
 		expect(search(host).value).toBe('');
-		expect($(host, '.count')).toBeNull();
+		expect($(host, '.count')!.textContent).toBe('');
 		expect($(host, '.back')).toBeNull();
 		await type(host, 'bread');
+		$<HTMLButtonElement>(host, '.clear')!.focus();
 		$(host, '.clear')!.click();
 		await settle();
 		expect($(host, '.back')).toBeNull();
+		// Clear search went with the search: focus is back in the field.
+		expect(shadow(host).activeElement).toBe(search(host));
 	});
 
-	it('is the only live region, and only while searching', async () => {
+	it('has one live region, the count, always there and empty until a search', async () => {
 		const { at } = playerAudio();
 		const host = await transcript({ for: 'player' });
 		at(10);
 		await settle();
-		expect($$(host, '[aria-live], [role="log"], [role="marquee"]')).toHaveLength(0);
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expect($(host, '.count')!.textContent).toBe('');
 		await type(host, 'bread');
-		expect($$(host, '[aria-live]')).toHaveLength(1);
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expect($(host, '.count')!.textContent).toBe('1 of 5');
 	});
 });
 
@@ -376,18 +393,20 @@ describe('states', () => {
 	it('loading: a skeleton at the text area height, search disabled', async () => {
 		mock.pending = true;
 		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID, height: '220' });
-		const skeleton = $(host, '[role="status"]')!;
-		expect(skeleton.getAttribute('aria-label')).toBe('Loading transcript');
+		const skeleton = $(host, '.skel')!;
+		expect(skeleton.textContent!.trim()).toBe('Loading transcript');
 		expect(skeleton.style.height).toBe('220px');
-		expect(search(host).disabled).toBe(true);
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expectSearchOff(host);
 		expect(await axe(host)).toHaveNoViolations();
 	});
 
 	it('error: the message and Try again, which loads it again', async () => {
 		mock.vtt = 500;
 		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
-		const alert = $(host, '[role="alert"]')!;
-		expect(alert.textContent).toContain(
+		const message = $(host, '.msg')!;
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expect(message.textContent).toContain(
 			'The transcript can’t be loaded right now. The episode keeps playing.'
 		);
 		expect(await axe(host)).toHaveNoViolations();
@@ -404,11 +423,10 @@ describe('states', () => {
 	it('suspended: the show’s message and no actions', async () => {
 		mock.episode = 403;
 		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
-		expect($(host, '[role="status"]')!.textContent).toContain(
-			'This show isn’t available right now.'
-		);
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expect($(host, '.msg')!.textContent).toContain('This show isn’t available right now.');
 		expect($$(host, '.msg button')).toHaveLength(0);
-		expect(search(host).disabled).toBe(true);
+		expectSearchOff(host);
 		expect(await axe(host)).toHaveNoViolations();
 	});
 
@@ -426,12 +444,12 @@ describe('states', () => {
 		mock.recheckGate = new Promise((resolve) => (answer = resolve));
 		const { at } = playerAudio();
 		const host = await transcript({ for: 'player' });
-		expect($(host, '[role="status"][aria-label="Loading transcript"]')).not.toBeNull();
+		expect($(host, '.skel')).not.toBeNull();
 		// The episode plays while the API is asked about it: its show is not suspended.
 		at(3);
 		answer();
 		await settle();
-		expect($(host, '[role="alert"]')!.textContent).toContain('The transcript can’t be loaded');
+		expect($(host, '.msg')!.textContent).toContain('The transcript can’t be loaded');
 		expect($(host, '.msg')!.textContent).not.toContain('This show isn’t available');
 	});
 
@@ -473,10 +491,9 @@ describe('states', () => {
 		controller.report(owner, episode.id, 'suspended');
 		await settle();
 		expect(lines(host)).toHaveLength(0);
-		expect($(host, '[role="status"]')!.textContent).toContain(
-			'This show isn’t available right now.'
-		);
-		expect(search(host).disabled).toBe(true);
+		expect(liveRegions(host).map((region) => region.className)).toEqual(['count']);
+		expect($(host, '.msg')!.textContent).toContain('This show isn’t available right now.');
+		expectSearchOff(host);
 	});
 
 	it('episode="…" collapses on a 404, without a transcript, and for external audio', async () => {
@@ -658,6 +675,81 @@ describe('every attribute is live', () => {
 		host.setAttribute('lang', 'de');
 		await settle();
 		expect($(host, '.label')!.textContent).toBe('Transkript');
+	});
+});
+
+describe('the recheck after a VTT failure', () => {
+	it('is still news after time updates: only a new play makes it stale', async () => {
+		mock.vtt = 403;
+		mock.recheck = 403;
+		let answer!: () => void;
+		mock.recheckGate = new Promise((resolve) => (answer = resolve));
+		const { at, audio } = playerAudio();
+		at(3);
+		const host = await transcript({ for: 'player' });
+		// Playing on while the API is asked: time updates are not new plays.
+		for (let i = 0; i < 5; i++) audio.dispatchEvent(new Event('timeupdate'));
+		answer();
+		await settle();
+		expect($(host, '.msg')!.textContent).toContain('This show isn’t available right now.');
+	});
+});
+
+describe('focus never drops to the page (self-review)', () => {
+	it('suspended mid-listen moves focus from the text to the message', async () => {
+		const controller = pageController();
+		const list = document.createElement('div');
+		list.id = 'list';
+		document.body.append(list);
+		Object.defineProperty(controller.sharedAudio(), 'play', {
+			configurable: true,
+			value: async () => {}
+		});
+		const episode = transcriptEpisode();
+		await controller.playShared(list, episode, 'https://m.cdn.media/x.mp3');
+		const host = await transcript({ for: 'list' });
+		$<HTMLElement>(host, '.scroll')!.focus();
+		controller.report(list, episode.id, 'suspended');
+		await settle();
+		expect(shadow(host).activeElement).toBe($(host, '.msg'));
+	});
+
+	it('a new episode loading keeps focus in the transcript, and in the search field', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		$<HTMLElement>(host, '.scroll')!.focus();
+		mock.pending = true;
+		host.setAttribute('episode', OTHER_ID);
+		await settle();
+		expect(shadow(host).activeElement).toBe($(host, '.skel'));
+		// The field is read-only while loading, not disabled, so it keeps focus too.
+		search(host).focus();
+		expect(shadow(host).activeElement).toBe(search(host));
+		expectSearchOff(host);
+	});
+
+	it('Back to now going away on its own hands focus to the text', async () => {
+		const followed = playerAudio();
+		const host = await transcript({ for: 'player' });
+		followed.at(20);
+		await settle();
+		$(host, '.scroll')!.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+		await settle();
+		$<HTMLButtonElement>(host, '.back')!.focus();
+		// The audio goes: nothing is "now", so the button goes.
+		followed.detach();
+		await settle();
+		expect($(host, '.back')).toBeNull();
+		expect(shadow(host).activeElement).toBe($(host, '.scroll'));
+	});
+
+	it('a focused timestamp that stops being a button hands focus to the text', async () => {
+		const followed = playerAudio();
+		const host = await transcript({ for: 'player' });
+		lines(host)[2].querySelector<HTMLButtonElement>('button')!.focus();
+		followed.detach();
+		await settle();
+		expect($$(host, '.line button')).toHaveLength(0);
+		expect(shadow(host).activeElement).toBe($(host, '.scroll'));
 	});
 });
 

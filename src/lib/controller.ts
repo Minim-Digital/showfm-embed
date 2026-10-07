@@ -109,12 +109,13 @@ export class PageAudioController {
 	private claims: Claim[] = [];
 	/**
 	 * How often each episode has been asked to play, or started or resumed
-	 * playing, on any audio: a failure's recheck is stale once this moves.
+	 * playing, on any audio: a failure's recheck is stale once this moves
+	 * (the transcript reads it for the same reason).
 	 */
-	private starts: Record<string, number> = {};
+	readonly starts: Readonly<Record<string, number>> = {};
 
 	private started(id: string | undefined) {
-		if (id) this.starts[id] = (this.starts[id] ?? 0) + 1;
+		if (id) (this.starts as Record<string, number>)[id] = (this.starts[id] ?? 0) + 1;
 	}
 
 	/** Attach an element's own audio. Returns the function that detaches it. */

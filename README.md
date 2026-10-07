@@ -264,12 +264,12 @@ What the visitor can do:
 How it behaves:
 
 - Every attribute is live: change `episode`, `for` or `api` and it loads or follows afresh (an answer for the old value never lands); change `height`, `heading-level`, `theme`, `accent` or `lang` and it redraws. Removing `load="click"` before it has loaded loads it, as `showfm.load()` would.
-- It keeps its height in every state: the search row (55px) over a text area of `height` pixels (320 by default), inside a 1px border, 377px in all. Loading shows a skeleton, with search disabled.
+- It keeps its height in every state: the search row (55px) over a text area of `height` pixels (320 by default), inside a 1px border, 377px in all. Loading shows a skeleton, and the search field is read-only (marked `aria-disabled`, so it keeps focus) until the text arrives.
 - In a box under 400px wide (a sidebar) the timestamp moves onto the speaker line and the text takes the full width.
 - Speaker names come from the transcript's voice tags and show when the speaker changes. Unlabelled speakers ("Speaker A") show no name.
 - A transcript without word timings highlights whole lines. So does one whose timings no longer match the audio (a word outside its line, or lines that run past the end of the audio), which happens when the audio is replaced after transcription.
 - Long transcripts stay light: only the lines near the one in view are in the page, plus the line being spoken and the active match. A 15,000-word transcript keeps well under 300 lines in the DOM.
-- Nothing in it is a live region except the search count, so a screen reader is not interrupted by every word. The line being spoken has `aria-current`.
+- Nothing in it is a live region except the search count, so a screen reader is not interrupted by every word, nor by its loading, error or suspended messages. The line being spoken has `aria-current`. When the area under the search row changes (Try again, a new episode, a suspended show) and focus was in it, focus moves to what replaces it rather than to the page.
 - Under reduced motion it jumps to the line instead of scrolling smoothly. Nothing animates.
 - The transcript is offered only when the audio and the WebVTT are both on a show.fm media host. Otherwise, with `episode` the element renders nothing; following, it says "There’s no transcript for this episode."
 - If the transcript cannot load it says so, with Try again; playback is not affected. A suspended show shows "This show isn’t available right now." An unknown or unpublished `episode` (404) renders nothing and gives back its reserved height.
