@@ -415,6 +415,65 @@ describe('playback error resilience', () => {
 	});
 });
 
+// Values the API must never be trusted with in an href or src.
+const UNSAFE_URLS = [
+	'javascript:alert(1)',
+	' JavaScript:alert(1)',
+	'data:text/html,<script>alert(1)</script>',
+	'/relative/path',
+	'//evil.example/x'
+];
+
+/** Every href and src in `root`, which must all be absolute http(s). */
+function urlsIn(root: ParentNode) {
+	return [...root.querySelectorAll('[href],[src]')].map(
+		(element) => element.getAttribute('href') ?? element.getAttribute('src')
+	);
+}
+
+describe('URLs from the API', () => {
+	it.each(UNSAFE_URLS)('%s never reaches an href or src; the player still renders', (bad) => {
+		const { container } = render(PlayerCore, {
+			props: {
+				episode: makeEpisode({
+					audio: { url: bad, content_type: 'audio/mpeg', duration_seconds: 1843 },
+					artwork: { url: bad },
+					links: { listen: bad }
+				})
+			}
+		});
+		for (const url of urlsIn(container)) expect(url).toMatch(/^https?:\/\//);
+		expect(container.querySelector('img')).toBeNull();
+		// There is no audio to play, so the card says so, with no link out.
+		expect(screen.getByText('This episode can’t be played right now.')).toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: /listen on show\.fm/i })).toBeNull();
+	});
+
+	it('a bad listen link alone leaves the title as text and the player playable', () => {
+		const { container } = render(PlayerCore, {
+			props: { episode: makeEpisode({ links: { listen: 'javascript:alert(1)' } }) }
+		});
+		for (const url of urlsIn(container)) expect(url).toMatch(/^https?:\/\//);
+		expect(screen.getByText('Episode One').closest('a')).not.toHaveAttribute('href');
+		expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+	});
+
+	it('valid https URLs still render', () => {
+		const { container } = render(PlayerCore, { props: { episode: makeEpisode() } });
+		expect(screen.getByRole('link', { name: 'Episode One' })).toHaveAttribute(
+			'href',
+			'https://listen.podcasterplus.com/test-signal/e/episode-one'
+		);
+		expect(container.querySelector('img')).toHaveAttribute(
+			'src',
+			'https://media.podcasterplus.com/cover.jpg'
+		);
+		expect(container.querySelector('audio')!.getAttribute('src')).toMatch(
+			/^https:\/\/media\.podcasterplus\.com\/audio\.mp3\?src=/
+		);
+	});
+});
+
 describe('download & share (redesign additions, full player only)', () => {
 	it('renders a real attachment link: source-tagged URL + dl filename', () => {
 		render(PlayerCore, { props: { episode: makeEpisode() } });

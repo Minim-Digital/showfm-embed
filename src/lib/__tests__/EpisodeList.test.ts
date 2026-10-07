@@ -349,6 +349,39 @@ describe('loading more', () => {
 	});
 });
 
+describe('URLs from the API', () => {
+	it.each([
+		'javascript:alert(1)',
+		'data:text/html,<script>alert(1)</script>',
+		'/relative/path',
+		'//evil.example/x'
+	])('%s never reaches an href or src; the row stays usable', async (bad) => {
+		api.episodes = [
+			episodeItem({ index: 1, title: 'Bad links', audio: bad, artwork: bad }),
+			episodeItem({ index: 2, title: 'Good links' })
+		];
+		api.episodes[0].links.listen = bad;
+		const { root, view, rows } = await mountList();
+		const urls = [...root.querySelectorAll('[href],[src]')].map(
+			(element) => element.getAttribute('href') ?? element.getAttribute('src')
+		);
+		expect(urls.length).toBeGreaterThan(0);
+		for (const url of urls) expect(url).toMatch(/^https?:\/\//);
+		// The bad row keeps its title, as text, and says it can't be played.
+		const [first, second] = rows();
+		expect(within(first).getByText('Bad links')).not.toHaveAttribute('href');
+		expect(first.querySelector('img')).toBeNull();
+		expect(within(first).getByText('This episode can’t be played right now.')).toBeInTheDocument();
+		// The good row is untouched.
+		expect(within(second).getByRole('link', { name: 'Good links' })).toHaveAttribute(
+			'href',
+			api.episodes[1].links.listen
+		);
+		expect(second.querySelector('img')).toHaveAttribute('src', api.episodes[1].artwork.url);
+		expect(view.getAllByRole('button', { name: /^Play: Good links/ })).toHaveLength(1);
+	});
+});
+
 describe('filters', () => {
 	it('season and hide become the API filters, count the page size', async () => {
 		await mountList({ season: '2', hide: 'trailer,bonus', count: '5' });

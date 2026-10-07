@@ -7,6 +7,7 @@
  * Pure: no DOM work at import time. Only the list's chunk imports this, so
  * none of it lands in v1.js.
  */
+import { safeUrl } from './fallback.js';
 import { formatString } from './strings.js';
 import type { ListStrings } from './list-strings.js';
 
@@ -30,7 +31,7 @@ export interface ListEpisode {
 	audio: { url: string | null; content_type?: string | null; duration_seconds: number | null };
 	/** `own` is false when the episode borrows the show's artwork (API, APP-4). */
 	artwork: { url: string | null; own?: boolean };
-	links: { listen: string };
+	links: { listen: string | null };
 	transcript?: { url: string; type?: string } | null;
 }
 
@@ -42,8 +43,28 @@ export interface ListPodcast {
 	brand_color?: string | null;
 	player_color?: string | null;
 	player_theme?: string | null;
-	links?: { listen?: string };
+	links?: { listen?: string | null };
 	branding: { show_powered_by: boolean };
+}
+
+/**
+ * A page of episodes as the list keeps it. Every URL the list renders or
+ * plays (the listen link, the artwork, the audio) passes the http(s)
+ * allow-list first; one that fails becomes null, so its link or image is
+ * left out and the rest of the row still works.
+ */
+export function readEpisodes(data: unknown): ListEpisode[] {
+	return (Array.isArray(data) ? (data as ListEpisode[]) : []).map((episode) => ({
+		...episode,
+		links: { ...episode.links, listen: safeUrl(episode.links?.listen) },
+		artwork: { ...episode.artwork, url: safeUrl(episode.artwork?.url) },
+		audio: { ...episode.audio, url: safeUrl(episode.audio?.url) }
+	}));
+}
+
+/** The podcast as the list keeps it, its listen link through the same allow-list. */
+export function readPodcast(podcast: ListPodcast): ListPodcast {
+	return { ...podcast, links: { listen: safeUrl(podcast.links?.listen) } };
 }
 
 export interface ListPage {

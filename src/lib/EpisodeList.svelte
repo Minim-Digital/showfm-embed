@@ -43,6 +43,8 @@
 		parseSwitch,
 		parseVariant,
 		podcastEndpoint,
+		readEpisodes,
+		readPodcast,
 		resolveLayout,
 		type ListEpisode,
 		type ListPodcast
@@ -194,8 +196,8 @@
 			} else if (show.status !== 'ok' || page.status !== 'ok') {
 				status = 'error';
 			} else {
-				podcastData = show.data;
-				episodes = Array.isArray(page.data) ? page.data : [];
+				podcastData = readPodcast(show.data);
+				episodes = readEpisodes(page.data);
 				cursor = page.nextCursor;
 				pages = 1;
 				ownShare = ownArtworkShare(episodes);
@@ -218,7 +220,7 @@
 		);
 		if (asked !== generation) return;
 		if (page.status === 'ok') {
-			episodes = [...episodes, ...(Array.isArray(page.data) ? page.data : [])];
+			episodes = [...episodes, ...readEpisodes(page.data)];
 			cursor = page.nextCursor;
 			pages += 1;
 			more = 'idle';
@@ -623,9 +625,14 @@
 									>{s.retry}</button
 								>
 							{/if}
-							<a class="link" href={episode.links.listen} target="_blank" rel="noopener noreferrer"
-								>{s.listenOnShowfm}</a
-							>
+							{#if episode.links.listen}
+								<a
+									class="link"
+									href={episode.links.listen}
+									target="_blank"
+									rel="noopener noreferrer">{s.listenOnShowfm}</a
+								>
+							{/if}
 						</div>
 					{/if}
 				</div>

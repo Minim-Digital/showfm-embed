@@ -22,7 +22,9 @@ import {
 	parseSwitch,
 	parseVariant,
 	podcastEndpoint,
+	readEpisodes,
 	readFallbackList,
+	readPodcast,
 	resolveLayout,
 	type ListEpisode
 } from '../episode-list';
@@ -133,6 +135,45 @@ describe('Auto (design page 1)', () => {
 		expect(resolveLayout('grid', 'minimal', GRID_MIN_WIDTH, 0)).toBe('grid');
 		expect(resolveLayout('compact', 'card', 200, 1)).toBe('compact');
 		expect(resolveLayout('list', 'card', 1100, 1)).toBe('list');
+	});
+});
+
+describe('URLs from the API', () => {
+	const bad = [
+		'javascript:alert(1)',
+		' JavaScript:alert(1)',
+		'data:text/html,<script>alert(1)</script>',
+		'/relative/path',
+		'//evil.example/x',
+		'evil.example/x',
+		''
+	];
+
+	it.each(bad)('%j becomes null for the listen link, artwork and audio', (url) => {
+		const [episode] = readEpisodes([
+			{ id: 'e', links: { listen: url }, artwork: { url, own: true }, audio: { url } }
+		]);
+		expect(episode.links.listen).toBeNull();
+		expect(episode.artwork).toEqual({ url: null, own: true });
+		expect(episode.audio.url).toBeNull();
+		expect(readPodcast({ title: 'Show', links: { listen: url } } as never).links).toEqual({
+			listen: null
+		});
+	});
+
+	it('keeps absolute http(s) URLs, trimmed, and the other fields', () => {
+		const url = 'https://show.fm/the-long-table/e/one';
+		const [episode] = readEpisodes([
+			{ id: 'e', title: 'One', links: { listen: ` ${url} ` }, artwork: { url }, audio: { url } }
+		]);
+		expect(episode).toMatchObject({
+			id: 'e',
+			title: 'One',
+			links: { listen: url },
+			artwork: { url },
+			audio: { url }
+		});
+		expect(readEpisodes(null)).toEqual([]);
 	});
 });
 
