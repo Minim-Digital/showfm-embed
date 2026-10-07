@@ -193,6 +193,25 @@ describe('a transcript facade', () => {
 		);
 	});
 
+	it('adds v1.js when an older copy defined the player but not the transcript', async () => {
+		document.body.innerHTML = `<showfm-transcript id="only" episode="${EPISODE}" load="click"></showfm-transcript>`;
+		const real = customElements.get.bind(customElements);
+		const get = vi
+			.spyOn(customElements, 'get')
+			.mockImplementation((name) =>
+				name === 'showfm-player'
+					? (class extends HTMLElement {} as CustomElementConstructor)
+					: real(name)
+			);
+		try {
+			await runLoader();
+			facadeButton(document.getElementById('only')!).click();
+			expect(scripts()).toHaveLength(1);
+		} finally {
+			get.mockRestore();
+		}
+	});
+
 	it('on a page with only a transcript, showfm.load() adds v1.js and marks it', async () => {
 		document.body.innerHTML = `<showfm-transcript id="only" episode="${EPISODE}" load="click"></showfm-transcript>`;
 		await runLoader();

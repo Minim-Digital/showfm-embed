@@ -89,7 +89,7 @@
 			button.setAttribute(BUSY, 'true');
 			if (d.activeElement === button) el.setAttribute(FOCUS, '');
 		}
-		if (!added && !customElements.get('showfm-player')) {
+		if (!added && !customElements.get(el.localName)) {
 			added = true;
 			const tag = d.createElement('script');
 			tag.src = src;
