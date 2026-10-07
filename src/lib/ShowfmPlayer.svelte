@@ -375,7 +375,9 @@
 		<p>{s.suspended}</p>
 	</div>
 {:else if status === 'error'}
-	<div class="fallback">
+	<!-- The notice's card, in the player's colours: the message, then the
+	     snippet's link. -->
+	<div class="notice fallback" class:notice-compact={size === 'compact'} style={look.vars}>
 		<p>{s.error}</p>
 		<!-- Deliberate native <slot> (exception to the no-slots rule): this file
 		     compiles as a custom element (vite.cdn.config.ts), and a shadow-DOM
@@ -556,11 +558,14 @@
 	}
 
 	.fallback {
-		font-family: var(--showfm-font, inherit);
-		font-size: 14px;
-		color: #61646b;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 4px;
 	}
-	.fallback p {
-		margin: 0 0 4px;
+	/* The page's own link styles win over these, as they should. */
+	::slotted(a) {
+		color: var(--pp-accent-text);
+		font-weight: 600;
 	}
 </style>

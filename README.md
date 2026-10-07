@@ -325,6 +325,8 @@ Every element reads the same `--showfm-*` custom properties. Set them on the pag
 
 Colours stay readable whatever is set:
 
+- Every state uses these colours: the loading skeleton, the facade, the error and suspended messages, the blocked note and the empty list as well as the ready element. Elements with no card (the play button and its messages, the Minimal list) sit on the page, so set `--showfm-background` to your page's colour when it is not white, or the theme's dark.
+
 - Every text colour reaches WCAG AA (4.5:1) on each surface it sits on: the card, the tint and the controls. A hook that does not is darkened or lightened until it does, so `--showfm-text`, `--showfm-muted` and `--showfm-accent-text` are preferences, not exact colours. The accent fill, the focus ring and the played waveform reach 3:1 on the card. A pale accent is darkened, as the `accent` attribute always was.
 - A mid-tone `--showfm-surface` is lightened or darkened until text can reach 7:1 on it, which leaves room for the tint and the controls.
 - `--showfm-border` and `--showfm-wave` are decorative and used as written.
