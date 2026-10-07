@@ -1,6 +1,6 @@
 {
 	"name": "@showfm/embed",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "show.fm web components: the embeddable podcast player.",
 	"license": "MIT",
 	"author": "show.fm Ltd",
