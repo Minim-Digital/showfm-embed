@@ -71,7 +71,8 @@ function mix(color: Rgb, target: Rgb, amount: number): Rgb {
 /**
  * Nudge `accent` toward black or white (away from the background) until it
  * reaches `minRatio` against `background`. Falls back to the default purple
- * for unparseable input.
+ * for unparseable input. With no step that reaches it, the pole itself: the
+ * most any colour can reach on that background.
  */
 export function accessibleAccent(
 	accent: string | null | undefined,
@@ -81,8 +82,11 @@ export function accessibleAccent(
 	const parsed = parseHex(accent ?? '') ?? parseHex(DEFAULT_ACCENT)!;
 	const bg = parseHex(background);
 	if (!bg) return toHex(parsed);
-	const bgLuminance = relativeLuminance(bg);
-	const towards: Rgb = bgLuminance > 0.5 ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+	// Towards whichever of black and white contrasts more with the background
+	// (they tie at a luminance of 0.179), so a mid-tone background, such as a
+	// host's --showfm-surface, can still reach the ratio.
+	const towards: Rgb =
+		relativeLuminance(bg) > 0.179 ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
 
 	// step 0 tests the unmodified accent (mix at t=0 is `parsed`); each later
 	// step nudges further toward the pole, which is itself the t=1 fallback.

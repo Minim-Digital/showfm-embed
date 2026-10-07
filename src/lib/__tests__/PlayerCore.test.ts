@@ -612,7 +612,7 @@ describe('accent resolution', () => {
 		const { container } = render(PlayerCore, {
 			props: { episode: makeEpisode(), accent: '#b91c1c' }
 		});
-		expect(playerStyle(container)).toContain('--pp-logo: #7E22CE');
+		expect(playerStyle(container)).toContain('--pp-logo: #7e22ce');
 	});
 });
 

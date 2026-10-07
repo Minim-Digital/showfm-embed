@@ -64,7 +64,7 @@
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
 	import { apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
 	import { pageController, type CreditClaim } from './controller';
-	import { DEFAULT_ACCENT, onAccentColor, parseHex } from './contrast';
+	import { createLook } from './look.svelte';
 	import { languageFromTag, languageTagFor, resolveStrings, type StringOverrides } from './strings';
 	import { loadLocale } from './locales/index';
 
@@ -161,9 +161,13 @@
 	);
 	const waveEnabled = $derived(pinnedWave ?? data?.podcast.player_waveform ?? true);
 	const level = $derived(Number(headingLevel));
-	// Validated before it reaches the style attribute; `0ea5e9` gains its `#`.
-	const facadeAccent = $derived(
-		parseHex(accent) ? `#${accent.trim().replace(/^#/, '')}` : DEFAULT_ACCENT
+	// The skeleton, the facade and the notice take the player's colours: its
+	// theme and accent so far, and the host's colour hooks.
+	const look = createLook(
+		() => hostElement,
+		() => resolvedTheme,
+		() => accent,
+		() => data?.podcast.player_color ?? data?.podcast.brand_color
 	);
 
 	// What this element wants for the page's one credit: null while it may
@@ -322,11 +326,7 @@
 	<!-- load="click": nothing has been requested. The facade knows only the
 	     accent, the size and the reserved height. Pressed, it stays in place
 	     (with a ring) until the player replaces it, so focus is never lost. -->
-	<div
-		class="facade theme-{pinnedTheme ?? 'auto'}"
-		class:facade-compact={size === 'compact'}
-		style="--facade-accent:{facadeAccent};--facade-on-accent:{onAccentColor(facadeAccent)}"
-	>
+	<div class="facade" class:facade-compact={size === 'compact'} style={look.vars}>
 		<div class="facade-row">
 			<button
 				bind:this={facadeButton}
@@ -351,10 +351,11 @@
 	</div>
 {:else if status === 'loading'}
 	<!-- The payload (and with it any show theme default) isn't here yet, so an
-	     unpinned skeleton behaves like auto: prefers-color-scheme via CSS. -->
+	     unpinned skeleton behaves like auto: the visitor's colour scheme. -->
 	<div
-		class="skeleton theme-{pinnedTheme ?? 'auto'}"
+		class="skeleton"
 		class:sk-compact={size === 'compact'}
+		style={look.vars}
 		role="status"
 		aria-label={s.loading}
 	>
@@ -365,8 +366,9 @@
 	<!-- A suspended show: one message, no actions, and visitors are never
 	     told why (design page 5). The light-DOM fallback is not projected. -->
 	<div
-		class="notice theme-{pinnedTheme ?? 'auto'}"
+		class="notice"
 		class:notice-compact={size === 'compact'}
+		style={look.vars}
 		role="status"
 		part="error"
 	>
@@ -397,24 +399,9 @@
 	/* Skeleton min-heights = the UNBRANDED player heights (252/83 — the
 	   smaller variant), so the skeleton never exceeds the min-height the
 	   embed snippet reserves on the host element: no layout shift on load. */
-	.skeleton {
-		box-sizing: border-box;
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		width: 100%;
-		border: 1px solid #e7e5ec;
-		border-radius: 14px;
-		padding: 20px 22px;
-		background: #ffffff;
-		min-height: 252px;
-	}
-	.skeleton.sk-compact {
-		padding: 12px 14px;
-		min-height: 83px;
-		border-radius: 14px;
-	}
-	/* The facade and the suspended notice use the skeleton's box. */
+	/* The facade and the suspended notice use the skeleton's box, in the
+	   player's colours, font and corners. */
+	.skeleton,
 	.facade,
 	.notice {
 		box-sizing: border-box;
@@ -422,41 +409,21 @@
 		align-items: center;
 		gap: 10px;
 		width: 100%;
-		border: 1px solid #e7e5ec;
-		border-radius: 14px;
+		border: 1px solid var(--pp-border);
+		border-radius: clamp(0px, var(--showfm-radius, 14px), 28px);
 		padding: 20px 22px;
-		background: #ffffff;
+		background: var(--pp-bg);
 		min-height: 252px;
-		font-family:
-			'Geist',
-			ui-sans-serif,
-			system-ui,
-			-apple-system,
-			'Segoe UI',
-			Roboto,
-			sans-serif;
+		font-family: var(--showfm-font, inherit);
 		font-size: 14px;
 		line-height: 1.4;
-		color: #2b2833;
+		color: var(--pp-fg-strong);
 	}
-	.facade.facade-compact,
-	.notice.notice-compact {
+	.sk-compact,
+	.facade-compact,
+	.notice-compact {
 		padding: 12px 14px;
 		min-height: 83px;
-	}
-	@media (prefers-color-scheme: dark) {
-		.skeleton.theme-auto,
-		.theme-auto {
-			background: #17151f;
-			border-color: rgba(255, 255, 255, 0.1);
-			color: #ecebf0;
-		}
-	}
-	.skeleton.theme-dark,
-	.theme-dark {
-		background: #17151f;
-		border-color: rgba(255, 255, 255, 0.1);
-		color: #ecebf0;
 	}
 	.pulse {
 		background: rgba(128, 128, 128, 0.2);
@@ -518,8 +485,8 @@
 		padding: 0 0 0 2px;
 		border: 0;
 		border-radius: 9999px;
-		background: var(--facade-accent);
-		color: var(--facade-on-accent);
+		background: var(--pp-accent);
+		color: var(--pp-accent-fg);
 		cursor: pointer;
 	}
 	.facade-compact .facade-play {
@@ -527,7 +494,7 @@
 		height: 34px;
 	}
 	.facade-play:focus-visible {
-		outline: 2px solid var(--facade-accent);
+		outline: 2px solid var(--pp-focus);
 		outline-offset: 2px;
 	}
 	.facade-play[aria-busy='true']::after {
@@ -535,7 +502,7 @@
 		position: absolute;
 		inset: -4px;
 		border: 2px solid transparent;
-		border-top-color: var(--facade-accent);
+		border-top-color: var(--pp-accent);
 		border-radius: 9999px;
 		animation: facade-spin 0.9s linear infinite;
 	}
@@ -567,7 +534,7 @@
 	}
 	.facade-meta {
 		font-size: 13px;
-		opacity: 0.75;
+		color: var(--pp-muted);
 	}
 	.facade-compact .facade-meta {
 		font-size: 11.5px;
@@ -576,21 +543,20 @@
 	.facade-bar {
 		height: 3px;
 		border-radius: 3px;
-		background: currentColor;
-		opacity: 0.15;
+		background: var(--pp-wave-track);
 	}
 
 	/* ── suspended show ──────────────────────── */
 	.notice p {
 		margin: 0;
-		opacity: 0.75;
+		color: var(--pp-muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
 	.fallback {
-		font-family: system-ui, sans-serif;
+		font-family: var(--showfm-font, inherit);
 		font-size: 14px;
 		color: #61646b;
 	}

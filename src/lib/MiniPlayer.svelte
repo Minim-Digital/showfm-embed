@@ -13,7 +13,9 @@
 	  the way back; Close stops playback and hides it until the next play.
 	- Mobile (640px and under): a floating 64px bar with the title on one
 	  line. Expand opens a sheet (a modal dialog) with the full controls.
-	- --showfm-bottom-offset lifts it above a cookie bar or chat bubble.
+	- The `--showfm-*` hooks apply, also when set on the element that opened it
+	  (copied over). --showfm-bottom-offset lifts it above a cookie bar or chat
+	  bubble.
 	- Suspended mid-listen: playback stops, the title and artwork stay, the
 	  controls give way to the message and only Close remains.
 	- "Powered by show.fm" shows here when the page has no earlier embed
@@ -34,8 +36,8 @@
 		type SharedMessage
 	} from './controller';
 	import { MARKETING_APEX_URL, isShowfmMediaUrl, mediaHosts } from './hosts';
-	import { paletteVars, resolvePalette } from './palette';
-	import { accessibleAccent, DEFAULT_ACCENT, parseHex } from './contrast';
+	import { createLook } from './look.svelte';
+	import { STYLE_HOOKS } from './style-hooks';
 	import { drawWave, genPeaks } from './waveform';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
@@ -60,7 +62,6 @@
 	let open = $state(false);
 	let collapsed = $state(false);
 	let sheet = $state(false);
-	let systemDark = $state(false);
 	let localesLoaded = $state(0);
 	let announcement = $state('');
 	let creditClaim = $state<CreditClaim | null>(null);
@@ -106,12 +107,19 @@
 			if (active && !host.contains(active) && !host.shadowRoot?.contains(active)) {
 				returnTo = active;
 			}
-			// The offset can be set on the element that opened it, not only on
-			// the page. Each opener's own, or none: not the last opener's.
-			const offset =
-				from && getComputedStyle(from).getPropertyValue('--showfm-bottom-offset').trim();
-			if (offset) host.style.setProperty('--showfm-bottom-offset', offset);
-			else host.style.removeProperty('--showfm-bottom-offset');
+			// The hooks can be set on the element that opened it, not only on
+			// the page: each opener's own, or none (not the last opener's). Only
+			// where they differ from the page's, so a hook on :root that changes
+			// later (a site's dark mode) still reaches the mini-player.
+			for (const name of STYLE_HOOKS) host.style.removeProperty(name);
+			if (from) {
+				const page = getComputedStyle(host);
+				const theirs = getComputedStyle(from);
+				for (const name of STYLE_HOOKS) {
+					const value = theirs.getPropertyValue(name);
+					if (value !== page.getPropertyValue(name)) host.style.setProperty(name, value);
+				}
+			}
 			sync();
 		});
 	});
@@ -285,29 +293,16 @@
 			current = false;
 		};
 	});
-	$effect(() => {
-		if (!window.matchMedia) return;
-		const query = window.matchMedia('(prefers-color-scheme: dark)');
-		systemDark = query.matches;
-		const onChange = (event: MediaQueryListEvent) => (systemDark = event.matches);
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
-	// A pinned theme from the element that started the episode, else auto.
-	const theme = $derived(
-		episode?.theme === 'light' || episode?.theme === 'dark' ? episode.theme : 'auto'
+	// A pinned theme and the accent from the element that started the
+	// episode (which already ranked its own --showfm-accent), else auto and
+	// the hooks carried over from it.
+	const look = createLook(
+		() => root,
+		() => episode?.theme,
+		() => episode?.accent,
+		() => undefined
 	);
-	const dark = $derived(theme === 'dark' || (theme === 'auto' && systemDark));
-	const palette = $derived(
-		resolvePalette(
-			parseHex(episode?.accent ?? '') ? episode!.accent : DEFAULT_ACCENT,
-			dark ? 'dark' : 'light'
-		)
-	);
-	const cssVars = $derived(
-		`${paletteVars(palette)};--pp-accent-text:${accessibleAccent(palette.accent, palette.bg, 4.5)};--pp-wave-track:${palette.waveTrack}`
-	);
+	const palette = $derived(look.palette);
 
 	// "Powered by show.fm" once per page: the mini-player sits at the end of
 	// the body, so any embed above it that shows the credit comes first.
@@ -331,7 +326,7 @@
 		if (!canvas || !episode) return;
 		drawWave(canvas, {
 			progress: total > 0 ? time / total : 0,
-			played: palette.accent,
+			played: palette.wave,
 			track: palette.waveTrack,
 			knobRing: palette.bg,
 			compact: true,
@@ -381,7 +376,7 @@
 	A message (suspended, can't be played) takes the transport's place and
 	leaves only Close.
 -->
-<div class="mini pos-{position}" style={cssVars} lang={languageTag ?? undefined} bind:this={root}>
+<div class="mini pos-{position}" style={look.vars} lang={languageTag ?? undefined} bind:this={root}>
 	{#if open && episode}
 		{#if sheet}
 			<!-- A pointer's way out; Escape is the keyboard's (onSheetKey). -->

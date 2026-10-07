@@ -22,8 +22,7 @@
 	import { apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
 	import { pageController, type ControllerEpisode, type SharedMessage } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
-	import { paletteVars, resolvePalette } from './palette';
-	import { accessibleAccent, DEFAULT_ACCENT, parseHex } from './contrast';
+	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
 	import { resolvePlayStrings } from './play-strings';
@@ -73,7 +72,6 @@
 	let phase = $state<ButtonState>('idle');
 	let time = $state(0);
 	let duration = $state(0);
-	let systemDark = $state(false);
 	let localesLoaded = $state(0);
 	let announcement = $state('');
 	let root = $state<HTMLElement | null>(null);
@@ -104,17 +102,15 @@
 			(value) => value === 'light' || value === 'dark' || value === 'auto'
 		) ?? 'auto'
 	);
-	const dark = $derived(theme === 'dark' || (theme === 'auto' && systemDark));
-	// `0ea5e9` and `#0ea5e9` both work; anything else follows the show.
-	const accent = $derived(
-		(parseHex(attr('accent')) ? attr('accent') : null) ??
-			data?.podcast.player_color ??
-			data?.podcast.brand_color ??
-			DEFAULT_ACCENT
-	);
-	const palette = $derived(resolvePalette(accent, dark ? 'dark' : 'light'));
-	const cssVars = $derived(
-		`${paletteVars(palette)};--pp-accent-text:${accessibleAccent(palette.accent, palette.bg, 4.5)}`
+	// `0ea5e9` and `#0ea5e9` both work; anything else follows the host's
+	// --showfm-accent, then the show. The button has no card: it sits on the
+	// page, so --showfm-background is its surface.
+	const look = createLook(
+		() => root,
+		() => theme,
+		() => attr('accent'),
+		() => data?.podcast.player_color ?? data?.podcast.brand_color,
+		() => true
 	);
 
 	// The button shows no credit itself: it rides with the episode to the
@@ -205,14 +201,6 @@
 			current = false;
 		};
 	});
-	$effect(() => {
-		if (theme !== 'auto' || !window.matchMedia) return;
-		const query = window.matchMedia('(prefers-color-scheme: dark)');
-		systemDark = query.matches;
-		const onChange = (event: MediaQueryListEvent) => (systemDark = event.matches);
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
 
 	// ── playback ───────────────────────────────────────────────────────
 	// The button follows the page's shared audio whenever it holds this
@@ -273,7 +261,7 @@
 				...episode,
 				podcastTitle: episode.podcast.title,
 				artworkUrl: episode.artwork.url,
-				accent,
+				accent: look.accent,
 				theme,
 				credit: wantsCredit
 			};
@@ -401,7 +389,7 @@
 	>
 {/snippet}
 
-<span class="root v-{variant} s-{size}" style={cssVars} bind:this={root}>
+<span class="root v-{variant} s-{size}" style={look.vars} bind:this={root}>
 	{#if shown && shown !== 'blocked' && !quietRetry}
 		<!-- The message in the button's place: a status line in the host's
 		     font and colour, or for the icon a quiet mark that is not a tab stop. -->

@@ -17,6 +17,11 @@
  * "Powered by show.fm" shows once per page (1.1), so each player that is
  * measured is alone on its page. The audio is on a show.fm media host, so
  * the full player carries its Download button as it does in production.
+ *
+ * Since 1.4 the player takes the page's font (decision 5), so the contract
+ * is measured in four host fonts (fonts.ts): the platform's UI font, Geist,
+ * a wide serif and a narrow sans, through the page's font and through
+ * --showfm-font. Pages never change these heights.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +29,15 @@ import { expect, test, type Page } from '@playwright/test';
 import { PLAYER_MIN_HEIGHTS } from '../../src/lib/heights';
 import { STRING_TABLES } from '../../src/lib/string-tables';
 import { episodePayload } from '../fixtures/episode';
+import {
+	HOST_FONTS,
+	family,
+	fontFaces,
+	fontFile,
+	fontsLoaded,
+	hostFontHead,
+	type HostFont
+} from './fonts';
 
 const PAGE_ORIGIN = 'https://host.example.test';
 const API_ORIGIN = 'https://api.example.test';
@@ -39,26 +53,12 @@ const PNG = Buffer.from(
 
 type Api = 'ok' | 'pending' | 'fail' | 'not-found' | 'suspended' | 'no-audio' | 'external';
 
-// Geist, the player's first-choice font, for the string width checks (OFL).
-const GEIST = (weight: number) =>
-	readFileSync(
-		fileURLToPath(
-			new URL(
-				`../../node_modules/@fontsource/geist-sans/files/geist-sans-latin-${weight}-normal.woff2`,
-				import.meta.url
-			)
-		)
-	);
-const GEIST_FACES = [400, 500, 600, 700]
-	.map((w) => `@font-face{font-family:Geist;font-weight:${w};src:url(/fonts/geist-${w}.woff2)}`)
-	.join('');
-
 /** Serves a host page, v1.js and a tiny mock of the public API. */
 async function serve(
 	page: Page,
 	body: string,
 	api: Api = 'ok',
-	{ width = 640, geist = false }: { width?: number; geist?: boolean } = {}
+	{ width = 640, font, head = '' }: { width?: number; font?: HostFont; head?: string } = {}
 ) {
 	locales.length = 0;
 	await page.route(`${PAGE_ORIGIN}/**`, (route) => {
@@ -77,11 +77,11 @@ async function serve(
 				contentType: 'text/javascript'
 			});
 		}
-		const font = /^\/fonts\/geist-(\d+)\.woff2$/.exec(path);
-		if (font) return route.fulfill({ body: GEIST(Number(font[1])), contentType: 'font/woff2' });
+		const file = fontFile(path);
+		if (file) return route.fulfill({ body: file, contentType: 'font/woff2' });
 		return route.fulfill({
 			contentType: 'text/html',
-			body: `<!doctype html><html><head><meta charset="utf-8"><style>${geist ? GEIST_FACES : ''}body{margin:0;padding:24px;width:${width}px}</style></head><body>${body}<script src="/player/v1.js"></script></body></html>`
+			body: `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:24px;width:${width}px}</style>${font ? hostFontHead(font) : ''}${head}</head><body>${body}<script src="/player/v1.js"></script></body></html>`
 		});
 	});
 	await page.route(`${API_ORIGIN}/**`, (route) => {
@@ -142,7 +142,11 @@ const VARIANTS = [
 ] as const;
 
 /** Each player alone on its page, bare and with the snippet's reservation. */
-async function measureContract(page: Page, tag: string, extra = '') {
+async function measureContract(
+	page: Page,
+	tag: string,
+	{ extra = '', font, head = '' }: { extra?: string; font?: HostFont; head?: string } = {}
+) {
 	const bare = { standard: { branded: 0, unbranded: 0 }, compact: { branded: 0, unbranded: 0 } };
 	const withReservation = structuredClone(bare);
 	for (const [id, size] of VARIANTS) {
@@ -151,9 +155,10 @@ async function measureContract(page: Page, tag: string, extra = '') {
 				` api=`,
 				`${extra} api=`
 			);
-			await serve(page, html);
+			await serve(page, html, 'ok', { font, head });
 			await expect(page.locator('[part="container"]')).toHaveCount(1);
 			await expect(page.locator('[part="footer"]')).toHaveCount(id === BRANDED_ID ? 1 : 0);
+			if (font) expect(await fontsLoaded(page, font)).toBe(true);
 			await page.evaluate(() => document.fonts.ready);
 			const height = await heightOf(page, tag);
 			(reservedHeight ? withReservation : bare)[size][brandOf(id)] = height;
@@ -161,6 +166,10 @@ async function measureContract(page: Page, tag: string, extra = '') {
 	}
 	return { bare, withReservation };
 }
+
+/** The font the player's title is drawn in. */
+const titleFont = (page: Page) =>
+	page.locator('[part="title"]').evaluate((title) => getComputedStyle(title).fontFamily);
 
 for (const tag of ['showfm-player', 'podcasterplus-player']) {
 	test(`<${tag}> renders the four contract heights`, async ({ page }) => {
@@ -174,12 +183,42 @@ for (const tag of ['showfm-player', 'podcasterplus-player']) {
 	});
 }
 
+// Decision 5: the player is drawn in the host's font, so the contract has to
+// hold in any of them. These are the extremes.
+for (const font of HOST_FONTS) {
+	test(`the four contract heights hold in the host's font: ${font}`, async ({ page }) => {
+		const { bare, withReservation } = await measureContract(page, 'showfm-player', { font });
+		console.log(`${font}: rendered ${JSON.stringify(bare)}`);
+		expect(await titleFont(page)).toBe(family(font));
+		expect(roundUp(bare)).toEqual(PLAYER_MIN_HEIGHTS);
+		expect(withReservation).toEqual(PLAYER_MIN_HEIGHTS);
+	});
+}
+
+test('--showfm-font and --showfm-font-title keep the four contract heights', async ({ page }) => {
+	// The page is in the platform font; the hooks pick a narrow sans for the
+	// player and a wide serif for its title.
+	const head = `<style>${fontFaces('oswald')}${fontFaces('merriweather')}:root{--showfm-font:'Oswald';--showfm-font-title:'Merriweather'}</style>`;
+	const { bare, withReservation } = await measureContract(page, 'showfm-player', {
+		font: 'system',
+		head
+	});
+	expect(await fontsLoaded(page, 'oswald')).toBe(true);
+	expect(await fontsLoaded(page, 'merriweather')).toBe(true);
+	expect(await titleFont(page)).toBe('Merriweather');
+	expect(
+		await page
+			.locator('[part="container"]')
+			.evaluate((player) => getComputedStyle(player).fontFamily)
+	).toBe('Oswald');
+	expect(roundUp(bare)).toEqual(PLAYER_MIN_HEIGHTS);
+	expect(withReservation).toEqual(PLAYER_MIN_HEIGHTS);
+});
+
 test('heading-level keeps the four contract heights', async ({ page }) => {
-	const { bare, withReservation } = await measureContract(
-		page,
-		'showfm-player',
-		' heading-level="3"'
-	);
+	const { bare, withReservation } = await measureContract(page, 'showfm-player', {
+		extra: ' heading-level="3"'
+	});
 	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(1);
 	expect(roundUp(bare)).toEqual(PLAYER_MIN_HEIGHTS);
 	expect(withReservation).toEqual(PLAYER_MIN_HEIGHTS);
@@ -310,7 +349,7 @@ for (const lang of ['en', 'de', 'fr']) {
 	}) => {
 		const compact = (id: string) =>
 			`<showfm-player id="${id}" lang="${lang}" episode="${BRANDED_ID}" size="compact" api="${API_ORIGIN}"></showfm-player>`;
-		await serve(page, compact('error'), 'no-audio', { width: 320, geist: true });
+		await serve(page, compact('error'), 'no-audio', { width: 320, font: 'geist' });
 		const strings = STRING_TABLES[lang as keyof typeof STRING_TABLES];
 		const error = page.locator('#error [part="error"] p');
 		// German and French arrive as a locale chunk: wait for the language.
@@ -326,7 +365,7 @@ for (const lang of ['en', 'de', 'fr']) {
 		expect(await error.evaluate(fitsOneLine, lineHeight)).toBe(true);
 
 		// The blocked card: the browser refuses play().
-		await serve(page, compact('blocked'), 'ok', { width: 320, geist: true });
+		await serve(page, compact('blocked'), 'ok', { width: 320, font: 'geist' });
 		await page.evaluate(() => {
 			HTMLMediaElement.prototype.play = () =>
 				Promise.reject(new DOMException('blocked', 'NotAllowedError'));
@@ -337,7 +376,7 @@ for (const lang of ['en', 'de', 'fr']) {
 		await page.evaluate(() => document.fonts.load('14px Geist'));
 		expect(await blocked.evaluate(fitsOneLine, lineHeight)).toBe(true);
 
-		await serve(page, compact('suspended'), 'suspended', { width: 320, geist: true });
+		await serve(page, compact('suspended'), 'suspended', { width: 320, font: 'geist' });
 		const suspended = page.locator('#suspended [part="error"] p');
 		await expect(suspended).toHaveText(strings.suspended);
 		await page.evaluate(() => document.fonts.load('14px Geist'));

@@ -68,8 +68,10 @@ jobs:
       - name: Browser measurements (contract heights)
         run: pnpm test:browser
 
+      # Always: test-results/ holds the screenshots of every element at each
+      # width, theme and font (tests/browser/hooks.spec.ts), for review.
       - name: Upload the Playwright report
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report

@@ -280,7 +280,7 @@ describe('the transcript option (design page 3.1 A)', () => {
 		expect(container.querySelector('.tr')).toBeNull();
 	});
 
-	it('keeps the accent text at 4.5:1 when the player’s accent or theme changes', async () => {
+	it('inherits the player’s colours, whose accent text stays 4.5:1 as its accent or theme changes', async () => {
 		const { container, rerender } = render(PlayerCore, {
 			props: { episode: withTranscript(), transcript: 'open', theme: 'light', accent: '#7E22CE' }
 		});
@@ -288,12 +288,10 @@ describe('the transcript option (design page 3.1 A)', () => {
 		await vi.waitFor(() => expect(panel.shadowRoot?.querySelector('.line')).toBeTruthy(), {
 			timeout: 10_000
 		});
-		const text = () =>
-			panel
-				.shadowRoot!.querySelector<HTMLElement>('.tr')!
-				.style.getPropertyValue('--pp-accent-text')
-				.trim();
+		// The transcript sets no colours of its own: they come from the player.
+		expect(panel.shadowRoot!.querySelector('.tr')!.getAttribute('style')).toBeNull();
 		const player = container.querySelector<HTMLElement>('.player')!;
+		const text = () => player.style.getPropertyValue('--pp-accent-text').trim();
 		const ratio = () => {
 			const bg = player.style.getPropertyValue('--pp-bg').trim();
 			const accent = player.style.getPropertyValue('--pp-accent').trim();

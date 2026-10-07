@@ -13,6 +13,7 @@ import {
 	conversationVtt,
 	transcriptEpisode
 } from '../fixtures/transcript';
+import { fontFile } from './fonts';
 
 export const PAGE_ORIGIN = 'https://host.example.test';
 export const API_ORIGIN = 'https://api.example.test';
@@ -49,6 +50,8 @@ export interface TranscriptPage {
 	script?: string;
 	/** The page's language. */
 	lang?: string;
+	/** Extra markup for the head. */
+	head?: string;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -68,6 +71,7 @@ export async function serveTranscript(
 		gate,
 		repeat = 1,
 		lang = 'en',
+		head = '',
 		script = '<script src="/player/v1.js"></script>'
 	}: TranscriptPage = {}
 ) {
@@ -91,9 +95,11 @@ export async function serveTranscript(
 				contentType: file.endsWith('.css') ? 'text/css' : 'text/javascript'
 			});
 		}
+		const font = fontFile(path);
+		if (font) return route.fulfill({ body: font, contentType: 'font/woff2' });
 		return route.fulfill({
 			contentType: 'text/html',
-			body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="/player/v1-fallback.css"><style>body{margin:0;padding:0 16px;width:${width}px;font:16px/1.5 system-ui,sans-serif}</style></head><body>${body}<p id="after">After the transcript</p>${script}</body></html>`
+			body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="/player/v1-fallback.css"><style>body{margin:0;padding:0 16px;width:${width}px;font:16px/1.5 system-ui,sans-serif}</style>${head}</head><body>${body}<p id="after">After the transcript</p>${script}</body></html>`
 		});
 	});
 	await page.route(`${API_ORIGIN}/**`, (route) => {

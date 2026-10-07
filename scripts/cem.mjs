@@ -257,6 +257,154 @@ const TRANSCRIPT_PART_DESCRIPTIONS = {
 };
 
 /**
+ * The `--showfm-*` styling hooks (README "Styling hooks"; the names are
+ * STYLE_HOOKS in src/lib/style-hooks.ts, which a test holds this to). `on`
+ * says which elements read each; the mini-player takes those of the element
+ * that opens it.
+ * @type {{ name: string, syntax: string, default?: string, on: ('player' | 'episodes' | 'play' | 'transcript')[], description: string }[]}
+ */
+export const STYLE_HOOK_DESCRIPTIONS = [
+	{
+		name: '--showfm-accent',
+		syntax: '<color>',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			"The accent, one colour in. The fill (3:1 on the card), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+	},
+	{
+		name: '--showfm-accent-text',
+		syntax: '<color>',
+		default: 'derived from the accent',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			'Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls.'
+	},
+	{
+		name: '--showfm-surface',
+		syntax: '<color>',
+		default: "the theme's (#ffffff or #17151f)",
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			'The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it.'
+	},
+	{
+		name: '--showfm-background',
+		syntax: '<color>',
+		default: 'var(--showfm-surface)',
+		on: ['episodes', 'play'],
+		description:
+			"The page's colour behind elements with no card of their own (the Minimal list, the play button). Their text colours are derived from it."
+	},
+	{
+		name: '--showfm-text',
+		syntax: '<color>',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			'Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on.'
+	},
+	{
+		name: '--showfm-muted',
+		syntax: '<color>',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			'Secondary text: dates, times, "Powered by". Adjusted until it reaches 4.5:1 on every surface it sits on.'
+	},
+	{
+		name: '--showfm-border',
+		syntax: '<color>',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description: 'Card borders and dividers. Decorative, so it is used as written.'
+	},
+	{
+		name: '--showfm-wave',
+		syntax: '<color>',
+		on: ['player', 'episodes', 'play'],
+		description: 'The unplayed waveform bars. Decorative, so it is used as written.'
+	},
+	{
+		name: '--showfm-wave-played',
+		syntax: '<color>',
+		default: 'the accent fill',
+		on: ['player', 'episodes', 'play'],
+		description: 'The played part of the waveform. Adjusted until it reaches 3:1 on the card.'
+	},
+	{
+		name: '--showfm-focus',
+		syntax: '<color>',
+		default: 'the accent text',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description: 'The keyboard focus ring. Adjusted until it reaches 3:1 on the card.'
+	},
+	{
+		name: '--showfm-font',
+		syntax: '<family-name>#',
+		default: 'inherit',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			"The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+	},
+	{
+		name: '--showfm-font-title',
+		syntax: '<family-name>#',
+		default: 'var(--showfm-font)',
+		on: ['player', 'episodes', 'play'],
+		description: 'Episode titles only.'
+	},
+	{
+		name: '--showfm-font-scale',
+		syntax: '<number>',
+		default: '1',
+		on: ['episodes', 'transcript'],
+		description:
+			"Scales the list's type and the transcript's lines, 0.85 to 1.3. The player, the play button and the mini-player keep their sizes, which their fixed heights need."
+	},
+	{
+		name: '--showfm-radius',
+		syntax: '<length>',
+		default: '14px',
+		on: ['player', 'episodes', 'play', 'transcript'],
+		description:
+			"Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+	},
+	{
+		name: '--showfm-space',
+		syntax: '<number>',
+		default: '1',
+		on: ['episodes'],
+		description: "The list's spacing, 0.85 to 1.4, held there so tap targets keep their size."
+	},
+	{
+		name: '--showfm-bottom-offset',
+		syntax: '<length>',
+		default: '0px',
+		on: ['episodes', 'play'],
+		description:
+			'Lifts the mini-player this element opens above a cookie bar or chat bubble. Set it here or on the page.'
+	},
+	{
+		name: '--showfm-height',
+		syntax: '<length>',
+		default: '0',
+		on: ['episodes', 'transcript'],
+		description:
+			"The height to reserve before the element loads. A list keeps it as its minimum height; a transcript's fallback text scrolls inside it."
+	}
+];
+
+/**
+ * The hooks one element reads, for its manifest entry.
+ * @param {'player' | 'episodes' | 'play' | 'transcript'} element
+ */
+function cssPropertiesOf(element) {
+	return STYLE_HOOK_DESCRIPTIONS.filter((hook) => hook.on.includes(element)).map((hook) => ({
+		name: hook.name,
+		syntax: hook.syntax,
+		...(hook.default ? { default: hook.default } : {}),
+		description: hook.description
+	}));
+}
+
+/**
  * Attribute names from the <svelte:options customElement> props block.
  * @param {string} source
  */
@@ -377,6 +525,7 @@ export function buildManifest() {
 					'Fallback content: a title link and a plain audio control (renderEpisodeHTML). It shows before the element upgrades, without JavaScript, and when the episode cannot be played. A 404 hides it with the element.'
 			}
 		],
+		cssProperties: cssPropertiesOf('player'),
 		cssParts: parts.map((name) => ({ name, description: PART_DESCRIPTIONS[name] }))
 	};
 
@@ -424,14 +573,7 @@ export function buildManifest() {
 								description: ATTRIBUTES.strings.description
 							}
 						],
-						cssProperties: [
-							{
-								name: '--showfm-height',
-								description:
-									'The height to reserve before the list loads. The list keeps it as its minimum height.',
-								default: '0'
-							}
-						],
+						cssProperties: cssPropertiesOf('episodes'),
 						cssParts: listParts.map((name) => ({ name, description: LIST_PART_DESCRIPTIONS[name] }))
 					},
 					{
@@ -450,14 +592,7 @@ export function buildManifest() {
 								description: ATTRIBUTES.strings.description
 							}
 						],
-						cssProperties: [
-							{
-								name: '--showfm-bottom-offset',
-								description:
-									'Lifts the mini-player this button opens above a cookie bar or chat bubble. Set it here or on the page.',
-								default: '0px'
-							}
-						],
+						cssProperties: cssPropertiesOf('play'),
 						cssParts: playParts.map((name) => ({ name, description: PLAY_PART_DESCRIPTIONS[name] }))
 					},
 					{
@@ -476,14 +611,7 @@ export function buildManifest() {
 								description: ATTRIBUTES.strings.description
 							}
 						],
-						cssProperties: [
-							{
-								name: '--showfm-height',
-								description:
-									'The height to reserve before the transcript loads; its fallback text scrolls inside it.',
-								default: '0'
-							}
-						],
+						cssProperties: cssPropertiesOf('transcript'),
 						cssParts: transcriptParts.map((name) => ({
 							name,
 							description: TRANSCRIPT_PART_DESCRIPTIONS[name]

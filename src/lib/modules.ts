@@ -21,8 +21,9 @@ export {
 	onAccentColor,
 	parseHex
 } from './contrast.js';
-export { paletteVars, resolvePalette } from './palette.js';
-export type { PlayerPalette, ResolvedTheme } from './palette.js';
+export { COLOUR_HOOKS, paletteVars, resolvePalette } from './palette.js';
+export type { ColourHook, ColourHooks, PlayerPalette, ResolvedTheme } from './palette.js';
+export { STYLE_HOOKS } from './style-hooks.js';
 export { drawWave, genPeaks } from './waveform.js';
 export type { WaveDrawOptions } from './waveform.js';
 export { downloadFilename, downloadHref } from './download.js';

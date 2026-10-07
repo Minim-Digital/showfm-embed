@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page, Route } from '@playwright/test';
 import { listPage, podcastPayload, sampleEpisodes, type EpisodeItem } from '../fixtures/episodes';
+import { fontFile } from './fonts';
 
 export const PAGE_ORIGIN = 'https://host.example.test';
 export const API_ORIGIN = 'https://api.example.test';
@@ -103,6 +104,8 @@ export async function serveList(
 				contentType: file.endsWith('.css') ? 'text/css' : 'text/javascript'
 			});
 		}
+		const font = fontFile(path);
+		if (font) return route.fulfill({ body: font, contentType: 'font/woff2' });
 		return route.fulfill({
 			contentType: 'text/html',
 			headers: csp ? { 'content-security-policy': csp } : {},

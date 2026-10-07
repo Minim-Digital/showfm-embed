@@ -22,8 +22,7 @@
 	import { apiGet, episodeEndpoint } from './api';
 	import { pageController, type CreditClaim, type PlaybackSnapshot } from './controller';
 	import { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts';
-	import { paletteVars, resolvePalette } from './palette';
-	import { accessibleAccent, DEFAULT_ACCENT, mixHex, parseHex } from './contrast';
+	import { createLook } from './look.svelte';
 	import { drawWave, genPeaks } from './waveform';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
@@ -90,7 +89,6 @@
 	let ownShare = $state(0);
 	let reload = $state(0);
 	let width = $state(0);
-	let systemDark = $state(false);
 	let localesLoaded = $state(0);
 	let announcement = $state('');
 	let expanded = $state<Record<string, boolean>>({});
@@ -140,22 +138,17 @@
 			(value) => value === 'light' || value === 'dark' || value === 'auto'
 		) ?? 'auto'
 	);
-	const dark = $derived(theme === 'dark' || (theme === 'auto' && systemDark));
-	// `0ea5e9` and `#0ea5e9` both work; anything else follows the show.
-	const accent = $derived(
-		(parseHex(attr('accent')) ? attr('accent') : null) ??
-			podcastData?.player_color ??
-			podcastData?.brand_color ??
-			DEFAULT_ACCENT
+	// `0ea5e9` and `#0ea5e9` both work; anything else follows the host's
+	// --showfm-accent, then the show. Minimal has no card: it sits on the
+	// page, so --showfm-background is its surface.
+	const look = createLook(
+		() => container,
+		() => theme,
+		() => attr('accent'),
+		() => podcastData?.player_color ?? podcastData?.brand_color,
+		() => minimal
 	);
-	const palette = $derived(resolvePalette(accent, dark ? 'dark' : 'light'));
-	// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
-	const accentText = $derived(
-		accessibleAccent(palette.accent, dark ? mixHex(palette.bg, '#ffffff', 0.07) : palette.tint, 4.5)
-	);
-	const cssVars = $derived(
-		`${paletteVars(palette)};--pp-accent-text:${accentText};--pp-wave-track:${palette.waveTrack}`
-	);
+	const palette = $derived(look.palette);
 	const showTitle = $derived(podcastData?.title ?? '');
 
 	const wantsCredit = $derived<boolean | null>(
@@ -260,14 +253,6 @@
 			current = false;
 		};
 	});
-	$effect(() => {
-		if (theme !== 'auto' || !window.matchMedia) return;
-		const query = window.matchMedia('(prefers-color-scheme: dark)');
-		systemDark = query.matches;
-		const onChange = (event: MediaQueryListEvent) => (systemDark = event.matches);
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
 	// Auto and the narrow fallback read the element's own width.
 	$effect(() => {
 		if (typeof ResizeObserver === 'undefined') return;
@@ -365,7 +350,7 @@
 					...episode,
 					podcastTitle: podcastData?.title,
 					artworkUrl: episode.artwork?.url,
-					accent,
+					accent: look.accent,
 					theme,
 					credit: wantsCredit
 				},
@@ -547,7 +532,7 @@
 		void waveTick;
 		drawWave(canvas, {
 			progress: playback.duration > 0 ? playback.time / playback.duration : 0,
-			played: palette.accent,
+			played: palette.wave,
 			track: palette.waveTrack,
 			knobRing: palette.bg,
 			compact: false,
@@ -735,7 +720,7 @@
 <div
 	class="list v-{variant} l-{layout}"
 	class:narrow={width > 0 && width < 480}
-	style={cssVars}
+	style={look.vars}
 	bind:this={container}
 >
 	{#if status === 'loading'}
