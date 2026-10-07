@@ -12,6 +12,12 @@
 		"gzip": true
 	},
 	{
+		"name": "dist/cdn/chunks/play-*.js (the play button and the page's mini-player, loaded by v1.js when a <showfm-play> or a mini-player appears, gzipped)",
+		"path": "dist/cdn/chunks/play-*.js",
+		"limit": "10 KB",
+		"gzip": true
+	},
+	{
 		"name": "dist/cdn/locales/de.js (loaded only for German, gzipped)",
 		"path": "dist/cdn/locales/de.js",
 		"limit": "1.5 KB",
@@ -26,14 +32,14 @@
 	{
 		"name": "dist/cdn/click-loader.js (pasted inline, so measured as written)",
 		"path": "dist/cdn/click-loader.js",
-		"limit": "4.5 KB",
+		"limit": "4.7 KB",
 		"gzip": false,
 		"brotli": false
 	},
 	{
 		"name": "dist/cdn/click-loader.js (gzipped)",
 		"path": "dist/cdn/click-loader.js",
-		"limit": "2.2 KB",
+		"limit": "2.3 KB",
 		"gzip": true
 	},
 	{

@@ -1,8 +1,8 @@
 /**
  * Compile-only fixture: proves the published solid typings make
- * <showfm-player> and <showfm-episodes> typed JSX elements. CI runs
- * `pnpm jsx:check` after the build, so the package resolves through its own
- * exports map.
+ * <showfm-player>, <showfm-episodes> and <showfm-play> typed JSX elements.
+ * CI runs `pnpm jsx:check` after the build, so the package resolves through
+ * its own exports map.
  */
 import type {} from '@showfm/embed/jsx-solid';
 import { PLAYER_MIN_HEIGHTS } from '@showfm/embed';
@@ -48,6 +48,7 @@ export const episodes = (
 		hide="trailer,bonus"
 		descriptions="off"
 		mini-player="on"
+		mini-player-position="left"
 		heading-level="3"
 		load="click"
 	>
@@ -61,3 +62,21 @@ export const episodes = (
 
 // @ts-expect-error layout is 'auto', 'list', 'grid' or 'compact'
 export const wrongLayout = <showfm-episodes podcast="test-signal" layout="tiles" />;
+
+export const play = (
+	<showfm-play
+		episode="11111111-2222-4333-8444-555555555555"
+		variant="icon"
+		size="lg"
+		mini-player="on"
+		mini-player-position="left"
+		credit="auto"
+		load="click"
+		lang="fr"
+	>
+		<a href="https://show.fm/">Episode one</a>
+	</showfm-play>
+);
+
+// @ts-expect-error variant is 'icon', 'label' or 'link'
+export const wrongVariant = <showfm-play episode="x" variant="pill" />;

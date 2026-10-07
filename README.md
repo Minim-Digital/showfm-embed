@@ -1,6 +1,6 @@
 # @showfm/embed
 
-The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm). `<showfm-episodes>` lists a show's episodes, each one playable (see [The episode list](#the-episode-list)).
+The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm). `<showfm-episodes>` lists a show's episodes, each one playable (see [The episode list](#the-episode-list)). `<showfm-play>` is a play button for one episode, with a mini-player for the page (see [The play button](#the-play-button)).
 
 It is the same player that show.fm serves as `/player/v1.js` today. This package is where that player is built and released.
 
@@ -80,13 +80,13 @@ The root entry types `document.querySelector('showfm-player')`. For JSX, load th
 import type {} from '@showfm/embed/jsx-react'; // or jsx-preact, jsx-solid
 ```
 
-Then `<showfm-player episode="..." size="compact" />` and `<showfm-episodes podcast="..." layout="grid" />` type-check, including the attribute values.
+Then `<showfm-player episode="..." size="compact" />`, `<showfm-episodes podcast="..." layout="grid" />` and `<showfm-play episode="..." variant="icon" />` type-check, including the attribute values.
 
 The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools.
 
 ### The classic script
 
-`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` and `@showfm/embed/cdn/chunks/` next to it: `v1.js` loads its German and French strings and the episode list's code from there.
+`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` and `@showfm/embed/cdn/chunks/` next to it: `v1.js` loads its German and French strings, the episode list's code and the play button's code from there.
 
 ## Attributes
 
@@ -145,23 +145,24 @@ The player's parts can be styled with `::part()`: `container`, `artwork`, `title
 - `--showfm-height` reserves the list's height. The list keeps it as its minimum height and grows downwards only, so nothing below it moves when it loads. The embed code builder measures the list and writes the value.
 - The list's code is a separate file that `v1.js` adds from `chunks/` next to itself the first time a list is on the page, with the page's CSP nonce. A page without a list never downloads it. From npm it is bundled.
 
-| Attribute       | Values                              | Default               | What it does                                                                                                                               |
-| --------------- | ----------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `podcast`       | podcast UUID or slug                |                       | The show. Prefer the UUID: it survives a slug change.                                                                                      |
-| `variant`       | `card`, `minimal`                   | `card`                | Card shows artwork and descriptions. Minimal is a quieter text list.                                                                       |
-| `layout`        | `auto`, `list`, `grid`, `compact`   | `auto`                | `auto` is a grid from 900px wide, else a list. For Card, only when at least half the episodes have their own artwork.                      |
-| `count`         | `1` to `50`                         | `10`                  | Episodes per page. "Load more episodes" fetches the next page.                                                                             |
-| `season`        | season number                       | every season          | Only this season.                                                                                                                          |
-| `hide`          | `trailer`, `bonus`, `trailer,bonus` | none                  | Leaves those episode types out.                                                                                                            |
-| `descriptions`  | `on`, `off`                         | `on`                  | Episode descriptions. In a list they show two lines, with "More" when they are longer.                                                     |
-| `mini-player`   | `on`, `off`                         | `off`                 | Playing a row opens the page's mini-player. The mini-player ships later; until then the list only dispatches a `showfm:mini-player` event. |
-| `heading-level` | `2` to `6`                          | none                  | Wraps each episode title in a heading of that level. Without it no headings are emitted.                                                   |
-| `credit`        | `auto`, `on`, `off`                 | `auto`                | The "Powered by show.fm" footer, as on the player. Once per page.                                                                          |
-| `load`          | `click`                             |                       | Requests nothing, not even the list's code, until the facade is pressed. See [Load on click](#load-on-click).                              |
-| `theme`         | `auto`, `light`, `dark`             | the show's setting    | Pins the theme.                                                                                                                            |
-| `accent`        | hex colour                          | the show's colour     | Pins the accent.                                                                                                                           |
-| `api`           | URL                                 | `https://api.show.fm` | API origin. For development and testing only.                                                                                              |
-| `lang`          | language tag                        | `<html lang>`         | The language of the list's own strings.                                                                                                    |
+| Attribute              | Values                              | Default               | What it does                                                                                                          |
+| ---------------------- | ----------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `podcast`              | podcast UUID or slug                |                       | The show. Prefer the UUID: it survives a slug change.                                                                 |
+| `variant`              | `card`, `minimal`                   | `card`                | Card shows artwork and descriptions. Minimal is a quieter text list.                                                  |
+| `layout`               | `auto`, `list`, `grid`, `compact`   | `auto`                | `auto` is a grid from 900px wide, else a list. For Card, only when at least half the episodes have their own artwork. |
+| `count`                | `1` to `50`                         | `10`                  | Episodes per page. "Load more episodes" fetches the next page.                                                        |
+| `season`               | season number                       | every season          | Only this season.                                                                                                     |
+| `hide`                 | `trailer`, `bonus`, `trailer,bonus` | none                  | Leaves those episode types out.                                                                                       |
+| `descriptions`         | `on`, `off`                         | `on`                  | Episode descriptions. In a list they show two lines, with "More" when they are longer.                                |
+| `mini-player`          | `on`, `off`                         | `off`                 | Playing a row opens the page's mini-player (see [The mini-player](#the-mini-player)).                                 |
+| `mini-player-position` | `left`, `right`                     | `right`               | The corner the collapsed mini-player sits in, when this list opens it.                                                |
+| `heading-level`        | `2` to `6`                          | none                  | Wraps each episode title in a heading of that level. Without it no headings are emitted.                              |
+| `credit`               | `auto`, `on`, `off`                 | `auto`                | The "Powered by show.fm" footer, as on the player. Once per page.                                                     |
+| `load`                 | `click`                             |                       | Requests nothing, not even the list's code, until the facade is pressed. See [Load on click](#load-on-click).         |
+| `theme`                | `auto`, `light`, `dark`             | the show's setting    | Pins the theme.                                                                                                       |
+| `accent`               | hex colour                          | the show's colour     | Pins the accent.                                                                                                      |
+| `api`                  | URL                                 | `https://api.show.fm` | API origin. For development and testing only.                                                                         |
+| `lang`                 | language tag                        | `<html lang>`         | The language of the list's own strings.                                                                               |
 
 - A grid narrower than 480px shows as a list. Card and Minimal both have list, grid and compact layouts.
 - After "Load more episodes", focus moves to the first new episode. After the last page the list says so.
@@ -169,6 +170,59 @@ The player's parts can be styled with `::part()`: `container`, `artwork`, `title
 - A show with no episodes yet says so. A list that cannot load shows "Episodes can’t be loaded right now." with Retry. A suspended show (403) shows "This show isn’t available right now." with no actions. An unknown or unpublished show (404) renders nothing and gives back the reserved height.
 - An episode that cannot be played shows its message in its row, with Retry and a link to show.fm. The rest of the list keeps working.
 - The parts are `card` (each episode), `title`, `play`, `footer` and `error`.
+
+## The play button
+
+`<showfm-play>` plays one episode from a button. Every button on the page plays through the same page audio as the players and lists, so pressing one pauses the rest.
+
+```html
+<script async src="https://embed.cdn.media/player/v1.js"></script>
+
+<showfm-play episode="11111111-2222-4333-8444-555555555555">
+	<a href="https://show.fm/your-show/e/your-episode">Your Episode</a>
+	<audio controls preload="none" src="https://m.cdn.media/..."></audio>
+</showfm-play>
+```
+
+- The link and the audio control are the fallback (`renderEpisodeHTML`, the same markup as the player's). They show until the button loads and without JavaScript; with `v1-fallback.css` the link is visually hidden and the line keeps the button's height.
+- The button keeps one line of the same height in every state, so only its width changes: 40px for the small size, 48px (label) or 56px (icon) for the large one.
+- Its code is a separate file that `v1.js` adds from `chunks/` next to itself the first time a button is on the page, with the page's CSP nonce. The page's mini-player is in the same file. From npm it is bundled.
+
+| Attribute              | Values                  | Default               | What it does                                                                                                                  |
+| ---------------------- | ----------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `episode`              | episode UUID            |                       | Plays that episode. Wins over `podcast`.                                                                                      |
+| `podcast`              | podcast slug or UUID    |                       | Plays the show's latest released episode.                                                                                     |
+| `variant`              | `icon`, `label`, `link` | `label`               | `icon` is a round button (for a table). `label` shows "Play episode · 52 min" or the time left. `link` is text in a sentence. |
+| `size`                 | `sm`, `lg`              | `sm`                  | `sm` is a 32px icon or a 36px label in a 40px line. `lg` is a 56px icon or a 48px label. The link takes the text around it.   |
+| `mini-player`          | `on`, `off`             | `on`                  | The first play opens the page's mini-player. With `off`, visitors can only play and pause.                                    |
+| `mini-player-position` | `left`, `right`         | `right`               | The corner the collapsed mini-player sits in.                                                                                 |
+| `credit`               | `auto`, `on`, `off`     | `auto`                | "Powered by show.fm" in the mini-player. `auto` follows the show's plan. Once per page.                                       |
+| `load`                 | `click`                 |                       | Requests nothing, not even the button's code, until the facade is pressed. See [Load on click](#load-on-click).               |
+| `theme`                | `auto`, `light`, `dark` | the show's setting    | Pins the theme of the button and the mini-player it opens.                                                                    |
+| `accent`               | hex colour              | the show's colour     | Pins the accent.                                                                                                              |
+| `api`                  | URL                     | `https://api.show.fm` | API origin. For development and testing only.                                                                                 |
+| `lang`                 | language tag            | `<html lang>`         | The language of the button's own strings, and of the mini-player it opens.                                                    |
+
+- The labels: "Play" (small), "Play episode · 52 min" (large), "Listen · 52 min" (link), then "Loading…", "Pause · 38 min left" and "Resume · 38 min left". The accessible name starts with the label and ends with the episode title, such as "Play: The Episode". The button never emits a heading.
+- A button and any other button or list row for the same episode show the same state.
+- An episode that cannot be played shows "This episode can’t be played right now." with Try again in the button's place; focus moves to Try again when the visitor pressed play. A browser that blocks playback shows "Your browser blocked audio playback." beside the button, which stays ready. A suspended show (403) shows "This show isn’t available right now." with no actions. The icon variant has room for a mark, not a sentence: it shows a quiet info mark named by the message, or a quiet Try again button described by it. An unknown or unpublished episode (404) renders nothing and gives back its line.
+- The parts are `play` and `error`.
+- A builder that lets people turn the mini-player off should say what that means: the string `miniPlayerOff` ("Visitors can only play and pause.") is in `STRING_TABLES` for that, translated.
+
+### The mini-player
+
+The page has one mini-player. It appears after the first play from a play button (or a list with `mini-player="on"`), at the end of the page's body, and shows whatever the page's shared audio is doing, whoever started it. Players with their own audio pause it as they always have.
+
+- **Desktop:** a bar along the bottom of the window with the artwork, the title, the show and episode number, back 15 seconds, play, forward 30 seconds, the waveform to seek, the speed, Collapse and Close.
+- **Collapsed:** a pill in the bottom right corner (or left, with `mini-player-position="left"`) with play, the title and the time left, and Expand. Collapse keeps playing.
+- **Phones (640px and under):** a floating 64px bar with the title on one line, play and Expand. Expand opens a sheet with everything, the full title and Share. The sheet is a modal dialog: Tab stays inside it and Escape closes it.
+- **Close** stops playback and hides the mini-player until the next play. Focus goes back to the button that opened it.
+- **Suspended mid-listen:** playback stops, the title and artwork stay, the message takes the controls' place and only Close remains.
+- **"Powered by show.fm"** shows in the mini-player when no embed above it on the page shows it, so a page with only play buttons still carries it once.
+- `--showfm-bottom-offset` lifts it above a cookie bar or a chat bubble. Set it on the page (`:root`) or on the element that opens the mini-player.
+- Opening it never moves focus. It says "Now playing: {title}" through a polite live region, and announces pausing, playing, a speed change and a suspended show. Under reduced motion nothing animates.
+- From outside, style it with `showfm-mini-player::part(mini-player)`.
+- The mini-player keeps playing while the visitor scrolls, not across page loads (unless the site is a single-page app).
 
 ## Load on click
 
@@ -193,8 +247,9 @@ For sites that need consent before any third-party request, `load="click"` makes
 - Other facades stay facades until they are pressed.
 - `showfm.load()` loads every facade at once, for consent tools.
 - A list's facade loads the list and moves focus to its first episode. Without the loader, a `load="click"` list shows its fallback links until `showfm.load()` runs.
+- A play button's facade is its button alone, in its 40px line. One press loads and plays, and opens the mini-player; focus stays on the button. Without the loader, it shows its fallback until `showfm.load()` runs.
 - Set `data-src` on the loader's `<script>` to load a self-hosted copy of `v1.js`.
-- The loader is about 4.3 kB as written (2.1 kB gzipped). iframes cannot be facades.
+- The loader is about 4.7 kB as written (2.2 kB gzipped). iframes cannot be facades.
 
 ## Fallback markup
 
@@ -210,7 +265,7 @@ Each element upgrades the markup inside it. That markup is what shows before the
 
 The shared test cases are in the package at `@showfm/embed/fixtures/fallback/*.json`, so ports to other languages (the WordPress plugin's PHP) can prove they produce the same bytes.
 
-`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.6 kB gzipped) for that markup. It styles players only until they are defined, so it never touches an upgraded player. A list is defined as soon as `v1.js` runs but mounts when its code arrives, so its fallback stays styled until then; it also makes the list a block that keeps `--showfm-height`.
+`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.6 kB gzipped) for that markup. It styles players only until they are defined, so it never touches an upgraded player. A list or a play button is defined as soon as `v1.js` runs but mounts when its code arrives, so its fallback stays styled until then; it also makes the list a block that keeps `--showfm-height`, and the play button a line of its own height.
 
 ## Strings and languages
 
@@ -234,7 +289,7 @@ The constants are exported as `PLAYER_MIN_HEIGHTS` and `IFRAME_HEIGHTS`. CI meas
 
 ## Privacy
 
-The player and the list set no cookies and use no storage. They request episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` an element requests nothing at all until the visitor presses it.
+The player, the list, the play button and the mini-player set no cookies and use no storage. They request episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` an element requests nothing at all until the visitor presses it.
 
 ## Origin
 

@@ -1,13 +1,18 @@
 /**
- * German strings for the player and the episode list (design page 8 where it
- * gives them).
+ * German strings for the player, the episode list, the play button and the
+ * mini-player (design page 8 where it gives them).
  * Bundled into the npm entries; the CDN script loads it on demand as
  * dist/cdn/locales/de.js (see lazy.ts).
  */
+import { ELEMENT_DE } from '../element-strings.js';
 import type { ListFacadeStrings, ListStrings } from '../list-strings.js';
+import type { PlayBuilderStrings, PlayStrings } from '../play-strings.js';
 import type { Strings } from '../strings.js';
 
-const DE: Strings & ListStrings & ListFacadeStrings = {
+const DE: Strings & ListStrings & ListFacadeStrings & PlayStrings & PlayBuilderStrings = {
+	// The play button's labels (element-strings.ts); `minutes` and
+	// `actionName` are the list's too.
+	...ELEMENT_DE,
 	error: 'Diese Folge ist gerade nicht abspielbar.',
 	blocked: 'Ihr Browser blockiert die Wiedergabe.',
 	suspended: 'Diese Show ist gerade nicht verfügbar.',
@@ -69,7 +74,14 @@ const DE: Strings & ListStrings & ListFacadeStrings = {
 	pillPause: 'Pause · {remaining}',
 	pillResume: 'Fortsetzen · {remaining}',
 	loadingAudio: 'Wird geladen…',
-	actionName: '{verb}: {title}'
+	actionName: '{verb}: {title}',
+	// The play button and the mini-player (play-strings.ts).
+	playEpisodePlain: 'Folge abspielen',
+	listenPlain: 'Anhören',
+	collapsePlayer: 'Player verkleinern',
+	expandPlayer: 'Player vergrößern',
+	closePlayer: 'Player schließen und Wiedergabe beenden',
+	miniPlayerOff: 'Besucher können nur abspielen und pausieren.'
 };
 
 export default DE;

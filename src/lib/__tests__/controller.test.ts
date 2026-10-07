@@ -112,6 +112,66 @@ describe('subscribers', () => {
 	});
 });
 
+describe('the shared audio, for the mini-player (EMB-4)', () => {
+	function sharedController() {
+		const controller = new PageAudioController();
+		const shared = controller.sharedAudio();
+		let paused = true;
+		Object.defineProperty(shared, 'paused', { get: () => paused });
+		shared.play = vi.fn(async () => {
+			paused = false;
+			shared.dispatchEvent(new Event('play'));
+		});
+		shared.pause = vi.fn(() => {
+			paused = true;
+			shared.dispatchEvent(new Event('pause'));
+		});
+		return { controller, shared };
+	}
+
+	it('has no state until an element plays something there', async () => {
+		const { controller } = sharedController();
+		expect(controller.sharedState()).toBeNull();
+		const owner = {};
+		await controller.playShared(owner, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		expect(controller.sharedState()).toMatchObject({
+			owner,
+			episode: { id: 'e1' },
+			state: 'playing',
+			message: null
+		});
+	});
+
+	it("is news to subscribers even when another element's audio is current", async () => {
+		const { controller, shared } = sharedController();
+		await controller.playShared({}, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		const player = fakeAudio();
+		controller.attach(player, player);
+		await player.play();
+		const seen: string[] = [];
+		controller.subscribe(() => seen.push(controller.sharedState()!.state));
+		// The player is current; the shared audio's own events still reach subscribers.
+		shared.dispatchEvent(new Event('waiting'));
+		expect(seen.at(-1)).toBe('loading');
+		expect(controller.snapshot().owner).toBe(player);
+	});
+
+	it("takes a message only from the shared audio's owner, and forgets it on the next play", async () => {
+		const { controller } = sharedController();
+		const owner = {};
+		await controller.playShared(owner, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		const seen = vi.fn();
+		controller.subscribe(seen);
+		controller.report({}, 'suspended');
+		expect(controller.sharedState()!.message).toBeNull();
+		controller.report(owner, 'suspended');
+		expect(controller.sharedState()!.message).toBe('suspended');
+		expect(seen).toHaveBeenCalledTimes(2);
+		await controller.playShared(owner, { id: 'e2', title: 'Two' }, 'https://m.cdn.media/two.mp3');
+		expect(controller.sharedState()!.message).toBeNull();
+	});
+});
+
 describe('"Powered by show.fm" once per page', () => {
 	function hosts(count: number) {
 		return Array.from({ length: count }, () =>

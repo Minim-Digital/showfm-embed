@@ -83,7 +83,7 @@ const CHUNK_REGISTRY = "Symbol.for('showfm.chunks.v1')";
  *   shared modules), so a chunk carries only its own code. Rollup keeps
  *   those exports live: it re-assigns `exports.x` whenever `x` changes.
  * - A dynamic `import()` is rendered as the chunk's path, which the
- *   element's loader (episodes-element.ts) adds as a script next to v1.js.
+ *   element's loader (lazy-element.ts) adds as a script next to v1.js.
  * - A lazy chunk registers a factory under CHUNK_REGISTRY, keyed by its
  *   hashed file name. The loader runs it with v1.js's exports. The npm root
  *   (scripts/build.mjs) carries the chunks inline, so their factories are
@@ -132,11 +132,12 @@ export default defineConfig({
 			configFile: false,
 			preprocess: [vitePreprocess(), minifyStyles],
 			compilerOptions: { customElement: true },
-			// The episode list is mounted into its element by hand
-			// (episodes.svelte.ts), so it needs no custom-element wrapper; its
-			// CSS still goes into the shadow root it is mounted in.
+			// The episode list, the play button and the mini-player are mounted
+			// into their elements by hand (episodes.svelte.ts, play.svelte.ts),
+			// so they need no custom-element wrapper; their CSS still goes into
+			// the shadow root they are mounted in.
 			dynamicCompileOptions: ({ filename }) =>
-				filename.endsWith('/EpisodeList.svelte')
+				/\/(EpisodeList|PlayButton|MiniPlayer)\.svelte$/.test(filename)
 					? { customElement: false, css: 'injected' }
 					: undefined
 		})
@@ -152,7 +153,7 @@ export default defineConfig({
 			// the shared code into a third file.
 			preserveEntrySignatures: 'allow-extension',
 			output: {
-				// episodes.svelte.ts → chunks/episodes-[hash].js
+				// episodes.svelte.ts → chunks/episodes-[hash].js, play.svelte.ts → chunks/play-[hash].js
 				chunkFileNames: (chunk) => `chunks/${chunk.name.replace(/\.svelte$/, '')}-[hash].js`,
 				exports: 'named',
 				// Short names for the bindings v1.js shares with the chunks.

@@ -23,13 +23,31 @@
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 
-/** What subscribers need to know about the episode that is playing. */
+/**
+ * What subscribers need to know about the episode that is playing. The
+ * optional fields are for the mini-player; they take the public API's
+ * names, so an element can spread an episode payload in.
+ */
 export interface ControllerEpisode {
 	id: string;
 	title: string;
 	podcastTitle?: string;
 	artworkUrl?: string | null;
+	season_number?: number | null;
+	episode_number?: number | null;
+	episode_type?: string | null;
+	audio?: { url?: string | null; duration_seconds?: number | null } | null;
+	links?: { listen?: string | null } | null;
+	/** The accent the element resolved (its attribute, else the show's colour). */
+	accent?: string | null;
+	/** The element's theme: `light`, `dark` or `auto`. */
+	theme?: string | null;
+	/** Whether the element wants the page's "Powered by" credit. */
+	credit?: boolean | null;
 }
+
+/** A message the shared audio's owner reports when its episode cannot play. */
+export type SharedMessage = 'error' | 'blocked' | 'suspended';
 
 export interface PlaybackSnapshot {
 	/** The element (or other object) whose audio is current, or null. */
@@ -46,11 +64,13 @@ export interface CreditClaim {
 	release(): void;
 }
 
-interface Entry {
+/** One attached audio and what the controller knows about it. */
+export interface AudioEntry {
 	owner: object;
 	audio: HTMLAudioElement;
 	episode: ControllerEpisode | null;
 	state: PlaybackState;
+	message?: SharedMessage | null;
 }
 
 interface Claim {
@@ -73,15 +93,15 @@ const AUDIO_EVENTS: Record<string, PlaybackState | null> = {
 };
 
 export class PageAudioController {
-	private entries = new Set<Entry>();
-	private current: Entry | null = null;
+	private entries = new Set<AudioEntry>();
+	private current: AudioEntry | null = null;
 	private listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
-	private shared: Entry | null = null;
+	private shared: AudioEntry | null = null;
 	private claims: Claim[] = [];
 
 	/** Attach an element's own audio. Returns the function that detaches it. */
 	attach(owner: object, audio: HTMLAudioElement, episode: ControllerEpisode | null = null) {
-		const entry: Entry = { owner, audio, episode, state: 'idle' };
+		const entry: AudioEntry = { owner, audio, episode, state: 'idle' };
 		const onEvent = (event: Event) => {
 			const state = AUDIO_EVENTS[event.type];
 			if (event.type === 'play') {
@@ -91,7 +111,9 @@ export class PageAudioController {
 			}
 			// A 'pause' arriving after 'ended' keeps 'ended'.
 			if (state && !(state === 'paused' && entry.state === 'ended')) entry.state = state;
-			if (entry === this.current) this.emit();
+			// The shared audio is news even when it is not current: a player
+			// starting pauses it, and the mini-player and buttons show that.
+			if (entry === this.current || entry === this.shared) this.emit();
 		};
 		for (const type in AUDIO_EVENTS) audio.addEventListener(type, onEvent);
 		this.entries.add(entry);
@@ -123,10 +145,27 @@ export class PageAudioController {
 	 */
 	async playShared(owner: object, episode: ControllerEpisode, src: string): Promise<void> {
 		const audio = this.sharedAudio();
-		this.shared!.owner = owner;
-		this.shared!.episode = episode;
+		Object.assign(this.shared!, { owner, episode, message: null });
 		if (audio.getAttribute('src') !== src) audio.src = src;
 		await audio.play();
+	}
+
+	/**
+	 * The shared audio's owner, episode and message, whichever element is
+	 * current: what the mini-player shows. Null until something plays there.
+	 */
+	sharedState(): Readonly<AudioEntry> | null {
+		return this.shared?.episode ? this.shared : null;
+	}
+
+	/**
+	 * The shared audio's owner says why its episode cannot play (or null once
+	 * it can), so the mini-player shows the same message.
+	 */
+	report(owner: object, message: SharedMessage | null) {
+		if (this.shared?.owner !== owner) return;
+		this.shared.message = message;
+		this.emit();
 	}
 
 	/** Pause every attached audio, or every one except `keep`. */

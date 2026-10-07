@@ -3,11 +3,16 @@
  * with `import type {} from '@showfm/embed/jsx-react';` in a .d.ts file.
  */
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
-import type { ShowfmEpisodesAttributes, ShowfmPlayerAttributes } from '../lib/element-types.js';
+import type {
+	ShowfmEpisodesAttributes,
+	ShowfmPlayAttributes,
+	ShowfmPlayerAttributes
+} from '../lib/element-types.js';
 
 type ElementProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
 type ShowfmPlayerProps = ElementProps & ShowfmPlayerAttributes;
 type ShowfmEpisodesProps = ElementProps & ShowfmEpisodesAttributes;
+type ShowfmPlayProps = ElementProps & ShowfmPlayAttributes;
 
 declare module 'react' {
 	namespace JSX {
@@ -15,6 +20,7 @@ declare module 'react' {
 			'showfm-player': ShowfmPlayerProps;
 			'podcasterplus-player': ShowfmPlayerProps;
 			'showfm-episodes': ShowfmEpisodesProps;
+			'showfm-play': ShowfmPlayProps;
 		}
 	}
 }

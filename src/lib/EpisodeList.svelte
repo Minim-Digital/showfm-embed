@@ -142,15 +142,13 @@
 	);
 	const dark = $derived(theme === 'dark' || (theme === 'auto' && systemDark));
 	// `0ea5e9` and `#0ea5e9` both work; anything else follows the show.
-	const palette = $derived(
-		resolvePalette(
-			(parseHex(attr('accent')) ? attr('accent') : null) ??
-				podcastData?.player_color ??
-				podcastData?.brand_color ??
-				DEFAULT_ACCENT,
-			dark ? 'dark' : 'light'
-		)
+	const accent = $derived(
+		(parseHex(attr('accent')) ? attr('accent') : null) ??
+			podcastData?.player_color ??
+			podcastData?.brand_color ??
+			DEFAULT_ACCENT
 	);
+	const palette = $derived(resolvePalette(accent, dark ? 'dark' : 'light'));
 	// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
 	const accentText = $derived(
 		accessibleAccent(palette.accent, dark ? mixHex('#ffffff', palette.bg, 0.07) : palette.tint, 4.5)
@@ -354,19 +352,22 @@
 		const audio = controller.sharedAudio();
 		if (reloadAudio && audio.getAttribute('src') === src) audio.removeAttribute('src');
 		try {
+			// The episode with what the page's mini-player shows of it.
 			await controller.playShared(
 				host,
 				{
-					id: episode.id,
-					title: episode.title,
+					...episode,
 					podcastTitle: podcastData?.title,
-					artworkUrl: episode.artwork?.url ?? null
+					artworkUrl: episode.artwork?.url,
+					accent,
+					theme,
+					credit: wantsCredit
 				},
 				src
 			);
 			// Playing: a later failure was not caused by a press.
 			if (pressed === episode.id) pressed = null;
-			// The shared mini-player (EMB-4) shows only when the list asks for it.
+			// The page's mini-player (play-element.ts) opens only when the list asks for it.
 			if (miniPlayer) {
 				host.dispatchEvent(
 					new CustomEvent('showfm:mini-player', { bubbles: true, composed: true })
@@ -401,6 +402,8 @@
 
 	async function showMessage(id: string, message: RowMessage, moveFocus: boolean) {
 		messages[id] = message;
+		// The mini-player shows it too, when this list's row is what it holds.
+		controller.report(host, message);
 		if (pressed === id) pressed = null;
 		// Focus follows only a press: the play button it was on has gone.
 		if (moveFocus) await focusIn(id, '[data-retry]', '[data-message]');

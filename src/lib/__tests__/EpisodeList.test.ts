@@ -696,6 +696,8 @@ describe('playing a row', () => {
 		// The row keeps its artwork, so a grid would not shift.
 		expect(row(root, 0).querySelector('img')).not.toBeNull();
 		expect(await axe(host, AXE)).toHaveNoViolations();
+		// The page's mini-player hears it too (EMB-4).
+		expect(pageController().sharedState()!.message).toBe('suspended');
 	});
 
 	it('mini-player="on" asks for the shared mini-player; off by default', async () => {
@@ -709,7 +711,25 @@ describe('playing a row', () => {
 		withMini.view.getByRole('button', { name: /^Play: Knives/ }).click();
 		await settle();
 		expect(asked).toHaveBeenCalledTimes(1);
+		expect((asked.mock.calls[0][0] as Event).target).toBe(withMini.host);
 		document.removeEventListener('showfm:mini-player', asked);
+	});
+
+	it('hands the mini-player the episode with what it shows of it (EMB-4)', async () => {
+		const { view } = await mountList({ accent: '#0ea5e9', theme: 'dark' });
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		expect(pageController().sharedState()!.episode).toMatchObject({
+			title: 'Sourdough, salt and the slow return of the village bakery',
+			podcastTitle: 'The Long Table',
+			artworkUrl: 'https://media.example.test/cover.png',
+			season_number: 2,
+			episode_number: 4,
+			links: { listen: 'https://show.fm/the-long-table/e/episode-1' },
+			accent: '#0ea5e9',
+			theme: 'dark',
+			credit: true
+		});
 	});
 });
 

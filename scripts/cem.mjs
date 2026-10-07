@@ -139,6 +139,67 @@ const LIST_ATTRIBUTES = {
 	api: ATTRIBUTES.api
 };
 
+/**
+ * Read from the element that opens the mini-player (play-element.ts), not by
+ * the element itself, so the element sources do not list it.
+ */
+const MINI_PLAYER_POSITION = 'mini-player-position';
+const MINI_PLAYER_POSITION_ATTRIBUTE = {
+	type: "'left' | 'right'",
+	default: "'right'",
+	description:
+		'The corner the collapsed mini-player sits in, when this element opens it. `--showfm-bottom-offset` lifts it.'
+};
+LIST_ATTRIBUTES[MINI_PLAYER_POSITION] = MINI_PLAYER_POSITION_ATTRIBUTE;
+
+/**
+ * <showfm-play>. `lang` (a global attribute) is read too but not listed.
+ * @type {Record<string, { type: string, default?: string, description: string }>}
+ */
+const PLAY_ATTRIBUTES = {
+	episode: ATTRIBUTES.episode,
+	podcast: ATTRIBUTES.podcast,
+	variant: {
+		type: "'icon' | 'label' | 'link'",
+		default: "'label'",
+		description:
+			'`icon` is a round button (for a table, say), `label` adds the episode length or time left, `link` is text inside a sentence.'
+	},
+	size: {
+		type: "'sm' | 'lg'",
+		default: "'sm'",
+		description:
+			'`sm` keeps a 40px line. `lg` is 48px (label) or 56px (icon). The link takes the text around it.'
+	},
+	'mini-player': {
+		type: "'on' | 'off'",
+		default: "'on'",
+		description:
+			"`on`: the first play opens the page's mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause."
+	},
+	[MINI_PLAYER_POSITION]: MINI_PLAYER_POSITION_ATTRIBUTE,
+	credit: {
+		type: "'auto' | 'on' | 'off'",
+		default: "'auto'",
+		description:
+			'"Powered by show.fm" in the mini-player. `auto` follows the show\'s plan. It shows once per page, so an embed above it that shows it wins.'
+	},
+	load: {
+		type: "'click'",
+		description:
+			"`click` requests nothing from show.fm, not even the button's code, until the facade the click loader draws is pressed; then it loads and plays. `showfm.load()` loads every facade at once."
+	},
+	theme: ATTRIBUTES.theme,
+	accent: ATTRIBUTES.accent,
+	api: ATTRIBUTES.api
+};
+
+/** @type {Record<string, string>} */
+const PLAY_PART_DESCRIPTIONS = {
+	error: 'The message shown in place of the button (suspended, or cannot be played).',
+	play: 'The button.'
+};
+
 /** @type {Record<string, string>} */
 const LIST_PART_DESCRIPTIONS = {
 	card: 'One episode: a row, a grid card or a compact row.',
@@ -167,15 +228,32 @@ export function readParts(source) {
 }
 
 /**
- * Attribute names from EPISODE_LIST_ATTRIBUTES in episodes.svelte.ts.
+ * Attribute names from a `NAME = [...]` list in an element's mount module
+ * (EPISODE_LIST_ATTRIBUTES in episodes.svelte.ts, PLAY_ATTRIBUTES in
+ * play.svelte.ts), without the ones not listed.
  * @param {string} source
+ * @param {string} name
  */
-export function readListAttributes(source) {
-	const list = /EPISODE_LIST_ATTRIBUTES = \[([\s\S]*?)\]/.exec(source);
-	if (!list) throw new Error('No EPISODE_LIST_ATTRIBUTES in episodes.svelte.ts');
+export function readListAttributes(source, name = 'EPISODE_LIST_ATTRIBUTES') {
+	const list = new RegExp(`${name} = \\[([\\s\\S]*?)\\]`).exec(source);
+	if (!list) throw new Error(`No ${name} in the element's mount module`);
 	return [...list[1].matchAll(/'([a-z-]+)'/g)]
 		.map((match) => match[1])
 		.filter((name) => name !== 'style' && name !== 'lang');
+}
+
+/**
+ * The manifest's attributes for an element whose attributes are described here.
+ * @param {string[]} names
+ * @param {Record<string, { type: string, default?: string, description: string }>} described
+ */
+function attributesOf(names, described) {
+	return names.map((name) => ({
+		name,
+		type: { text: described[name].type },
+		...(described[name].default ? { default: described[name].default } : {}),
+		description: described[name].description
+	}));
 }
 
 /**
@@ -205,8 +283,16 @@ export function buildManifest() {
 	const parts = readParts(core);
 	checkDescribed(names, parts, ATTRIBUTES, PART_DESCRIPTIONS);
 	const listNames = readListAttributes(readFileSync('src/lib/episodes.svelte.ts', 'utf-8'));
+	listNames.splice(listNames.indexOf('mini-player') + 1, 0, MINI_PLAYER_POSITION);
 	const listParts = readParts(readFileSync('src/lib/EpisodeList.svelte', 'utf-8'));
 	checkDescribed(listNames, listParts, LIST_ATTRIBUTES, LIST_PART_DESCRIPTIONS);
+	const playNames = readListAttributes(
+		readFileSync('src/lib/play.svelte.ts', 'utf-8'),
+		'PLAY_ATTRIBUTES'
+	);
+	playNames.splice(playNames.indexOf('mini-player') + 1, 0, MINI_PLAYER_POSITION);
+	const playParts = readParts(readFileSync('src/lib/PlayButton.svelte', 'utf-8'));
+	checkDescribed(playNames, playParts, PLAY_ATTRIBUTES, PLAY_PART_DESCRIPTIONS);
 
 	const attributes = names.map((name) => ({
 		name,
@@ -271,12 +357,7 @@ export function buildManifest() {
 						customElement: true,
 						description:
 							"A podcast's episodes as a list or grid, each one playable. The list's code loads the first time one is on the page. Its fallback is a list of title links (renderEpisodeListHTML), which shows until the list mounts and without JavaScript. Set --showfm-height to the height to reserve; the list keeps it as its minimum and grows downwards only.",
-						attributes: listNames.map((name) => ({
-							name,
-							type: { text: LIST_ATTRIBUTES[name].type },
-							...(LIST_ATTRIBUTES[name].default ? { default: LIST_ATTRIBUTES[name].default } : {}),
-							description: LIST_ATTRIBUTES[name].description
-						})),
+						attributes: attributesOf(listNames, LIST_ATTRIBUTES),
 						members: [
 							{
 								kind: 'field',
@@ -294,6 +375,32 @@ export function buildManifest() {
 							}
 						],
 						cssParts: listParts.map((name) => ({ name, description: LIST_PART_DESCRIPTIONS[name] }))
+					},
+					{
+						kind: 'class',
+						name: 'ShowfmPlay',
+						tagName: 'showfm-play',
+						customElement: true,
+						description:
+							"A play button for one episode, as an icon, a labelled button or a link in a sentence. Every button on the page plays through the same page audio, and the first play opens the page's mini-player (a bar along the bottom of the window, a pill when collapsed, a sheet on phones) unless `mini-player` is `off`. Its code loads the first time one is on the page. Its fallback is a title link and a plain audio control (renderEpisodeHTML), which shows until the button mounts and without JavaScript.",
+						attributes: attributesOf(playNames, PLAY_ATTRIBUTES),
+						members: [
+							{
+								kind: 'field',
+								name: 'strings',
+								type: { text: ATTRIBUTES.strings.type },
+								description: ATTRIBUTES.strings.description
+							}
+						],
+						cssProperties: [
+							{
+								name: '--showfm-bottom-offset',
+								description:
+									'Lifts the mini-player this button opens above a cookie bar or chat bubble. Set it here or on the page.',
+								default: '0px'
+							}
+						],
+						cssParts: playParts.map((name) => ({ name, description: PLAY_PART_DESCRIPTIONS[name] }))
 					}
 				],
 				exports: [
@@ -311,6 +418,11 @@ export function buildManifest() {
 						kind: 'custom-element-definition',
 						name: 'showfm-episodes',
 						declaration: { name: 'ShowfmEpisodes', module: MODULE_PATH }
+					},
+					{
+						kind: 'custom-element-definition',
+						name: 'showfm-play',
+						declaration: { name: 'ShowfmPlay', module: MODULE_PATH }
 					}
 				]
 			}

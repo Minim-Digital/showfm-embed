@@ -37,7 +37,7 @@ afterAll(async () => {
 
 describe('click-loader.js with v1.js', () => {
 	it('is small enough to paste inline', () => {
-		expect(LOADER.length).toBeLessThan(4.5 * 1000);
+		expect(LOADER.length).toBeLessThan(4.7 * 1000);
 	});
 
 	it('takes a press from facade to playing player with one script and one request', async () => {

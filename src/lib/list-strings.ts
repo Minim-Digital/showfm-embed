@@ -11,7 +11,7 @@
  *
  * Pure: no DOM work at import time.
  */
-import { localeTable, pickStrings, type Language } from './strings.js';
+import { resolveStrings, type Language } from './strings.js';
 
 export const LIST_EN = {
 	/** The skeleton's accessible name. */
@@ -86,14 +86,5 @@ export const LIST_STRING_MAX_LENGTHS: Readonly<Partial<Record<ListStringKey, num
  * then `window.showfmStrings`, then the element's own overrides.
  */
 export function resolveListStrings(language: Language = 'en', overrides?: unknown): ListStrings {
-	const page =
-		typeof window !== 'undefined'
-			? (window as unknown as { showfmStrings?: unknown }).showfmStrings
-			: undefined;
-	return {
-		...LIST_EN,
-		...pickStrings(language === 'en' ? null : localeTable(language), LIST_EN),
-		...pickStrings(page, LIST_EN),
-		...pickStrings(overrides, LIST_EN)
-	};
+	return resolveStrings(language, overrides, LIST_EN);
 }
