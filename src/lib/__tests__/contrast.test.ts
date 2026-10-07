@@ -41,6 +41,17 @@ describe('accessibleAccent', () => {
 		expect(contrastRatio(adjusted, '#17181c')).toBeGreaterThanOrEqual(3);
 	});
 
+	it('moves away from a mid-tone background in the direction that can reach the ratio', () => {
+		// #808080 is above the 0.179 luminance where black and white tie, so
+		// only darker colours reach 4.5:1; white tops out at 3.9:1.
+		for (const background of ['#808080', '#767676', '#8a8a8a']) {
+			const adjusted = accessibleAccent('#a0a0a0', background, 4.5);
+			expect(contrastRatio(adjusted, background)).toBeGreaterThanOrEqual(4.5);
+		}
+		// Below it, lighter.
+		expect(contrastRatio(accessibleAccent('#555555', '#6a6a6a', 3), '#6a6a6a')).toBeGreaterThan(3);
+	});
+
 	it('falls back to the default purple for null/garbage input', () => {
 		expect(accessibleAccent(null, '#ffffff')).toBe('#7e22ce');
 		expect(accessibleAccent('nope', '#ffffff')).toBe('#7e22ce');

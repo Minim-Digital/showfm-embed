@@ -18,7 +18,7 @@
 -->
 <script lang="ts">
 	import type { PlayerEpisodeData, PlayerSize, PlayerTheme } from './types';
-	import { resolvePalette, paletteVars } from './palette';
+	import { createLook } from './look.svelte';
 	import { genPeaks, drawWave } from './waveform';
 	import { downloadFilename, downloadHref } from './download';
 	import { MARKETING_APEX_URL, isShowfmMediaUrl, mediaHosts } from './hosts';
@@ -149,7 +149,6 @@
 	let announcement = $state('');
 	let shared = $state(false);
 	let sharedResetTimer: ReturnType<typeof setTimeout> | null = null;
-	let systemDark = $state(false);
 	let waveResizeTick = $state(0);
 
 	const isCompact = $derived(size === 'compact');
@@ -158,18 +157,17 @@
 	const sliderValue = $derived(
 		scrubbing ? scrubValue : Math.min(currentTime, duration || currentTime)
 	);
-	const resolvedTheme = $derived(
-		theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : systemDark ? 'dark' : 'light'
+	// Accent precedence: per-embed override attr → the host's --showfm-accent
+	// → the show's player color setting → legacy brand_color → default purple
+	// (inside resolvePalette). The host's other colour hooks apply too.
+	let rootEl = $state<HTMLElement>();
+	const look = createLook(
+		() => rootEl,
+		() => theme,
+		() => accent,
+		() => episode.podcast.player_color ?? episode.podcast.brand_color
 	);
-	// Accent precedence: per-embed override attr → the show's player color
-	// setting → legacy brand_color → default purple (inside resolvePalette).
-	const palette = $derived(
-		resolvePalette(
-			accent ?? episode.podcast.player_color ?? episode.podcast.brand_color,
-			resolvedTheme
-		)
-	);
-	const cssVars = $derived(paletteVars(palette));
+	const palette = $derived(look.palette);
 	const peaks = $derived(genPeaks(`${episode.id}${episode.title}`));
 	// Every URL from the API passes the http(s) allow-list before it reaches
 	// an href or src: no javascript:, data:, relative or protocol-relative
@@ -242,16 +240,6 @@
 	});
 	const metaLine = $derived([episode.podcast.title, publishedDate].filter(Boolean).join('  ·  '));
 
-	// Auto theme follows the visitor's OS preference (canvas needs it in JS)
-	$effect(() => {
-		if (theme !== 'auto' || typeof window === 'undefined' || !window.matchMedia) return;
-		const query = window.matchMedia('(prefers-color-scheme: dark)');
-		systemDark = query.matches;
-		const onChange = (event: MediaQueryListEvent) => (systemDark = event.matches);
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
 	// Repaint the scrubber whenever progress, palette, layout, or width change
 	$effect(() => {
 		const canvas = canvasEl;
@@ -259,7 +247,7 @@
 		void waveResizeTick;
 		drawWave(canvas, {
 			progress: duration > 0 ? sliderValue / duration : 0,
-			played: palette.accent,
+			played: palette.wave,
 			track: palette.waveTrack,
 			knobRing: palette.bg,
 			compact: isCompact,
@@ -498,7 +486,7 @@
 	{#if artworkUrl}
 		<img
 			class="artwork"
-			style="width:{px}px;height:{px}px;border-radius:{radius}px"
+			style="width:{px}px;height:{px}px;--ar:{radius / 0.7}px"
 			src={artworkUrl}
 			alt=""
 			loading="lazy"
@@ -507,7 +495,7 @@
 	{:else}
 		<div
 			class="artwork tile"
-			style="width:{px}px;height:{px}px;border-radius:{radius}px"
+			style="width:{px}px;height:{px}px;--ar:{radius / 0.7}px"
 			aria-hidden="true"
 		>
 			<svg
@@ -682,8 +670,9 @@
 {/snippet}
 
 <div
+	bind:this={rootEl}
 	class="player"
-	style={cssVars}
+	style={look.vars}
 	role="group"
 	aria-label={formatString(s.playerLabel, { title: episode.title })}
 	part="container"
@@ -996,23 +985,20 @@
 </div>
 
 <style>
+	/* The host's font unless --showfm-font sets one; nothing is downloaded.
+	   --showfm-radius is held to 0-28px, and the artwork follows at 70%;
+	   unset, the card is 14px and the artwork its design radius (--ar, set
+	   on it as that radius / 0.7). */
 	.player {
 		box-sizing: border-box;
 		width: 100%;
-		font-family:
-			'Geist',
-			ui-sans-serif,
-			system-ui,
-			-apple-system,
-			'Segoe UI',
-			Roboto,
-			sans-serif;
+		font-family: var(--showfm-font, inherit);
 		font-size: 14px;
 		line-height: 1.4;
 		color: var(--pp-fg);
 		background: var(--pp-bg);
 		border: 1px solid var(--pp-border);
-		border-radius: 14px;
+		border-radius: clamp(0px, var(--showfm-radius, 14px), 28px);
 		box-shadow: var(--pp-shadow);
 		overflow: hidden;
 		-webkit-font-smoothing: antialiased;
@@ -1046,6 +1032,7 @@
 	.artwork {
 		flex: none;
 		object-fit: cover;
+		border-radius: calc(clamp(0px, var(--showfm-radius, var(--ar)), 28px) * 0.7);
 	}
 	.artwork.tile {
 		display: flex;
@@ -1065,6 +1052,7 @@
 		flex: 1;
 	}
 	.title {
+		font-family: var(--showfm-font-title, inherit);
 		font-weight: 700;
 		font-size: 16px;
 		line-height: 1.3;
@@ -1109,7 +1097,7 @@
 	}
 
 	/* ── buttons ──────────────────────────────── */
-	button,
+	:where(.player) button,
 	.icon-btn {
 		appearance: none;
 		border: none;
@@ -1123,10 +1111,10 @@
 		justify-content: center;
 		text-decoration: none;
 	}
-	button:focus-visible,
-	a:focus-visible,
-	input:focus-visible {
-		outline: 2px solid var(--pp-accent);
+	:where(.player) button:focus-visible,
+	:where(.player) a:focus-visible,
+	:where(.player) input:focus-visible {
+		outline: 2px solid var(--pp-focus);
 		outline-offset: 2px;
 		border-radius: 6px;
 	}
@@ -1269,7 +1257,7 @@
 		cursor: default;
 	}
 	.wave:has(.seek:focus-visible) {
-		outline: 2px solid var(--pp-accent);
+		outline: 2px solid var(--pp-focus);
 		outline-offset: 3px;
 	}
 	.times {
@@ -1421,7 +1409,7 @@
 	}
 	.body-error a,
 	.error-retry {
-		color: var(--pp-accent);
+		color: var(--pp-accent-text);
 		font-weight: 600;
 		text-decoration: none;
 	}

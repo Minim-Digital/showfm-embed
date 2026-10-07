@@ -122,7 +122,7 @@ Set `episode` or `podcast`. With neither, the player shows its fallback.
 
 When an episode's audio is not on a show.fm media host (`m.cdn.media`, `media.podcasterplus.com` or staging's `m.showfm.dev`), it still plays, but there is no Download button and no transcript is offered. For testing, a page can add hosts with `window.showfmMediaHosts = ['media.example.test']`.
 
-The player's parts can be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `transcript`, `footer` and `error`.
+The player's colours, font and corners follow the [styling hooks](#styling-hooks). Its parts can also be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `transcript`, `footer` and `error`.
 
 ### The transcript option
 
@@ -230,7 +230,7 @@ The page has one mini-player. It appears after the first play from a play button
 - **Close** stops playback and hides the mini-player until the next play. Focus goes back to the button that opened it.
 - **Suspended mid-listen:** playback stops, the title and artwork stay, the message takes the controls' place and only Close remains.
 - **"Powered by show.fm"** shows in the mini-player when no embed above it on the page shows it, so a page with only play buttons still carries it once.
-- `--showfm-bottom-offset` lifts it above a cookie bar or a chat bubble. Set it on the page (`:root`) or on the element that opens the mini-player.
+- `--showfm-bottom-offset` lifts it above a cookie bar or a chat bubble. Set it on the page (`:root`) or on the element that opens the mini-player. The other [styling hooks](#styling-hooks) work the same way: the mini-player takes those of the element that opened it.
 - Opening it never moves focus. It says "Now playing: {title}" through a polite live region, and announces pausing, playing, a speed change and a suspended show. Under reduced motion nothing animates.
 - From outside, style it with `showfm-mini-player::part(mini-player)`.
 - The mini-player keeps playing while the visitor scrolls, not across page loads (unless the site is a single-page app).
@@ -289,6 +289,61 @@ How it behaves:
 - The transcript's code is a separate file that `v1.js` adds from `chunks/` the first time a transcript is on the page (or a player's transcript is opened). A page without one never downloads it.
 - Put the transcript as text inside the element (`renderTranscriptHTML`) so search engines and visitors without JavaScript can read it. It scrolls inside `--showfm-height` until the element upgrades.
 - The part is `card`, the panel.
+
+## Styling hooks
+
+Every element reads the same `--showfm-*` custom properties. Set them on the page (`:root`) to style every embed, or on one element. They are a stable part of the package: a hook is never renamed or dropped within v1.
+
+```css
+:root {
+	--showfm-accent: #0e7c66;
+	--showfm-surface: #fbf7ef;
+	--showfm-font: 'Source Serif 4', Georgia, serif;
+	--showfm-radius: 6px;
+}
+```
+
+| Hook                     | Elements                              | Default                  | What it does                                                                                                                                                  |
+| ------------------------ | ------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--showfm-accent`        | all                                   | the show's colour        | The accent, one colour in. The fill (3:1), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it, for light and dark. |
+| `--showfm-accent-text`   | all                                   | from the accent          | Text and links in the accent.                                                                                                                                 |
+| `--showfm-surface`       | all                                   | white, or `#17151f` dark | The card background. It decides between dark and light text, whatever `theme` says.                                                                           |
+| `--showfm-background`    | list (Minimal), play button           | `--showfm-surface`       | The page's colour behind an element with no card of its own. Its text colours are derived from it.                                                            |
+| `--showfm-text`          | all                                   | from the surface         | Titles and body text.                                                                                                                                         |
+| `--showfm-muted`         | all                                   | from the surface         | Secondary text: dates, times, "Powered by".                                                                                                                   |
+| `--showfm-border`        | all                                   | from the surface         | Card borders and dividers.                                                                                                                                    |
+| `--showfm-wave`          | player, list, mini-player             | from the surface         | The unplayed waveform bars.                                                                                                                                   |
+| `--showfm-wave-played`   | player, list, mini-player             | the accent fill          | The played part of the waveform.                                                                                                                              |
+| `--showfm-focus`         | all                                   | the accent text          | The keyboard focus ring.                                                                                                                                      |
+| `--showfm-font`          | all                                   | `inherit`                | The font. Unset, every element uses the page's font.                                                                                                          |
+| `--showfm-font-title`    | player, list, mini-player             | `--showfm-font`          | Episode titles only.                                                                                                                                          |
+| `--showfm-font-scale`    | list, transcript                      | `1`                      | Scales the list's type and the transcript's lines, 0.85 to 1.3.                                                                                               |
+| `--showfm-radius`        | player, list, transcript, mini-player | `14px`                   | Corners of the cards, 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round.                                                                   |
+| `--showfm-space`         | list                                  | `1`                      | The list's spacing, 0.85 to 1.4.                                                                                                                              |
+| `--showfm-bottom-offset` | mini-player                           | `0px`                    | Lifts the mini-player above a cookie bar or a chat bubble.                                                                                                    |
+| `--showfm-height`        | list, transcript                      | `0`                      | The height to reserve before the element loads. See [The episode list](#the-episode-list) and [The transcript](#the-transcript).                              |
+
+Colours stay readable whatever is set:
+
+- Every state uses these colours: the loading skeleton, the facade, the error and suspended messages, the blocked note and the empty list as well as the ready element. Elements with no card (the play button and its messages, the Minimal list) sit on the page, so set `--showfm-background` to your page's colour when it is not white, or the theme's dark.
+
+- Every text colour reaches WCAG AA (4.5:1) on each surface it sits on: the card, the tint and the controls. A hook that does not is darkened or lightened until it does, so `--showfm-text`, `--showfm-muted` and `--showfm-accent-text` are preferences, not exact colours. The accent fill, the focus ring and the played waveform reach 3:1 on the card and on the tint (a playing row, the line being spoken). A pale accent is darkened, as the `accent` attribute always was.
+- A mid-tone `--showfm-surface` is lightened or darkened until text can reach 7:1 on it, which leaves room for the tint and the controls.
+- `--showfm-border` and `--showfm-wave` are decorative and used as written.
+- Colours can be hex, `rgb()`, `hsl()` or a name. A translucent colour, or one the browser cannot read as sRGB, is ignored and the element keeps its own.
+- A pinned `accent` attribute wins over `--showfm-accent`, which wins over the show's colour. A surface wins over `theme`: set `--showfm-surface` inside `@media (prefers-color-scheme: dark)`, or under your site's own dark-mode class, to give dark mode its own.
+- The colour hooks are read again when the visitor's colour scheme changes and when an attribute changes on the element, `<html>` or `<body>`, which is how sites switch their own dark mode. A hook changed anywhere else shows on the element's next render.
+
+Fonts and sizes:
+
+- Since 1.5 the player takes the page's font, as the other elements always have. No font is downloaded. Before 1.5 it asked for Geist and fell back to the system font.
+- The [height contract](#the-height-contract) holds in any font: CI measures the four heights in the platform's UI font, Geist, a wide serif (Merriweather) and a narrow sans (Oswald), set on the page and through `--showfm-font`. Type sizes in the player, the play button and the mini-player are fixed for the same reason, so `--showfm-font-scale` does not reach them.
+- Fonts without tabular figures make times jitter as they count.
+- The iframe embeds always use Geist: an iframe cannot see the page's font.
+
+The click loader's `load="click"` facade draws before any code is here, so it takes only the `accent` attribute and `--showfm-font`; once `v1.js` is on the page, a facade follows every hook. The parts (`::part()`) remain an unsupported escape hatch for anything the hooks do not cover.
+
+For builders, `STYLE_HOOKS` lists every hook's name, and `resolvePalette(accent, theme, hooks)` returns the colours an element would derive, so a builder can show the adjusted colour next to the one picked.
 
 ## Load on click
 
@@ -353,7 +408,7 @@ Embed code reserves the player's height before the script loads. These heights a
 
 The iframe embed uses 300px (standard) and 110px (compact). The loading skeleton uses the smaller value for each size, so it never exceeds the reserved space.
 
-The constants are exported as `PLAYER_MIN_HEIGHTS` and `IFRAME_HEIGHTS`. CI measures the four heights in Chromium on every change.
+The constants are exported as `PLAYER_MIN_HEIGHTS` and `IFRAME_HEIGHTS`. CI measures the four heights in Chromium on every change, in four fonts (see [Styling hooks](#styling-hooks)).
 
 ## Privacy
 

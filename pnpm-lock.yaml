@@ -23,6 +23,12 @@ importers:
       '@fontsource/geist-sans':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource/merriweather':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/oswald':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
@@ -455,6 +461,12 @@ packages:
 
   '@fontsource/geist-sans@5.3.0':
     resolution: {integrity: sha512-AmG7cE1AvE4NHROPaOl1sN+a02cB5xy6pA/ZV76HXqWTCsJTV2SCBc9DTFHfJqnVOODm7HhXIYtUIb75NP5QXQ==}
+
+  '@fontsource/merriweather@5.3.0':
+    resolution: {integrity: sha512-9LpPsNTYzRALj468Uj1K9Usl5eXk991L/kKmcpdWbTF1na9NfMyAXMgUABlMReViU1MYBz9kJ8jEzEOtX9qGDg==}
+
+  '@fontsource/oswald@5.3.0':
+    resolution: {integrity: sha512-16r2aHActe0pH+9FLdk/74/YxXM7HpGak05kAzx3RvSToiJwGvyhv6GvckPz+YuZmvL1nxWbEop2jAXRcXYPRg==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2708,6 +2720,10 @@ snapshots:
   '@exodus/bytes@1.16.0': {}
 
   '@fontsource/geist-sans@5.3.0': {}
+
+  '@fontsource/merriweather@5.3.0': {}
+
+  '@fontsource/oswald@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

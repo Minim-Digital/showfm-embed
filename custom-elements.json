@@ -232,6 +232,75 @@
 							"description": "Fallback content: a title link and a plain audio control (renderEpisodeHTML). It shows before the element upgrades, without JavaScript, and when the episode cannot be played. A 404 hides it with the element."
 						}
 					],
+					"cssProperties": [
+						{
+							"name": "--showfm-accent",
+							"syntax": "<color>",
+							"description": "The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+						},
+						{
+							"name": "--showfm-accent-text",
+							"syntax": "<color>",
+							"default": "derived from the accent",
+							"description": "Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-surface",
+							"syntax": "<color>",
+							"default": "the theme's (#ffffff or #17151f)",
+							"description": "The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it."
+						},
+						{
+							"name": "--showfm-text",
+							"syntax": "<color>",
+							"description": "Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-muted",
+							"syntax": "<color>",
+							"description": "Secondary text: dates, times, \"Powered by\". Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-border",
+							"syntax": "<color>",
+							"description": "Card borders and dividers. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave",
+							"syntax": "<color>",
+							"description": "The unplayed waveform bars. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave-played",
+							"syntax": "<color>",
+							"default": "the accent fill",
+							"description": "The played part of the waveform. Adjusted until it reaches 3:1 on the card and on the tint of a playing row."
+						},
+						{
+							"name": "--showfm-focus",
+							"syntax": "<color>",
+							"default": "the accent text",
+							"description": "The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-font",
+							"syntax": "<family-name>#",
+							"default": "inherit",
+							"description": "The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+						},
+						{
+							"name": "--showfm-font-title",
+							"syntax": "<family-name>#",
+							"default": "var(--showfm-font)",
+							"description": "Episode titles only."
+						},
+						{
+							"name": "--showfm-radius",
+							"syntax": "<length>",
+							"default": "14px",
+							"description": "Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+						}
+					],
 					"cssParts": [
 						{
 							"name": "artwork",
@@ -522,6 +591,75 @@
 							"description": "Fallback content: a title link and a plain audio control (renderEpisodeHTML). It shows before the element upgrades, without JavaScript, and when the episode cannot be played. A 404 hides it with the element."
 						}
 					],
+					"cssProperties": [
+						{
+							"name": "--showfm-accent",
+							"syntax": "<color>",
+							"description": "The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+						},
+						{
+							"name": "--showfm-accent-text",
+							"syntax": "<color>",
+							"default": "derived from the accent",
+							"description": "Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-surface",
+							"syntax": "<color>",
+							"default": "the theme's (#ffffff or #17151f)",
+							"description": "The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it."
+						},
+						{
+							"name": "--showfm-text",
+							"syntax": "<color>",
+							"description": "Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-muted",
+							"syntax": "<color>",
+							"description": "Secondary text: dates, times, \"Powered by\". Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-border",
+							"syntax": "<color>",
+							"description": "Card borders and dividers. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave",
+							"syntax": "<color>",
+							"description": "The unplayed waveform bars. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave-played",
+							"syntax": "<color>",
+							"default": "the accent fill",
+							"description": "The played part of the waveform. Adjusted until it reaches 3:1 on the card and on the tint of a playing row."
+						},
+						{
+							"name": "--showfm-focus",
+							"syntax": "<color>",
+							"default": "the accent text",
+							"description": "The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-font",
+							"syntax": "<family-name>#",
+							"default": "inherit",
+							"description": "The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+						},
+						{
+							"name": "--showfm-font-title",
+							"syntax": "<family-name>#",
+							"default": "var(--showfm-font)",
+							"description": "Episode titles only."
+						},
+						{
+							"name": "--showfm-radius",
+							"syntax": "<length>",
+							"default": "14px",
+							"description": "Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+						}
+					],
 					"cssParts": [
 						{
 							"name": "artwork",
@@ -714,9 +852,101 @@
 					],
 					"cssProperties": [
 						{
+							"name": "--showfm-accent",
+							"syntax": "<color>",
+							"description": "The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+						},
+						{
+							"name": "--showfm-accent-text",
+							"syntax": "<color>",
+							"default": "derived from the accent",
+							"description": "Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-surface",
+							"syntax": "<color>",
+							"default": "the theme's (#ffffff or #17151f)",
+							"description": "The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it."
+						},
+						{
+							"name": "--showfm-background",
+							"syntax": "<color>",
+							"default": "var(--showfm-surface)",
+							"description": "The page's colour behind elements with no card of their own (the Minimal list, the play button). Their text colours are derived from it."
+						},
+						{
+							"name": "--showfm-text",
+							"syntax": "<color>",
+							"description": "Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-muted",
+							"syntax": "<color>",
+							"description": "Secondary text: dates, times, \"Powered by\". Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-border",
+							"syntax": "<color>",
+							"description": "Card borders and dividers. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave",
+							"syntax": "<color>",
+							"description": "The unplayed waveform bars. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave-played",
+							"syntax": "<color>",
+							"default": "the accent fill",
+							"description": "The played part of the waveform. Adjusted until it reaches 3:1 on the card and on the tint of a playing row."
+						},
+						{
+							"name": "--showfm-focus",
+							"syntax": "<color>",
+							"default": "the accent text",
+							"description": "The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-font",
+							"syntax": "<family-name>#",
+							"default": "inherit",
+							"description": "The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+						},
+						{
+							"name": "--showfm-font-title",
+							"syntax": "<family-name>#",
+							"default": "var(--showfm-font)",
+							"description": "Episode titles only."
+						},
+						{
+							"name": "--showfm-font-scale",
+							"syntax": "<number>",
+							"default": "1",
+							"description": "Scales the list's type and the transcript's lines, 0.85 to 1.3. The player, the play button and the mini-player keep their sizes, which their fixed heights need."
+						},
+						{
+							"name": "--showfm-radius",
+							"syntax": "<length>",
+							"default": "14px",
+							"description": "Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+						},
+						{
+							"name": "--showfm-space",
+							"syntax": "<number>",
+							"default": "1",
+							"description": "The list's spacing, 0.85 to 1.4, held there so tap targets keep their size."
+						},
+						{
+							"name": "--showfm-bottom-offset",
+							"syntax": "<length>",
+							"default": "0px",
+							"description": "Lifts the mini-player this element opens above a cookie bar or chat bubble. Set it here or on the page."
+						},
+						{
 							"name": "--showfm-height",
-							"description": "The height to reserve before the list loads. The list keeps it as its minimum height.",
-							"default": "0"
+							"syntax": "<length>",
+							"default": "0",
+							"description": "The height to reserve before the element loads. A list keeps it as its minimum height; a transcript's fallback text scrolls inside it."
 						}
 					],
 					"cssParts": [
@@ -845,9 +1075,83 @@
 					],
 					"cssProperties": [
 						{
+							"name": "--showfm-accent",
+							"syntax": "<color>",
+							"description": "The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+						},
+						{
+							"name": "--showfm-accent-text",
+							"syntax": "<color>",
+							"default": "derived from the accent",
+							"description": "Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-surface",
+							"syntax": "<color>",
+							"default": "the theme's (#ffffff or #17151f)",
+							"description": "The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it."
+						},
+						{
+							"name": "--showfm-background",
+							"syntax": "<color>",
+							"default": "var(--showfm-surface)",
+							"description": "The page's colour behind elements with no card of their own (the Minimal list, the play button). Their text colours are derived from it."
+						},
+						{
+							"name": "--showfm-text",
+							"syntax": "<color>",
+							"description": "Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-muted",
+							"syntax": "<color>",
+							"description": "Secondary text: dates, times, \"Powered by\". Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-border",
+							"syntax": "<color>",
+							"description": "Card borders and dividers. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave",
+							"syntax": "<color>",
+							"description": "The unplayed waveform bars. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-wave-played",
+							"syntax": "<color>",
+							"default": "the accent fill",
+							"description": "The played part of the waveform. Adjusted until it reaches 3:1 on the card and on the tint of a playing row."
+						},
+						{
+							"name": "--showfm-focus",
+							"syntax": "<color>",
+							"default": "the accent text",
+							"description": "The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-font",
+							"syntax": "<family-name>#",
+							"default": "inherit",
+							"description": "The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+						},
+						{
+							"name": "--showfm-font-title",
+							"syntax": "<family-name>#",
+							"default": "var(--showfm-font)",
+							"description": "Episode titles only."
+						},
+						{
+							"name": "--showfm-radius",
+							"syntax": "<length>",
+							"default": "14px",
+							"description": "Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+						},
+						{
 							"name": "--showfm-bottom-offset",
-							"description": "Lifts the mini-player this button opens above a cookie bar or chat bubble. Set it here or on the page.",
-							"default": "0px"
+							"syntax": "<length>",
+							"default": "0px",
+							"description": "Lifts the mini-player this element opens above a cookie bar or chat bubble. Set it here or on the page."
 						}
 					],
 					"cssParts": [
@@ -939,9 +1243,66 @@
 					],
 					"cssProperties": [
 						{
+							"name": "--showfm-accent",
+							"syntax": "<color>",
+							"description": "The accent, one colour in. The fill (3:1 on the card and the tint), text in the accent (4.5:1), the colour on the fill, the tint and the glow are derived from it for light and dark. A pinned `accent` attribute wins over it; it wins over the show's colour."
+						},
+						{
+							"name": "--showfm-accent-text",
+							"syntax": "<color>",
+							"default": "derived from the accent",
+							"description": "Text and links in the accent. Darkened or lightened until it reaches 4.5:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-surface",
+							"syntax": "<color>",
+							"default": "the theme's (#ffffff or #17151f)",
+							"description": "The card background. The text colours are derived from it: it decides between dark and light text, whatever `theme` says. A mid-tone is lightened or darkened until text can reach 7:1 on it."
+						},
+						{
+							"name": "--showfm-text",
+							"syntax": "<color>",
+							"description": "Titles and body text. Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-muted",
+							"syntax": "<color>",
+							"description": "Secondary text: dates, times, \"Powered by\". Adjusted until it reaches 4.5:1 on every surface it sits on."
+						},
+						{
+							"name": "--showfm-border",
+							"syntax": "<color>",
+							"description": "Card borders and dividers. Decorative, so it is used as written."
+						},
+						{
+							"name": "--showfm-focus",
+							"syntax": "<color>",
+							"default": "the accent text",
+							"description": "The keyboard focus ring. Adjusted until it reaches 3:1 on the card, the tint and the controls."
+						},
+						{
+							"name": "--showfm-font",
+							"syntax": "<family-name>#",
+							"default": "inherit",
+							"description": "The font. Unset, every element uses the page's font. No font is ever downloaded; the player's heights hold in any font."
+						},
+						{
+							"name": "--showfm-font-scale",
+							"syntax": "<number>",
+							"default": "1",
+							"description": "Scales the list's type and the transcript's lines, 0.85 to 1.3. The player, the play button and the mini-player keep their sizes, which their fixed heights need."
+						},
+						{
+							"name": "--showfm-radius",
+							"syntax": "<length>",
+							"default": "14px",
+							"description": "Corners of the cards, held to 0 to 28px. Artwork follows at 70%. Play buttons and pills stay round; on a play button it rounds the phone mini-player's bar and sheet."
+						},
+						{
 							"name": "--showfm-height",
-							"description": "The height to reserve before the transcript loads; its fallback text scrolls inside it.",
-							"default": "0"
+							"syntax": "<length>",
+							"default": "0",
+							"description": "The height to reserve before the element loads. A list keeps it as its minimum height; a transcript's fallback text scrolls inside it."
 						}
 					],
 					"cssParts": [

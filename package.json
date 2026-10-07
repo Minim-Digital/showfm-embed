@@ -106,6 +106,8 @@
 		"@changesets/cli": "^2.31.1",
 		"@eslint/js": "^9.39.5",
 		"@fontsource/geist-sans": "^5.3.0",
+		"@fontsource/merriweather": "^5.3.0",
+		"@fontsource/oswald": "^5.3.0",
 		"@playwright/test": "^1.63.0",
 		"@size-limit/file": "^12.1.0",
 		"@sveltejs/package": "^2.5.8",

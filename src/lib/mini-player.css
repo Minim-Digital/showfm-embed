@@ -1,9 +1,10 @@
 /*
  * The mini-player's styles (MiniPlayer.svelte, design page 3.3). It sits at
  * the end of the body and draws everything fixed to the window, so the host
- * and its wrapper take no room in the page. It takes the page's font.
- * --showfm-bottom-offset lifts the bar and the pill above a cookie bar or a
- * chat bubble.
+ * and its wrapper take no room in the page. It takes the page's font, or
+ * --showfm-font. --showfm-bottom-offset lifts the bar and the pill above a
+ * cookie bar or a chat bubble; --showfm-radius rounds the phone bar and the
+ * sheet (the pill and the play button stay round).
  *
  * One surface, four layouts: the desktop bar (the default), the phone bar
  * (640px and under), the pill (.pill) and the phone sheet (.sheet). Each hides the
@@ -46,7 +47,7 @@ button:hover {
 	background: var(--pp-ctrl-hover);
 }
 :focus-visible {
-	outline: 2px solid var(--pp-accent-text);
+	outline: 2px solid var(--pp-focus);
 	outline-offset: 2px;
 }
 svg {
@@ -120,6 +121,7 @@ text {
 }
 .title {
 	color: var(--pp-fg-strong);
+	font-family: var(--showfm-font-title, inherit);
 	font-weight: 700;
 }
 .sub,
@@ -218,7 +220,7 @@ input {
 	cursor: pointer;
 }
 .scrub:has(:focus-visible) {
-	outline: 2px solid var(--pp-accent-text);
+	outline: 2px solid var(--pp-focus);
 	outline-offset: 3px;
 	border-radius: 4px;
 }
@@ -266,7 +268,7 @@ input {
 		/* 64px: the 3px progress line, 7px, the 44px row, 8px, the border. */
 		padding: 10px 6px 8px 8px;
 		border: 1px solid var(--pp-border);
-		border-radius: 14px;
+		border-radius: clamp(0px, var(--showfm-radius, 14px), 28px);
 	}
 	.bar:not(.sheet) :is(.sub, .credit, .icon, .times, .ctrl, [data-collapse], .message),
 	.bar:not(.msg, .sheet) .close {
@@ -403,7 +405,8 @@ input {
 		overflow-y: auto;
 		padding: 44px 16px calc(24px + env(safe-area-inset-bottom, 0px));
 		border: 0;
-		border-radius: 16px 16px 0 0;
+		border-radius: clamp(0px, var(--showfm-radius, 16px), 28px)
+			clamp(0px, var(--showfm-radius, 16px), 28px) 0 0;
 	}
 	.sheet .line {
 		display: none;

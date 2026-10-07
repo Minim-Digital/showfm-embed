@@ -29,8 +29,8 @@
 	import { pageController, type AudioEntry, type ControllerEpisode } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
 	import { apiGet, episodeEndpoint } from './api';
-	import { DEFAULT_ACCENT, accessibleAccent, contrastRatio, mixHex, parseHex } from './contrast';
-	import { paletteVars, resolvePalette } from './palette';
+	import { parseHex } from './contrast';
+	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
 	import { TRANSCRIPT_EN } from './transcript-strings';
@@ -244,65 +244,19 @@
 	});
 
 	// ── colours (a standalone transcript; inside a player they are inherited) ──
-	let systemDark = $state(false);
-	$effect(() => {
-		const query = window.matchMedia?.('(prefers-color-scheme: dark)');
-		if (!query) return;
-		systemDark = query.matches;
-		const onChange = (event: MediaQueryListEvent) => (systemDark = event.matches);
-		query.addEventListener?.('change', onChange);
-		return () => query.removeEventListener?.('change', onChange);
-	});
-	// Inside an element that sets no 4.5:1 accent for text (the player), make
-	// one from the colours it sets on itself, and again whenever it changes
-	// them (an accent or theme attribute, the visitor's colour scheme, a new
-	// episode): the element's inline style is watched.
-	let inherited = $state<string | undefined>(undefined);
-	$effect(() => {
-		const palette = inside ? host.closest<HTMLElement>('[style*="--pp-accent"]') : null;
-		if (!palette) return;
-		const update = () => {
-			const style = palette.style;
-			const accent = style.getPropertyValue('--pp-accent').trim();
-			const bg = style.getPropertyValue('--pp-bg').trim();
-			if (style.getPropertyValue('--pp-accent-text') || !parseHex(accent) || !parseHex(bg)) {
-				inherited = undefined;
-				return;
-			}
-			const dark = contrastRatio(bg, '#ffffff') > contrastRatio(bg, '#000000');
-			const surface = dark ? mixHex(bg, '#ffffff', 0.07) : mixHex(accent, bg, 0.92);
-			inherited = `--pp-accent-text:${accessibleAccent(accent, surface, 4.5)}`;
-		};
-		update();
-		const observer = new MutationObserver(update);
-		observer.observe(palette, { attributes: true, attributeFilter: ['style'] });
-		return () => observer.disconnect();
-	});
-	const cssVars = $derived.by(() => {
-		if (inside) return inherited;
-		const podcast = loaded.episode?.podcast;
-		// Its own attributes first, then what the element it follows pinned
-		// (the controller carries that element's accent and theme), then the
-		// show's settings.
-		const known = shown?.known;
-		const theme =
-			[attr('theme'), known?.theme, podcast?.player_theme].find(
+	// Its own attributes first, then what the element it follows pinned (the
+	// controller carries that element's accent and theme), then the host's
+	// --showfm-accent, then the show's settings.
+	let root = $state<HTMLElement>();
+	const look = createLook(
+		() => (inside ? null : root),
+		() =>
+			[attr('theme'), shown?.known?.theme, loaded.episode?.podcast?.player_theme].find(
 				(value) => value === 'light' || value === 'dark' || value === 'auto'
-			) ?? 'auto';
-		const dark = theme === 'dark' || (theme === 'auto' && systemDark);
-		const accent = [attr('accent'), known?.accent].find((value) => value && parseHex(value));
-		const palette = resolvePalette(
-			accent ?? podcast?.player_color ?? podcast?.brand_color ?? DEFAULT_ACCENT,
-			dark ? 'dark' : 'light'
-		);
-		// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
-		const text = accessibleAccent(
-			palette.accent,
-			dark ? mixHex(palette.bg, '#ffffff', 0.07) : palette.tint,
-			4.5
-		);
-		return `${paletteVars(palette)};--pp-accent-text:${text}`;
-	});
+			),
+		() => [attr('accent'), shown?.known?.accent].find((value) => value && parseHex(value)),
+		() => loaded.episode?.podcast?.player_color ?? loaded.episode?.podcast?.brand_color
+	);
 
 	// ── lines ──────────────────────────────────────────────────────────
 	const duration = $derived(
@@ -744,8 +698,9 @@
 	class:narrow
 	role="region"
 	aria-label={s.transcript}
-	style={cssVars}
+	style={inside ? undefined : look.vars}
 	part="card"
+	bind:this={root}
 >
 	<div class="head">
 		<!-- A heading only when heading-level asks for one (a role, which costs

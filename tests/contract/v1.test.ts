@@ -209,9 +209,9 @@ describe('loading skeleton', () => {
 		const skeleton = element.shadowRoot?.querySelector('.skeleton');
 		expect(skeleton?.getAttribute('role')).toBe('status');
 		expect(skeleton?.classList.contains('sk-compact')).toBe(false);
-		expect(skeletonCss(element)).toMatch(
-			/\.skeleton\.svelte-[a-z0-9]+\s*\{[^}]*min-height:\s*252px/
-		);
+		// One rule for the skeleton, the facade and the notice (no scoping
+		// class in the CDN build: the shadow root keeps the styles in).
+		expect(skeletonCss(element)).toMatch(/\.skeleton[,.\w-]*\{[^}]*min-height:\s*252px/);
 	});
 
 	it('reserves the unbranded compact height (83px) while loading', async () => {
@@ -219,9 +219,7 @@ describe('loading skeleton', () => {
 		const element = mount('showfm-player', { episode: EPISODE_ID, size: 'compact' });
 		await settle();
 		expect(element.shadowRoot?.querySelector('.skeleton.sk-compact')).not.toBeNull();
-		expect(skeletonCss(element)).toMatch(
-			/\.sk-compact\.svelte-[a-z0-9]+\s*\{[^}]*min-height:\s*83px/
-		);
+		expect(skeletonCss(element)).toMatch(/\.sk-compact[,.\w-]*\{[^}]*min-height:\s*83px/);
 	});
 });
 

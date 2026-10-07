@@ -9,6 +9,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { axe } from 'jest-axe';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import ShowfmPlayer from '../ShowfmPlayer.svelte';
+import { resolvePalette } from '../palette';
 import { episodePayload } from '../../../tests/fixtures/episode';
 
 const AXE_MEDIA_OPTIONS = {
@@ -103,7 +104,7 @@ describe('load="click"', () => {
 		expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
 	});
 
-	it('uses a valid accent on the facade, and the default for anything else', async () => {
+	it('uses a valid accent on the facade (made 3:1), and the default for anything else', async () => {
 		stubFetch(ok());
 		const { container } = render(ShowfmPlayer, {
 			props: { episode: EPISODE_ID, api: API, load: 'click', accent: '0ea5e9' }
@@ -113,10 +114,10 @@ describe('load="click"', () => {
 		});
 		await screen.findAllByRole('button', { name: 'Play podcast episode' });
 		expect(container.querySelector('.facade')?.getAttribute('style')).toContain(
-			'--facade-accent: #0ea5e9;'
+			`--pp-accent: ${resolvePalette('#0ea5e9', 'light').accent};`
 		);
 		expect(other.container.querySelector('.facade')?.getAttribute('style')).toContain(
-			'--facade-accent: #7E22CE;'
+			'--pp-accent: #7e22ce;'
 		);
 	});
 

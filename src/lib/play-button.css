@@ -1,8 +1,9 @@
 /*
  * The play button's styles (PlayButton.svelte). play.svelte.ts adds them to
  * the element's shadow root, where the button is alone, so nothing needs
- * scoping. It takes the host's font; the messages take the host's text
- * colour too (design page 5). The host keeps one line of the same height in
+ * scoping. It takes the host's font (design page 5). It has no card, so its
+ * colours, its messages' too, are resolved on --showfm-background when that
+ * is set (palette.ts). The host keeps one line of the same height in
  * every state, so only its width changes: 40px for the small size (design
  * pages 5 to 7), the button's own height for the large one. v1-fallback.css
  * reserves the same before the button is here.
@@ -64,7 +65,7 @@ button {
 	white-space: nowrap;
 }
 :focus-visible {
-	outline: 2px solid var(--pp-accent-text);
+	outline: 2px solid var(--pp-focus);
 	outline-offset: 3px;
 }
 svg {
@@ -154,7 +155,8 @@ svg {
 	}
 }
 
-/* Messages: the host's font and text colour, in the same line. */
+/* Messages: the host's font, the palette's text colours (on the page, so on
+   --showfm-background when it is set), in the same line. */
 .msg,
 .note {
 	display: inline-flex;
@@ -163,11 +165,12 @@ svg {
 	min-height: 24px;
 	border-radius: 4px;
 	line-height: 1.3;
+	color: var(--pp-fg);
 }
 .note,
 .msg svg,
 .quiet svg {
-	opacity: 0.75;
+	color: var(--pp-muted);
 }
 .msg svg {
 	width: 1.1em;
@@ -177,7 +180,7 @@ svg {
 .quiet {
 	border: 1px solid var(--pp-ctrl-border);
 	background: none;
-	color: inherit;
+	color: var(--pp-muted);
 	box-shadow: none !important;
 }
 .v-icon.s-sm .quiet svg {

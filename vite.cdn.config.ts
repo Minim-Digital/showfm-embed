@@ -69,6 +69,43 @@ const noHydration: Plugin = {
 	}
 };
 
+/**
+ * Svelte scopes each component's CSS with a class on every element and
+ * selector. Here that does nothing: the components draw inside their
+ * element's shadow root, which already keeps their CSS in and the page's
+ * out (PlayerCore and ShowfmPlayer share one root and no class names, and
+ * PlayerCore's type selectors sit under `:where(.player)`). So this build
+ * drops the class, which keeps v1.js within its budget. The hash stays as
+ * the <style> element's id and in keyframe names. Svelte apps
+ * (@showfm/embed/svelte) compile the source themselves, scoped as usual.
+ * The build fails if a use of the hash is left that this does not know.
+ */
+const unscopedStyles: Plugin = {
+	name: 'unscoped-styles',
+	enforce: 'post',
+	transform(code, id) {
+		if (!id.split('?')[0].endsWith('.svelte')) return null;
+		const hash = /hash: (['"])(svelte-[a-z0-9]+)\1/.exec(code)?.[2];
+		if (!hash) return null;
+		// A compound that is only the class (Svelte writes `*` as `:where(.h)`)
+		// becomes `*`; elsewhere `.a.h` and `.a:where(.h)` lose it.
+		const alone = (selector: string) => new RegExp(`(^|[\\s>+~,{}'"\`])${selector}(?![\\w-])`, 'g');
+		const unscoped = code
+			.replace(alone(`:where\\(\\.${hash}\\)`), '$1*')
+			.replaceAll(`:where(.${hash})`, '')
+			.replace(alone(`\\.${hash}`), '$1*')
+			.replace(new RegExp(`\\.${hash}(?![\\w-])`, 'g'), '')
+			// In templates: `class="h"` and `class="a h"`.
+			.replace(new RegExp(` class=(\\\\?["'])${hash}\\1`, 'g'), '')
+			.replace(new RegExp(` ${hash}(?=\\\\?["'])`, 'g'), '')
+			// The hash argument of set_class().
+			.replace(new RegExp(`(?<!hash: )(['"])${hash}\\1(?=\\s*[,)])`, 'g'), 'null');
+		const left = unscoped.replace(/hash: (['"])svelte-[a-z0-9]+\1/, '').replaceAll(`${hash}-`, '');
+		if (left.includes(hash)) throw new Error(`unscoped-styles: ${id} still uses ${hash}`);
+		return { code: unscoped, map: null };
+	}
+};
+
 /** Where every lazy chunk registers itself, shared by every copy on the page. */
 const CHUNK_REGISTRY = "Symbol.for('showfm.chunks.v1')";
 
@@ -117,7 +154,7 @@ const classicChunks: Plugin = {
 					file.code +
 					'\n};\n';
 			}
-			const mangled = await minify(code, { ecma: 2020, compress: false, mangle: true });
+			const mangled = await minify(code, { ecma: 2020, compress: { passes: 2 }, mangle: true });
 			file.code = mangled.code! + '\n';
 		}
 	}
@@ -128,6 +165,7 @@ export default defineConfig({
 		lazyLocales,
 		noHydration,
 		classicChunks,
+		unscopedStyles,
 		svelte({
 			configFile: false,
 			preprocess: [vitePreprocess(), minifyStyles],

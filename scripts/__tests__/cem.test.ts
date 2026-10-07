@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildManifest } from '../cem.mjs';
+import { STYLE_HOOKS } from '../../src/lib/style-hooks';
 
 interface Declaration {
 	tagName: string;
@@ -42,5 +43,29 @@ describe('<showfm-transcript> in the manifest', () => {
 describe('every lazy element', () => {
 	it.each(['showfm-episodes', 'showfm-play', 'showfm-transcript'])('%s lists load', (tag) => {
 		expect(names(tag)).toContain('load');
+	});
+});
+
+describe('the styling hooks', () => {
+	const hooksOf = (tag: string) =>
+		(declaration(tag) as Declaration & { cssProperties: { name: string }[] }).cssProperties.map(
+			(property) => property.name
+		);
+	const tags = ['showfm-player', 'showfm-episodes', 'showfm-play', 'showfm-transcript'];
+
+	it('every hook is in the manifest, on the elements that read it', () => {
+		expect([...new Set(tags.flatMap(hooksOf))].sort()).toEqual([...STYLE_HOOKS].sort());
+		expect(hooksOf('podcasterplus-player')).toEqual(hooksOf('showfm-player'));
+		for (const tag of tags) expect(hooksOf(tag)).toContain('--showfm-accent');
+	});
+
+	it('every hook is in the README table, and nothing else', () => {
+		const readme = readFileSync('README.md', 'utf-8');
+		const section = readme.slice(readme.indexOf('\n## Styling hooks\n'));
+		const table = section.slice(section.indexOf('| Hook'));
+		const rows = table.slice(0, table.indexOf('\n\n')).split('\n').slice(2);
+		expect(rows.map((row) => /^\|\s*`(--showfm-[a-z-]+)`/.exec(row)![1]).sort()).toEqual(
+			[...STYLE_HOOKS].sort()
+		);
 	});
 });
