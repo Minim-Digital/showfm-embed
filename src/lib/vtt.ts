@@ -2,9 +2,9 @@
  * WebVTT parsing, shared by the listen pages and the transcript element.
  *
  * Moved from the show.fm app (src/lib/transcripts/vtt.ts at 0dfe9d9e), with
- * its tests. Three expressions there took quadratic time on hostile input
- * (32 seconds for 200 KB); they are linear scans here with the same results,
- * and a timed test on 200 KB of adversarial input guards them.
+ * its tests. Linear scans and non-overlapping expressions keep hostile
+ * transcripts from causing excessive backtracking. The regression cases
+ * from the app's PR #740 cover these paths with per-input time budgets.
  *
  * The counterpart to render.ts: that module WRITES the published VTT from a
  * TranscriptArtifact, this one READS a published VTT back off
@@ -61,15 +61,39 @@ export interface ParseVttOptions {
 	maxCues?: number;
 }
 
-/** `HH:MM:SS.mmm` or `MM:SS.mmm`, either side of the arrow, plus cue settings. */
-const TIMING_LINE =
-	/^((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})(?:\s+.*)?$/;
+/** `HH:MM:SS.mmm` or `MM:SS.mmm`, either side of the arrow. */
+const TIMING_PREFIX =
+	/^(\d+:\d{1,2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*(\d+:\d{1,2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})/;
+
+function parseTimingLine(line: string): RegExpMatchArray | null {
+	const match = line.match(TIMING_PREFIX);
+	if (!match) return null;
+	const settings = line.slice(match[0].length);
+	// Consume the separator once, as in the app's linear parser. The old
+	// whitespace + wildcard tail retried from every space on a failed match.
+	// Keep its treatment of Unicode line separators within cue settings.
+	if (settings && (!/^\s/.test(settings) || !/^.*$/.test(settings.trimStart()))) return null;
+	return match;
+}
 
 /** Blocks that carry no cue payload and must be skipped wholesale. */
 const NON_CUE_BLOCK = /^(NOTE|STYLE|REGION)\b/;
 
-/** `<v Speaker>`, `<v.loud Speaker>`, and the rare unclosed `<v Speaker>` form. */
-const VOICE_SPAN = /^<v(?:\.[^\s>]+)*\s+([^>]*)>/i;
+/** Read an opening voice tag without repartitioning its classes or whitespace. */
+function voiceSpeaker(payload: string): string | null {
+	if (!/^<v/i.test(payload)) return null;
+	let cursor = 2;
+	if (payload[cursor] === '.') {
+		const classStart = ++cursor;
+		// Later dots belong to the same class run, as in the app's parser.
+		while (cursor < payload.length && !/^[\s>]/.test(payload[cursor])) cursor++;
+		if (cursor === classStart) return null;
+	}
+	if (cursor >= payload.length || !/^\s/.test(payload[cursor])) return null;
+	const close = payload.indexOf('>', cursor + 1);
+	if (close === -1) return null;
+	return decodeEntities(payload.slice(cursor + 1, close)).trim() || null;
+}
 
 const NAMED_ENTITIES: Record<string, string> = {
 	amp: '&',
@@ -150,7 +174,8 @@ function hasUnclosedVoiceSpan(raw: string): boolean {
 }
 
 /** An inline karaoke timestamp tag, e.g. `<00:00:02.500>`. */
-const TIMESTAMP_TAG = /<((?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})>/g;
+// Each alternative excludes '<', so failed matches cannot rescan another tag.
+const TIMESTAMP_TAG = /<(\d+:\d{1,2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})>/g;
 
 /**
  * Split a cue payload on its inline timestamp tags into timed runs.
@@ -256,7 +281,7 @@ export function parseVtt(input: string, options: ParseVttOptions = {}): VttCue[]
 		let timingIndex = -1;
 		let match: RegExpMatchArray | null = null;
 		for (let i = 0; i < Math.min(lines.length, 2); i += 1) {
-			const candidate = lines[i].match(TIMING_LINE);
+			const candidate = parseTimingLine(lines[i]);
 			if (candidate) {
 				timingIndex = i;
 				match = candidate;
@@ -281,8 +306,7 @@ export function parseVtt(input: string, options: ParseVttOptions = {}): VttCue[]
 		}
 
 		const payload = payloadLines.join(' ');
-		const voice = payload.match(VOICE_SPAN);
-		const speaker = voice ? decodeEntities(voice[1]).trim() || null : null;
+		const speaker = voiceSpeaker(payload);
 		const text = stripTags(payload);
 		if (!text) continue;
 

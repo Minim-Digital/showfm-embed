@@ -127,7 +127,7 @@
 		// Its strings: the player's (0), the list's (2) or the transcript's (4).
 		const strings = transcript ? 4 : list ? 2 : 0;
 		const accentAttr = get('accent') || '';
-		const accent = /^#([0-9a-f]{3}){1,2}$/i.test(accentAttr) ? accentAttr : '#7E22CE';
+		const accent = /^#([\da-f]{3}|[\da-f]{6})$/i.test(accentAttr) ? accentAttr : '#7E22CE';
 		const theme = get('theme');
 		const compact = play || get('size') === 'compact';
 
