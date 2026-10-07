@@ -12,7 +12,7 @@ export default defineConfig({
 				resolve: { conditions: ['browser'] },
 				test: {
 					name: 'unit',
-					include: ['src/**/*.test.ts'],
+					include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
 					environment: 'jsdom',
 					// Testing Library's automatic cleanup between tests hooks into
 					// the global afterEach, as in the show.fm app's config.

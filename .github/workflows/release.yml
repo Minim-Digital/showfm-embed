@@ -12,8 +12,10 @@ name: Release
 #   3. Merging that pull request pushes to main with no changesets left, so
 #      the action runs `pnpm release` (scripts/publish.mjs), which publishes
 #      to npm over OIDC with provenance and tags the release.
-# No npm token is stored anywhere. Pushes with nothing new to publish are a
-# no-op, because scripts/publish.mjs skips a version that is already on npm.
+# No npm token is stored anywhere. scripts/publish.mjs never publishes a
+# version that is already on npm, and announces the tag only when it is
+# missing on the remote, so ordinary pushes are a no-op and a re-run repairs
+# a release that published but was never tagged.
 
 on:
   push:

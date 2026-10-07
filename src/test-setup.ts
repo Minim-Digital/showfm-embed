@@ -8,24 +8,27 @@ import { toHaveNoViolations } from 'jest-axe';
 
 expect.extend(toHaveNoViolations as unknown as Parameters<typeof expect.extend>[0]);
 
-Object.defineProperty(window, 'matchMedia', {
-	writable: true,
-	value: (query: string) => ({
-		matches: false,
-		media: query,
-		onchange: null,
-		addListener: () => {},
-		removeListener: () => {},
-		addEventListener: () => {},
-		removeEventListener: () => {},
-		dispatchEvent: () => false
-	})
-});
+// Guarded so files that opt into `@vitest-environment node` can share this setup.
+if (typeof window !== 'undefined') {
+	Object.defineProperty(window, 'matchMedia', {
+		writable: true,
+		value: (query: string) => ({
+			matches: false,
+			media: query,
+			onchange: null,
+			addListener: () => {},
+			removeListener: () => {},
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			dispatchEvent: () => false
+		})
+	});
 
-window.scrollTo = () => {};
+	window.scrollTo = () => {};
 
-globalThis.ResizeObserver = class ResizeObserver {
-	observe() {}
-	unobserve() {}
-	disconnect() {}
-};
+	globalThis.ResizeObserver = class ResizeObserver {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	};
+}

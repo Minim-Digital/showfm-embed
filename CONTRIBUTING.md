@@ -16,7 +16,7 @@ pnpm install --frozen-lockfile
 | -------------------- | ------------------------------------------------------------------------------- |
 | `src/lib/`           | The player: Svelte components and pure modules. Shipped as source at `/svelte`. |
 | `src/lib/__tests__/` | Unit tests (Vitest, jsdom, Testing Library, jest-axe).                          |
-| `src/index.ts`       | The ESM entry: registers the elements and re-exports the pure modules.          |
+| `src/server.ts`      | The side-effect-free entry (`/server`). The root adds the element registration. |
 | `src/jsx/`           | JSX typings for React, Preact and Solid.                                        |
 | `tests/contract/`    | Tests against the built files in `dist/`.                                       |
 | `tests/browser/`     | Playwright tests in Chromium: the height contract.                              |

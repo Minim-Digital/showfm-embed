@@ -34,7 +34,6 @@
 	"sideEffects": [
 		"./dist/index.js",
 		"./dist/cdn/*.js",
-		"./src/lib/element.ts",
 		"**/*.css"
 	],
 	"types": "./dist/index.d.ts",
@@ -43,6 +42,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./server": {
+			"types": "./dist/server.d.ts",
+			"default": "./dist/server.js"
 		},
 		"./svelte": {
 			"types": "./dist/svelte/index.d.ts",

@@ -10,3 +10,4 @@ test-results/
 .env.*
 vite.config.ts.timestamp-*
 .svelte-kit/
+__pycache__/

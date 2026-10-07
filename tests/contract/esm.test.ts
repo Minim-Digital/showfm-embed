@@ -2,11 +2,13 @@
  * The ESM entry (`@showfm/embed`, dist/index.js): importing it registers the
  * same two elements as v1.js and exposes the pure modules and constants.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 // Typed from the source entry; loaded from the build. The specifier is a
 // variable so type-checking does not need dist/ to exist.
-let entry: typeof import('../../src/index');
+let entry: typeof import('../../src/server');
 const BUILT_ENTRY = '../../dist/index.js';
 
 beforeAll(async () => {
@@ -27,6 +29,12 @@ describe('@showfm/embed ESM entry', () => {
 			compact: { branded: 101, unbranded: 83 }
 		});
 		expect(entry.IFRAME_HEIGHTS).toEqual({ standard: 300, compact: 110 });
+	});
+
+	it('carries dist/cdn/v1.js verbatim, so the root and the CDN run one build', () => {
+		const root = readFileSync(resolve(__dirname, '../../dist/index.js'), 'utf-8');
+		const v1 = readFileSync(resolve(__dirname, '../../dist/cdn/v1.js'), 'utf-8');
+		expect(root).toContain(v1.trimEnd());
 	});
 
 	it('exports the pure modules', () => {

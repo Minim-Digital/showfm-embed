@@ -2,10 +2,13 @@
  * The publish step of the release workflow (run by changesets/action).
  *
  * changesets/action runs this on every push to main that has no pending
- * changesets, so it must do nothing when the current version is already on
- * npm. Otherwise it builds, publishes with npm (trusted publishing over
- * OIDC, with provenance), and prints the "New tag:" line the action reads to
- * create the git tag and GitHub release.
+ * changesets. scripts/release-plan.mjs decides what to do:
+ * - publish only when the version is not on npm yet, with npm (trusted
+ *   publishing over OIDC, with provenance);
+ * - announce the tag (`changeset tag` prints the "New tag:" line the action
+ *   reads to push the tag and create the GitHub release) only when the tag
+ *   is missing on the remote. This also repairs a run that published but
+ *   stopped before tagging.
  *
  * npm is called directly, not through `changeset publish`, because that
  * delegates to `pnpm publish` in a pnpm project, and trusted publishing is an
@@ -13,21 +16,29 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { isOnNpm, isTagOnRemote, releasePlan, tagName } from './release-plan.mjs';
 
 const { name, version } = JSON.parse(readFileSync('package.json', 'utf-8'));
+const tag = tagName(version);
 
-if (version === '0.0.0') {
-	console.log(`${name} is still 0.0.0; nothing to publish.`);
-	process.exit(0);
+const npmView = spawnSync('npm', ['view', `${name}@${version}`, 'version'], { encoding: 'utf-8' });
+const lsRemote = spawnSync('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`], {
+	encoding: 'utf-8'
+});
+const plan = releasePlan({
+	version,
+	onNpm: isOnNpm(npmView, version),
+	tagOnRemote: isTagOnRemote(lsRemote)
+});
+console.log(
+	`${name}@${version}: publish ${plan.publish ? 'yes' : 'no'}, tag ${tag} ${plan.tag ? 'yes' : 'no'}.`
+);
+
+if (plan.publish) {
+	execFileSync('pnpm', ['build'], { stdio: 'inherit' });
+	execFileSync('npm', ['publish', '--provenance', '--access', 'public'], { stdio: 'inherit' });
 }
-
-const view = spawnSync('npm', ['view', `${name}@${version}`, 'version'], { encoding: 'utf-8' });
-if (view.status === 0 && view.stdout.trim() === version) {
-	console.log(`${name}@${version} is already on npm; nothing to publish.`);
-	process.exit(0);
+if (plan.tag) {
+	// Creates the tag locally and prints "New tag: v<version>".
+	execFileSync('pnpm', ['changeset', 'tag'], { stdio: 'inherit' });
 }
-
-execFileSync('pnpm', ['build'], { stdio: 'inherit' });
-execFileSync('npm', ['publish', '--provenance', '--access', 'public'], { stdio: 'inherit' });
-// Prints "New tag: @showfm/embed@x.y.z" and creates the tag locally.
-execFileSync('pnpm', ['changeset', 'tag'], { stdio: 'inherit' });

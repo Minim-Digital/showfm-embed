@@ -6,6 +6,24 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, hexToRgba, mixHex } from '../contrast';
 import { paletteVars, resolvePalette } from '../palette';
+import playerSource from '../PlayerCore.svelte?raw';
+
+describe('Powered by credit contrast', () => {
+	it.each(['light', 'dark'] as const)(
+		'uses muted text with at least 4.5:1 contrast in %s',
+		(theme) => {
+			const creditStyle = playerSource.match(/\.powered-by\s*\{([^}]+)\}/)?.[1];
+			expect(creditStyle).toMatch(/color:\s*var\(--pp-muted\)/);
+			const palette = resolvePalette('#7E22CE', theme);
+			expect(contrastRatio(palette.muted, palette.bg)).toBeGreaterThanOrEqual(4.5);
+		}
+	);
+
+	it('uses the muted colour for the hover underline', () => {
+		const hoverStyle = playerSource.match(/\.powered-by:hover\s*\{([^}]+)\}/)?.[1];
+		expect(hoverStyle).toMatch(/text-decoration-color:\s*var\(--pp-muted\)/);
+	});
+});
 
 describe('color helpers', () => {
 	it('mixHex blends channels linearly and clamps t', () => {

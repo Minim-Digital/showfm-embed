@@ -45,6 +45,12 @@ The package root also exports the player's pure helpers and the height contract:
 import { PLAYER_MIN_HEIGHTS, IFRAME_HEIGHTS } from '@showfm/embed';
 ```
 
+Importing the root is safe in Node, SSR and workers: it only registers the elements where `customElements` exists. For code that never runs in a browser, `@showfm/embed/server` exports the same helpers and constants with no side effects at all:
+
+```js
+import { PLAYER_MIN_HEIGHTS } from '@showfm/embed/server';
+```
+
 ### Svelte 5
 
 `@showfm/embed/svelte` ships the player as Svelte source. Render `PlayerCore` directly with episode data you already have. Nothing is registered as a custom element.
@@ -109,7 +115,7 @@ The player sets no cookies and uses no storage. It requests episode data from th
 
 ## Origin
 
-This code was imported from the show.fm app (`Minim-Digital/podcaster-plus-app`) at commit `d9cbbd0b4d5cbbd603a45526b85e4d75820b38d4`, without its history. The built `v1.js` is the same code as the app's build of that commit. The only difference is the generated names of Svelte's scoped CSS classes, which are derived from the file path and stay inside the shadow root.
+This code was imported from the show.fm app (`Minim-Digital/podcaster-plus-app`) at commit `f7bf738a1674fa14cfa202f8bcc7d8eca4cf43e8`, without its history. The built `v1.js` is the same code as the app's build of that commit. The only difference is the generated names of Svelte's scoped CSS classes, which are derived from the file path and stay inside the shadow root.
 
 ## Contributing
 

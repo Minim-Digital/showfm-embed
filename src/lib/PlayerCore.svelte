@@ -1168,7 +1168,7 @@
 		font-size: 11px;
 		line-height: 1;
 		letter-spacing: 0.01em;
-		color: var(--pp-subtle);
+		color: var(--pp-muted);
 		text-decoration: none;
 	}
 	.body-compact .powered-by {
@@ -1176,7 +1176,7 @@
 	}
 	.powered-by:hover {
 		text-decoration: underline;
-		text-decoration-color: var(--pp-subtle);
+		text-decoration-color: var(--pp-muted);
 	}
 	.brand-a {
 		color: var(--pp-fg-strong);

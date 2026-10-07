@@ -3,7 +3,7 @@
  * with `import type {} from '@showfm/embed/jsx-preact';` in a .d.ts file.
  */
 import type { JSX } from 'preact';
-import type { ShowfmPlayerAttributes } from '../index.js';
+import type { ShowfmPlayerAttributes } from '../lib/element-types.js';
 
 type ShowfmPlayerProps = JSX.HTMLAttributes<HTMLElement> & ShowfmPlayerAttributes;
 
