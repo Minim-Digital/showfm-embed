@@ -6,12 +6,14 @@ import type { JSX } from 'solid-js';
 import type {
 	ShowfmEpisodesAttributes,
 	ShowfmPlayAttributes,
-	ShowfmPlayerAttributes
+	ShowfmPlayerAttributes,
+	ShowfmTranscriptAttributes
 } from '../lib/element-types.js';
 
 type ShowfmPlayerProps = JSX.HTMLAttributes<HTMLElement> & ShowfmPlayerAttributes;
 type ShowfmEpisodesProps = JSX.HTMLAttributes<HTMLElement> & ShowfmEpisodesAttributes;
 type ShowfmPlayProps = JSX.HTMLAttributes<HTMLElement> & ShowfmPlayAttributes;
+type ShowfmTranscriptProps = JSX.HTMLAttributes<HTMLElement> & ShowfmTranscriptAttributes;
 
 declare module 'solid-js' {
 	namespace JSX {
@@ -20,6 +22,7 @@ declare module 'solid-js' {
 			'podcasterplus-player': ShowfmPlayerProps;
 			'showfm-episodes': ShowfmEpisodesProps;
 			'showfm-play': ShowfmPlayProps;
+			'showfm-transcript': ShowfmTranscriptProps;
 		}
 	}
 }

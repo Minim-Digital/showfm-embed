@@ -1,0 +1,6 @@
+{
+	"description": "No text renders nothing.",
+	"function": "renderTranscriptHTML",
+	"args": [[]],
+	"expected": ""
+}

@@ -17,6 +17,7 @@
 import ShowfmPlayer from './ShowfmPlayer.svelte';
 import { defineShowfmEpisodes } from './episodes-element';
 import { defineShowfmPlay } from './play-element';
+import { defineShowfmTranscript } from './transcript-element';
 
 // The `element` static only exists in the customElement build (and svelte-check
 // types the component without it), hence the cast and the runtime guard.
@@ -37,3 +38,4 @@ showfm.load ??= () => document.dispatchEvent(new Event('showfm:load'));
 
 defineShowfmEpisodes();
 defineShowfmPlay();
+defineShowfmTranscript();

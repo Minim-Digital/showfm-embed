@@ -151,7 +151,7 @@
 	const palette = $derived(resolvePalette(accent, dark ? 'dark' : 'light'));
 	// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
 	const accentText = $derived(
-		accessibleAccent(palette.accent, dark ? mixHex('#ffffff', palette.bg, 0.07) : palette.tint, 4.5)
+		accessibleAccent(palette.accent, dark ? mixHex(palette.bg, '#ffffff', 0.07) : palette.tint, 4.5)
 	);
 	const cssVars = $derived(
 		`${paletteVars(palette)};--pp-accent-text:${accentText};--pp-wave-track:${palette.waveTrack}`

@@ -6,10 +6,11 @@
  */
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { axe } from 'jest-axe';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import PlayerCore from '../PlayerCore.svelte';
 import type { PlayerEpisodeData } from '../types';
+import { contrastRatio, mixHex } from '../contrast';
 
 const AXE_MEDIA_OPTIONS = {
 	rules: { 'no-autoplay-audio': { enabled: false }, 'audio-caption': { enabled: false } }
@@ -220,5 +221,140 @@ describe('play() and focusPlay()', () => {
 		component.play();
 		await tick();
 		expect(screen.getByRole('button', { name: 'Pause' })).toBe(document.activeElement);
+	});
+});
+
+describe('the transcript option (design page 3.1 A)', () => {
+	const VTT = 'https://m.cdn.media/one.vtt';
+	const VTT_BODY =
+		'WEBVTT\n\n00:00.000 --> 00:05.000\n<v Maya>Hello there.</v>\n\n00:05.000 --> 00:09.000\n<v Tom>Hi.</v>\n';
+	const withTranscript = (overrides: Partial<PlayerEpisodeData> = {}) =>
+		makeEpisode({ transcript: { url: VTT, type: 'text/vtt' }, ...overrides });
+	const button = () => screen.queryByRole('button', { name: 'Transcript' });
+	// Nothing in these tests reaches the network: the VTT is answered here.
+	beforeEach(() => vi.stubGlobal('fetch', async () => new Response(VTT_BODY)));
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('is off by default: no button, nothing changes', () => {
+		const { container } = render(PlayerCore, { props: { episode: withTranscript() } });
+		expect(button()).toBeNull();
+		expect(container.querySelector('.tr')).toBeNull();
+	});
+
+	it('on: a Transcript button that opens it under the controls, credit underneath', async () => {
+		const { container } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'on' }
+		});
+		expect(button()).toHaveAttribute('aria-expanded', 'false');
+		expect(container.querySelector('.tr')).toBeNull();
+		expect(await axe(container, AXE_MEDIA_OPTIONS)).toHaveNoViolations();
+		const vtt = vi.fn(async (_input: RequestInfo | URL) => new Response(VTT_BODY));
+		vi.stubGlobal('fetch', vtt);
+		await fireEvent.click(button()!);
+		expect(button()).toHaveAttribute('aria-expanded', 'true');
+		const panel = container.querySelector('.tr')!;
+		// The transcript itself, mounted in the player: no custom element,
+		// no API request (the player has the episode), 340px of text.
+		await vi.waitFor(() => expect(panel.shadowRoot?.querySelectorAll('.line')).toHaveLength(2), {
+			timeout: 10_000
+		});
+		expect(vtt.mock.calls.map(([url]) => String(url))).toEqual([VTT]);
+		expect(panel.shadowRoot!.querySelector<HTMLElement>('.scroll')!.style.height).toBe('340px');
+		expect(customElements.get('showfm-transcript')).toBeUndefined();
+		// It follows this player's audio.
+		const audio = container.querySelector('audio')!;
+		await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+		Object.defineProperty(audio, 'currentTime', { configurable: true, value: 6 });
+		audio.dispatchEvent(new Event('timeupdate'));
+		await vi.waitFor(() =>
+			expect(
+				panel.shadowRoot!.querySelector<HTMLElement>('.line[aria-current="true"]')?.dataset.i
+			).toBe('1')
+		);
+		vi.unstubAllGlobals();
+		// "Powered by" moves under the transcript.
+		expect(
+			panel.compareDocumentPosition(poweredBy()!) & Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+		await fireEvent.click(button()!);
+		expect(container.querySelector('.tr')).toBeNull();
+	});
+
+	it('keeps the accent text at 4.5:1 when the player’s accent or theme changes', async () => {
+		const { container, rerender } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'open', theme: 'light', accent: '#7E22CE' }
+		});
+		const panel = container.querySelector('.tr')!;
+		await vi.waitFor(() => expect(panel.shadowRoot?.querySelector('.line')).toBeTruthy(), {
+			timeout: 10_000
+		});
+		const text = () =>
+			panel
+				.shadowRoot!.querySelector<HTMLElement>('.tr')!
+				.style.getPropertyValue('--pp-accent-text')
+				.trim();
+		const player = container.querySelector<HTMLElement>('.player')!;
+		const ratio = () => {
+			const bg = player.style.getPropertyValue('--pp-bg').trim();
+			const accent = player.style.getPropertyValue('--pp-accent').trim();
+			const dark = bg.toLowerCase() !== '#ffffff';
+			return contrastRatio(text(), dark ? mixHex(bg, '#ffffff', 0.07) : mixHex(accent, bg, 0.92));
+		};
+		const light = text();
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
+		await rerender({ accent: '#facc15' });
+		await vi.waitFor(() => expect(text()).not.toBe(light));
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
+		const yellow = text();
+		await rerender({ theme: 'dark' });
+		await vi.waitFor(() => expect(text()).not.toBe(yellow));
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
+	});
+
+	it('open: opens at once', () => {
+		const { container } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'open' }
+		});
+		expect(button()).toHaveAttribute('aria-expanded', 'true');
+		expect(container.querySelector('.tr')).not.toBeNull();
+	});
+
+	it('is not offered in the compact size, without a VTT, or for media off show.fm', () => {
+		const cases: [Partial<PlayerEpisodeData>, string?][] = [
+			[{}, 'compact'],
+			[{ transcript: null }],
+			[{ transcript: { url: 'https://other.example.test/one.vtt' } }],
+			[
+				{
+					audio: {
+						url: 'https://cdn.other-host.test/a.mp3',
+						content_type: null,
+						duration_seconds: 9
+					}
+				}
+			]
+		];
+		for (const [overrides, size] of cases) {
+			const view = render(PlayerCore, {
+				props: {
+					episode: withTranscript(overrides),
+					transcript: 'open',
+					size: (size ?? 'standard') as 'standard' | 'compact'
+				}
+			});
+			expect(button()).toBeNull();
+			expect(view.container.querySelector('.tr')).toBeNull();
+			view.unmount();
+		}
+	});
+
+	it('names the button in German and French', () => {
+		const de = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'on', lang: 'de' }
+		});
+		expect(screen.getByRole('button', { name: 'Transkript' })).toBeInTheDocument();
+		de.unmount();
+		render(PlayerCore, { props: { episode: withTranscript(), transcript: 'on', lang: 'fr' } });
+		expect(screen.getByRole('button', { name: 'Transcription' })).toBeInTheDocument();
 	});
 });

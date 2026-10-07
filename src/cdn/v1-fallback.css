@@ -78,3 +78,13 @@ showfm-play > a {
 	clip: rect(0 0 0 0);
 	white-space: nowrap;
 }
+/* The transcript's fallback (renderTranscriptHTML) scrolls inside the
+   height the snippet reserves, so the upgrade does not move the page. */
+showfm-transcript {
+	display: block;
+	min-height: var(--showfm-height, 0);
+}
+showfm-transcript > div {
+	max-height: var(--showfm-height, 377px);
+	overflow: auto;
+}

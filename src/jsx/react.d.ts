@@ -6,13 +6,15 @@ import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 import type {
 	ShowfmEpisodesAttributes,
 	ShowfmPlayAttributes,
-	ShowfmPlayerAttributes
+	ShowfmPlayerAttributes,
+	ShowfmTranscriptAttributes
 } from '../lib/element-types.js';
 
 type ElementProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
 type ShowfmPlayerProps = ElementProps & ShowfmPlayerAttributes;
 type ShowfmEpisodesProps = ElementProps & ShowfmEpisodesAttributes;
 type ShowfmPlayProps = ElementProps & ShowfmPlayAttributes;
+type ShowfmTranscriptProps = ElementProps & ShowfmTranscriptAttributes;
 
 declare module 'react' {
 	namespace JSX {
@@ -21,6 +23,7 @@ declare module 'react' {
 			'podcasterplus-player': ShowfmPlayerProps;
 			'showfm-episodes': ShowfmEpisodesProps;
 			'showfm-play': ShowfmPlayProps;
+			'showfm-transcript': ShowfmTranscriptProps;
 		}
 	}
 }

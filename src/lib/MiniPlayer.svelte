@@ -18,8 +18,11 @@
 	  controls give way to the message and only Close remains.
 	- "Powered by show.fm" shows here when the page has no earlier embed
 	  that shows it (only play buttons, say).
-	- The Transcript toggle arrives with <showfm-transcript> (EMB-5): until
-	  then the waveform has its width, as for external audio.
+	- Transcript: a toggle next to the speed opens the follow-along
+	  transcript (<showfm-transcript>, following the shared audio) in a
+	  panel that rises from the bar on the right; on a phone it goes in the
+	  sheet. Only for an episode whose audio and VTT are on show.fm's media
+	  hosts: otherwise the waveform has its width (design page 9).
 -->
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
@@ -30,7 +33,7 @@
 		type PlaybackState,
 		type SharedMessage
 	} from './controller';
-	import { MARKETING_APEX_URL } from './hosts';
+	import { MARKETING_APEX_URL, isShowfmMediaUrl, mediaHosts } from './hosts';
 	import { paletteVars, resolvePalette } from './palette';
 	import { accessibleAccent, DEFAULT_ACCENT, parseHex } from './contrast';
 	import { drawWave, genPeaks } from './waveform';
@@ -71,6 +74,7 @@
 	let time = $state(0);
 	let duration = $state(0);
 	let rate = $state(1);
+	let transcriptOpen = $state(false);
 
 	let root = $state<HTMLElement | null>(null);
 	let canvas = $state<HTMLCanvasElement | null>(null);
@@ -159,6 +163,11 @@
 	const artwork = $derived(safeUrl(episode?.artworkUrl));
 	const listen = $derived(safeUrl(episode?.links?.listen));
 	const messageText = $derived(message === 'suspended' ? s.suspended : s.error);
+	// canOfferTranscript, written out: v1.js has the host check already.
+	const offerTranscript = $derived(
+		isShowfmMediaUrl(episode?.audio?.url, mediaHosts()) &&
+			isShowfmMediaUrl(episode?.transcript?.url, mediaHosts())
+	);
 	const playName = $derived(
 		formatString(p.actionName, { verb: playing ? s.pause : s.play, title: episode?.title ?? '' })
 	);
@@ -487,6 +496,20 @@
 					aria-label={formatString(s.speed, { rate })}
 					onclick={changeRate}>{rate}×</button
 				>
+				{#if offerTranscript}
+					<button
+						type="button"
+						class="ctrl tr"
+						aria-expanded={transcriptOpen}
+						onclick={() => (transcriptOpen = !transcriptOpen)}
+						>{@render stroke('M17 6.1H3M21 12.1H3M15.1 18H3')}{s.transcript}</button
+					>
+					{#if transcriptOpen && !collapsed}
+						<!-- It follows the shared audio, whoever started it. -->
+						<showfm-transcript class={sheet ? 'panel in-sheet' : 'panel'} height="300"
+						></showfm-transcript>
+					{/if}
+				{/if}
 			{/if}
 			<span class="end">
 				{#if !message}

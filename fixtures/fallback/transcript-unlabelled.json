@@ -1,0 +1,29 @@
+{
+	"description": "Unlabelled speakers (\"Speaker A\") and cues without a speaker get no name, and a paragraph each.",
+	"function": "renderTranscriptHTML",
+	"args": [
+		[
+			{
+				"speaker": "Speaker A",
+				"text": "First line."
+			},
+			{
+				"speaker": "Speaker A",
+				"text": "Second line."
+			},
+			{
+				"speaker": null,
+				"text": "No speaker at all."
+			},
+			{
+				"speaker": "Tom",
+				"text": "A named speaker."
+			},
+			{
+				"speaker": "  Tom ",
+				"text": "  Spaces   are   collapsed.  "
+			}
+		]
+	],
+	"expected": "<div><p>First line.</p><p>Second line.</p><p>No speaker at all.</p><p><strong>Tom:</strong> A named speaker. Spaces are collapsed.</p></div>"
+}

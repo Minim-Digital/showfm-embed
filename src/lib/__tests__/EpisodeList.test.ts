@@ -13,6 +13,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { mountEpisodes } from '../episodes.svelte';
 import { pageController } from '../controller';
 import { renderEpisodeListHTML } from '../fallback';
+import { contrastRatio, mixHex } from '../contrast';
 import {
 	EXTERNAL_AUDIO,
 	HOSTED_AUDIO,
@@ -809,6 +810,16 @@ describe('playing a row', () => {
 			theme: 'dark',
 			credit: true
 		});
+	});
+});
+
+describe('dark theme', () => {
+	it('accent text reaches 4.5:1 on the tint (rgba white at 7% over the background)', async () => {
+		const { root } = await mountList({ theme: 'dark' });
+		const style = root.querySelector<HTMLElement>('.list')!.style;
+		const bg = style.getPropertyValue('--pp-bg').trim();
+		const text = style.getPropertyValue('--pp-accent-text').trim();
+		expect(contrastRatio(text, mixHex(bg, '#ffffff', 0.07))).toBeGreaterThanOrEqual(4.5);
 	});
 });
 

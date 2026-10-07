@@ -1,6 +1,7 @@
 /**
  * Compile-only fixture: proves the published preact typings make
- * <showfm-player>, <showfm-episodes> and <showfm-play> typed JSX elements.
+ * <showfm-player>, <showfm-episodes>, <showfm-play> and <showfm-transcript> typed JSX
+ * elements.
  * CI runs `pnpm jsx:check` after the build, so the package resolves through
  * its own exports map.
  */
@@ -80,3 +81,27 @@ export const play = (
 
 // @ts-expect-error variant is 'icon', 'label' or 'link'
 export const wrongVariant = <showfm-play episode="x" variant="pill" />;
+
+export const withTranscript = (
+	<showfm-player episode="11111111-2222-4333-8444-555555555555" transcript="open" />
+);
+
+export const transcript = (
+	<showfm-transcript
+		episode="11111111-2222-4333-8444-555555555555"
+		for="player"
+		height={400}
+		heading-level="3"
+		theme="dark"
+		load="click"
+	>
+		<div>
+			<p>
+				<strong>Maya:</strong> So the bakery had been closed.
+			</p>
+		</div>
+	</showfm-transcript>
+);
+
+// @ts-expect-error transcript is 'on' or 'open'
+export const wrongTranscript = <showfm-player transcript="yes" />;

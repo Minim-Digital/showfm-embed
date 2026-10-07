@@ -10,6 +10,10 @@
  *   one player behaves exactly as before.
  * - **State for subscribers.** The current episode, time, duration and
  *   playback state, for the mini-player and the transcript.
+ * - **What can be followed.** Every attached audio and its episode
+ *   (`audios()`), so a transcript can follow a given player, a list or
+ *   whatever plays. Attaching one tells subscribers, so a transcript finds a
+ *   player that loads after it.
  * - **"Powered by show.fm" once per page**, on the first embed that shows it
  *   (decisions 3 and 9). Elements claim the credit; the first claimant in
  *   document order that wants it gets it, and an earlier element still
@@ -25,8 +29,8 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' 
 
 /**
  * What subscribers need to know about the episode that is playing. The
- * optional fields are for the mini-player; they take the public API's
- * names, so an element can spread an episode payload in.
+ * optional fields are for the mini-player and the transcript; they take
+ * the public API's names, so an element can spread an episode payload in.
  */
 export interface ControllerEpisode {
 	id: string;
@@ -44,6 +48,11 @@ export interface ControllerEpisode {
 	theme?: string | null;
 	/** Whether the element wants the page's "Powered by" credit. */
 	credit?: boolean | null;
+	/**
+	 * The published WebVTT. Absent when the element does not say; the
+	 * transcript then asks the public API for the episode.
+	 */
+	transcript?: { url?: string | null } | null;
 }
 
 /** A message the shared audio's owner reports when its episode cannot play. */
@@ -100,12 +109,13 @@ export class PageAudioController {
 	private claims: Claim[] = [];
 	/**
 	 * How often each episode has been asked to play, or started or resumed
-	 * playing, on any audio: a failure's recheck is stale once this moves.
+	 * playing, on any audio: a failure's recheck is stale once this moves
+	 * (the transcript reads it for the same reason).
 	 */
-	private starts: Record<string, number> = {};
+	readonly starts: Readonly<Record<string, number>> = {};
 
 	private started(id: string | undefined) {
-		if (id) this.starts[id] = (this.starts[id] ?? 0) + 1;
+		if (id) (this.starts as Record<string, number>)[id] = (this.starts[id] ?? 0) + 1;
 	}
 
 	/** Attach an element's own audio. Returns the function that detaches it. */
@@ -128,13 +138,14 @@ export class PageAudioController {
 		};
 		for (const type in AUDIO_EVENTS) audio.addEventListener(type, onEvent);
 		this.entries.add(entry);
+		// Not for the shared audio: it is attached while it is being created.
+		if (owner !== this) this.emit();
 		return () => {
 			for (const type in AUDIO_EVENTS) audio.removeEventListener(type, onEvent);
 			this.entries.delete(entry);
-			if (this.current === entry) {
-				this.current = null;
-				this.emit();
-			}
+			if (this.current === entry) this.current = null;
+			// As on attach: anyone following this audio (a transcript) looks again.
+			this.emit();
 		};
 	}
 
@@ -223,6 +234,11 @@ export class PageAudioController {
 			duration: Number.isFinite(duration) ? duration : 0,
 			state: entry?.state ?? 'idle'
 		};
+	}
+
+	/** Every attached audio, the current one first: what a transcript can follow. */
+	audios(): AudioEntry[] {
+		return [...this.entries].sort((a, b) => +(b === this.current) - +(a === this.current));
 	}
 
 	/** Called with the snapshot now and on every change. Returns the unsubscribe function. */

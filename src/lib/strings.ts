@@ -50,6 +50,8 @@ export const EN = {
 	shared: 'Shared',
 	linkCopied: 'Link copied',
 	shareFailed: 'Unable to share',
+	/** The player's transcript button, and the transcript's name. */
+	transcript: 'Transcript',
 	poweredBy: 'Powered by',
 	/** The `load="click"` facade, which knows nothing about the episode (26 max). */
 	facadeTitle: 'Play podcast episode',

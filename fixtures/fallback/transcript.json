@@ -1,0 +1,25 @@
+{
+	"description": "Consecutive cues of one speaker make one paragraph, which starts with the name.",
+	"function": "renderTranscriptHTML",
+	"args": [
+		[
+			{
+				"speaker": "Maya",
+				"text": "So the bakery had been closed for, what, eleven years?"
+			},
+			{
+				"speaker": "Tom",
+				"text": "Twelve, nearly."
+			},
+			{
+				"speaker": "Tom",
+				"text": "The ovens were still there."
+			},
+			{
+				"speaker": "Maya",
+				"text": "And you’d never baked professionally."
+			}
+		]
+	],
+	"expected": "<div><p><strong>Maya:</strong> So the bakery had been closed for, what, eleven years?</p><p><strong>Tom:</strong> Twelve, nearly. The ovens were still there.</p><p><strong>Maya:</strong> And you’d never baked professionally.</p></div>"
+}

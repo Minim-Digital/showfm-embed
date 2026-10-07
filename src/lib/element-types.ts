@@ -7,6 +7,7 @@
 import type { ListStringKey } from './list-strings.js';
 import type { PlayStringKey } from './play-strings.js';
 import type { StringKey } from './strings.js';
+import type { TranscriptStringKey } from './transcript-strings.js';
 
 /** Attributes of <showfm-player> (and its alias <podcasterplus-player>). */
 export interface ShowfmPlayerAttributes {
@@ -30,6 +31,11 @@ export interface ShowfmPlayerAttributes {
 	credit?: 'auto' | 'on' | 'off';
 	/** `click`: draw a facade and request nothing until it is pressed. */
 	load?: 'click';
+	/**
+	 * `on`: a Transcript button that opens the follow-along transcript under
+	 * the player. `open`: open at once. Standard size and show.fm media only.
+	 */
+	transcript?: 'on' | 'open';
 	/** The element's language for its strings. Absent follows `<html lang>`. */
 	lang?: string;
 }
@@ -46,6 +52,7 @@ export interface ShowfmPlayerElement extends HTMLElement {
 	headingLevel: string | number;
 	credit: 'auto' | 'on' | 'off' | string;
 	load: string;
+	transcript: string;
 	/** Overrides for visible strings, by key (see the README). */
 	strings: Partial<Record<StringKey, string>> | undefined;
 }
@@ -133,11 +140,43 @@ export interface ShowfmPlayElement extends HTMLElement {
 	strings: Partial<Record<StringKey | PlayStringKey, string>> | undefined;
 }
 
+/** Attributes of <showfm-transcript>. */
+export interface ShowfmTranscriptAttributes {
+	/**
+	 * Episode UUID: that episode's transcript, following along whenever it
+	 * plays on the page. Absent, the transcript follows what plays.
+	 */
+	episode?: string;
+	/** The id of a <showfm-player> or <showfm-episodes>: follow what it plays. */
+	for?: string;
+	/** Height of the text area in pixels, 120 to 2000. Absent is 320. */
+	height?: string | number;
+	/** Makes the name "Transcript" a heading of this level. Absent emits no heading. */
+	'heading-level'?: '2' | '3' | '4' | '5' | '6' | 2 | 3 | 4 | 5 | 6;
+	/** `click`: request nothing, not even the transcript's code, until `showfm.load()` runs. */
+	load?: 'click';
+	/** Pins the theme. Absent follows the show's player theme setting. */
+	theme?: 'auto' | 'light' | 'dark';
+	/** Accent colour as a hex value. Absent follows the show's player colour. */
+	accent?: string;
+	/** API origin override, for development and testing only. */
+	api?: string;
+	/** The element's language for its strings. Absent follows `<html lang>`. */
+	lang?: string;
+}
+
+/** A <showfm-transcript> element. Its attributes are read live. */
+export interface ShowfmTranscriptElement extends HTMLElement {
+	/** Overrides for visible strings, by key (see the README). */
+	strings: Partial<Record<StringKey | TranscriptStringKey, string>> | undefined;
+}
+
 declare global {
 	interface HTMLElementTagNameMap {
 		'showfm-player': ShowfmPlayerElement;
 		'podcasterplus-player': ShowfmPlayerElement;
 		'showfm-episodes': ShowfmEpisodesElement;
 		'showfm-play': ShowfmPlayElement;
+		'showfm-transcript': ShowfmTranscriptElement;
 	}
 }

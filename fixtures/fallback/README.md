@@ -10,9 +10,13 @@ Each file is one case:
 | Field         | What it is                                                                                     |
 | ------------- | ---------------------------------------------------------------------------------------------- |
 | `description` | What the case shows.                                                                           |
-| `function`    | `renderEpisodeHTML`, `renderEpisodeListHTML` or `episodeJsonLd`.                               |
+| `function`    | `renderEpisodeHTML`, `renderEpisodeListHTML`, `renderTranscriptHTML` or `episodeJsonLd`.       |
 | `args`        | The arguments, in order.                                                                       |
 | `expected`    | The exact HTML string, or for `episodeJsonLd` the object (compare decoded JSON, not the text). |
+
+`renderTranscriptHTML` cases pass parsed cues (`{ speaker, text }`), so a
+port needs no WebVTT parser to run them. The TypeScript function also takes
+the WebVTT text, which it parses with `parseVtt` first.
 
 `src/lib/__tests__/fallback.test.ts` checks every case against the
 TypeScript functions. A change to the markup changes these files, and the

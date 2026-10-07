@@ -77,6 +77,46 @@ describe('one plays at a time', () => {
 	});
 });
 
+describe('what a transcript can follow', () => {
+	it('lists every attached audio, the current one first, and tells subscribers of a new one', async () => {
+		const controller = new PageAudioController();
+		const first = fakeAudio();
+		const second = fakeAudio();
+		const seen = vi.fn();
+		controller.subscribe(seen);
+		seen.mockClear();
+		controller.attach(first, first, { id: 'one', title: 'One' });
+		expect(seen).toHaveBeenCalledTimes(1);
+		const detach = controller.attach(second, second, { id: 'two', title: 'Two' });
+		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['one', 'two']);
+		await second.play();
+		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['two', 'one']);
+		detach();
+		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['one']);
+	});
+
+	it('tells subscribers when any audio is detached, current or not', async () => {
+		const controller = new PageAudioController();
+		const kept = fakeAudio();
+		const gone = fakeAudio();
+		controller.attach(kept, kept, { id: 'kept', title: 'Kept' });
+		const detach = controller.attach(gone, gone, { id: 'gone', title: 'Gone' });
+		await kept.play();
+		const seen = vi.fn();
+		controller.subscribe(seen);
+		seen.mockClear();
+		detach();
+		expect(seen).toHaveBeenCalledTimes(1);
+		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['kept']);
+	});
+
+	it('creating the shared audio does not call subscribers back into it', () => {
+		const controller = new PageAudioController();
+		controller.subscribe(() => controller.sharedAudio());
+		expect(controller.sharedAudio()).toBeInstanceOf(HTMLAudioElement);
+	});
+});
+
 describe('subscribers', () => {
 	it('see the current episode, time and state', async () => {
 		const controller = new PageAudioController();

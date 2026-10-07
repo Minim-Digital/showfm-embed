@@ -239,6 +239,15 @@ input {
 	padding-left: 6px;
 	border-left: 1px solid var(--pp-border);
 }
+/* The transcript toggle. Its panel's place is in transcript.svelte.ts (:host(.panel)). */
+.tr {
+	gap: 6px;
+}
+.tr[aria-expanded='true'] {
+	border-color: var(--pp-accent);
+	background: var(--pp-tint);
+	color: var(--pp-accent-text);
+}
 
 .line span {
 	display: block;

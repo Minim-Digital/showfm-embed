@@ -23,7 +23,7 @@
 	d: Document,
 	w: Window & { showfm?: { load?: () => void }; showfmStrings?: Record<string, string> }
 ) => {
-	const TAGS = 'showfm-player,podcasterplus-player,showfm-episodes,showfm-play';
+	const TAGS = 'showfm-player,podcasterplus-player,showfm-episodes,showfm-play,showfm-transcript';
 	// Each attribute name once: this file is pasted inline, so bytes count.
 	const FACADE = 'data-showfm-facade';
 	const UI = `${FACADE}-ui`;
@@ -33,35 +33,25 @@
 	const script = d.currentScript;
 	const src = script?.getAttribute('data-src') || 'https://embed.cdn.media/player/v1.js';
 	const nonce = script?.nonce;
-	// [player title, player meta, list title, list meta] per language.
-	const STRINGS: Record<string, string[]> = {
-		en: [
-			'Play podcast episode',
-			'Loads from show.fm when you press play',
-			'Load episodes',
-			'Episodes load from show.fm when you press the button.'
-		],
-		de: [
-			'Podcastfolge abspielen',
-			'Wird beim Abspielen von show.fm geladen',
-			'Folgen laden',
-			'Die Folgen werden beim Klick von show.fm geladen.'
-		],
-		fr: [
-			'Lire l’épisode du podcast',
-			'Chargé depuis show.fm à la lecture',
-			'Charger les épisodes',
-			'Les épisodes se chargent depuis show.fm au clic.'
-		]
+	// Per language, one string split at "|" (fewer bytes than an array):
+	// the player's title and meta, the list's title and meta, and the
+	// transcript's title. Its meta line stays empty: the title says it all.
+	const STRINGS: Record<string, string> = {
+		en: 'Play podcast episode|Loads from show.fm when you press play|Load episodes|Episodes load from show.fm when you press the button.|Load transcript',
+		de: 'Podcastfolge abspielen|Wird beim Abspielen von show.fm geladen|Folgen laden|Die Folgen werden beim Klick von show.fm geladen.|Transkript laden',
+		fr: 'Lire l’épisode du podcast|Chargé depuis show.fm à la lecture|Charger les épisodes|Les épisodes se chargent depuis show.fm au clic.|Charger la transcription'
 	};
-	const KEYS = ['facadeTitle', 'facadeMeta', 'facadeListTitle', 'facadeListMeta'];
+	// The `window.showfmStrings` key of string i: facadeTitle, facadeMeta,
+	// facadeListTitle, facadeListMeta, facadeTranscriptTitle.
+	const key = (i: number) =>
+		`facade${['', 'List', 'Transcript'][i >> 1]}${i & 1 ? 'Meta' : 'Title'}`;
 	let added = false;
 
 	const style = d.createElement('style');
 	style.textContent =
-		// A list or play button never shows its light DOM behind the facade,
-		// and is defined (a stub in v1.js) before its code mounts.
-		`[${FACADE}]:is(showfm-episodes,showfm-play,:not(:defined))>:not([${UI}]){display:none}` +
+		// A list, play button or transcript never shows its light DOM behind
+		// the facade, and is defined (a stub in v1.js) before its code mounts.
+		`[${FACADE}]:is(showfm-episodes,showfm-play,showfm-transcript,:not(:defined))>:not([${UI}]){display:none}` +
 		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 Geist,system-ui,sans-serif;text-align:left}` +
 		`[${UI}][data-c]{padding:12px 14px}[${UI}][data-d]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}` +
 		`@media(prefers-color-scheme:dark){[${UI}][data-a]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}}` +
@@ -89,13 +79,17 @@
 		return lum <= 0.17913 ? '#fff' : '#000';
 	};
 
+	/** Calls `f` for each element `selector` matches (once here: bytes count). */
+	const each = (selector: string, f: (el: Element) => void) =>
+		d.querySelectorAll(selector).forEach(f);
+
 	const activate = (el: Element, mode: string, button?: Element | null) => {
 		el.setAttribute(ACTIVATED, mode);
 		if (button) {
 			button.setAttribute(BUSY, 'true');
 			if (d.activeElement === button) el.setAttribute(FOCUS, '');
 		}
-		if (!added && !customElements.get('showfm-player')) {
+		if (!added && !customElements.get(el.localName)) {
 			added = true;
 			const tag = d.createElement('script');
 			tag.src = src;
@@ -107,7 +101,7 @@
 			tag.onerror = () => {
 				added = false;
 				tag.remove();
-				d.querySelectorAll(`[${ACTIVATED}]:not(:defined)`).forEach((pressed) => {
+				each(`[${ACTIVATED}]:not(:defined)`, (pressed) => {
 					pressed.removeAttribute(ACTIVATED);
 					pressed.removeAttribute(FOCUS);
 					pressed.querySelector(`[${UI}] button`)?.removeAttribute(BUSY);
@@ -118,42 +112,51 @@
 	};
 
 	const draw = (el: Element) => {
-		if (el.hasAttribute(FACADE) || customElements.get(el.localName)) return;
+		const tag = el.localName;
+		if (el.hasAttribute(FACADE) || customElements.get(tag)) return;
 		el.setAttribute(FACADE, '');
-		const lang = (el.getAttribute('lang') || d.documentElement.lang || '')
-			.slice(0, 2)
-			.toLowerCase();
-		const table = STRINGS[lang] || STRINGS.en;
-		const text = (i: number) => w.showfmStrings?.[KEYS[i]] || table[i];
-		const list = el.localName === 'showfm-episodes';
-		const play = el.localName === 'showfm-play';
-		const accentAttr = el.getAttribute('accent') || '';
+		const get = (name: string) => el.getAttribute(name);
+		const lang = (get('lang') || d.documentElement.lang || '').slice(0, 2).toLowerCase();
+		const table = (STRINGS[lang] || STRINGS.en).split('|');
+		// The transcript has no meta (string 5): undefined sets no text.
+		const text = (i: number) => (w.showfmStrings?.[key(i)] || table[i]) as string;
+		const list = tag === 'showfm-episodes';
+		const play = tag === 'showfm-play';
+		// A transcript loads like a list, in the height its element reserves.
+		const transcript = tag === 'showfm-transcript';
+		// Its strings: the player's (0), the list's (2) or the transcript's (4).
+		const strings = transcript ? 4 : list ? 2 : 0;
+		const accentAttr = get('accent') || '';
 		const accent = /^#([0-9a-f]{3}){1,2}$/i.test(accentAttr) ? accentAttr : '#7E22CE';
-		const theme = el.getAttribute('theme');
-		const compact = play || el.getAttribute('size') === 'compact';
+		const theme = get('theme');
+		const compact = play || get('size') === 'compact';
 
 		const box = d.createElement('div');
 		box.setAttribute(UI, '');
 		if (compact) box.setAttribute('data-c', '');
 		if (play) box.setAttribute('data-p', '');
-		box.setAttribute(theme === 'dark' ? 'data-d' : theme === 'light' ? 'data-l' : 'data-a', '');
-		box.style.cssText = `--a:${accent};--f:${onAccent(accent)};--h:${list ? 'var(--showfm-height,0px)' : play ? '40px' : compact ? '83px' : '252px'}`;
+		box.setAttribute(`data-${theme === 'dark' ? 'd' : theme === 'light' ? 'l' : 'a'}`, '');
+		box.style.cssText = `--a:${accent};--f:${onAccent(accent)};--h:${strings ? `var(--showfm-height,${list ? 0 : 377}px)` : play ? '40px' : compact ? '83px' : '252px'}`;
 		box.innerHTML =
 			'<div><button type="button"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></button><span><b aria-hidden="true"></b><small></small></span></div><i aria-hidden="true"></i>';
 		const button = box.querySelector('button')!;
-		const title = text(list ? 2 : 0);
+		const title = text(strings);
 		button.setAttribute('aria-label', title);
 		box.querySelector('b')!.textContent = title;
-		box.querySelector('small')!.textContent = text(list ? 3 : 1);
-		button.onclick = () => activate(el, list ? 'load' : 'play', button);
+		box.querySelector('small')!.textContent = text(strings + 1);
+		button.onclick = () => activate(el, strings ? 'load' : 'play', button);
 		el.prepend(box);
 	};
 
-	const scan = () => d.querySelectorAll(`:is(${TAGS})[load="click"]`).forEach(draw);
+	const scan = () => each(`:is(${TAGS})[load="click"]`, draw);
 
 	const showfm = (w.showfm ||= {});
 	showfm.load = () => {
-		d.querySelectorAll(`[${FACADE}]:not(:defined)`).forEach((el) =>
+		// Facades for elements added since, then every facade is marked. The
+		// mark is an attribute, so it waits for v1.js: an element reads it when
+		// it upgrades, however late v1.js arrives, and marking twice is the same.
+		scan();
+		each(`[${FACADE}]:not(:defined)`, (el) =>
 			activate(el, 'load', el.querySelector(`[${UI}] button`))
 		);
 		// Elements that upgraded already listen for this.

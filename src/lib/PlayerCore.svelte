@@ -25,6 +25,7 @@
 	import { formatString, languageFromTag, resolveStrings, type StringOverrides } from './strings';
 	import { pageController } from './controller';
 	import { safeUrl } from './fallback';
+	import { loadChunk } from './lazy-element';
 
 	let {
 		episode,
@@ -37,6 +38,7 @@
 		headingLevel = null,
 		lang = null,
 		strings = undefined,
+		transcript = null,
 		currentTime = $bindable(0)
 	}: {
 		episode: PlayerEpisodeData;
@@ -56,6 +58,15 @@
 		lang?: string | null;
 		/** Overrides for individual strings (see strings.ts). */
 		strings?: StringOverrides;
+		/**
+		 * The transcript option: `on` adds a Transcript button that opens the
+		 * follow-along transcript under the player, `open` opens it at once.
+		 * Only the standard size offers it, and only for audio and a VTT on
+		 * show.fm's media hosts (design page 9). The transcript's code loads
+		 * when it is first opened (a lazy chunk in v1.js, a dynamic import
+		 * elsewhere), so it works from `@showfm/embed/svelte` too.
+		 */
+		transcript?: string | null;
 		/**
 		 * Playback position in seconds, readable by a parent. Bindable so the
 		 * listen page's transcript reader can follow along and highlight the
@@ -180,6 +191,36 @@
 		audioSrc && hostedAudio ? downloadHref(audioSrc, downloadName) : null
 	);
 	const showCredit = $derived(credit ?? episode.podcast.branding.show_powered_by);
+	// Only for audio and a VTT on show.fm's media hosts (canOfferTranscript).
+	const offerTranscript = $derived(
+		(transcript === 'on' || transcript === 'open') &&
+			hostedAudio &&
+			isShowfmMediaUrl(episode.transcript?.url, mediaHosts())
+	);
+	// The visitor's toggle, once they have pressed the button.
+	let toggled = $state<boolean | null>(null);
+	const transcriptOpen = $derived(toggled ?? transcript === 'open');
+	let transcriptEl = $state<HTMLElement | null>(null);
+
+	// The transcript mounts into its own element under the controls, in a
+	// shadow root of its own, following this player's audio and episode.
+	$effect(() => {
+		const target = transcriptEl;
+		const current = episode;
+		if (!target) return;
+		let live = true;
+		let connection: ((connected: boolean) => void) | undefined;
+		loadChunk<typeof import('./transcript.svelte.js')>(import('./transcript.svelte.js')).then(
+			(chunk) => {
+				if (live)
+					connection = chunk.mountTranscript(target, { audio: () => audioEl, episode: current });
+			}
+		);
+		return () => {
+			live = false;
+			connection?.(false);
+		};
+	});
 	const heading = $derived(
 		headingLevel !== null &&
 			Number.isInteger(headingLevel) &&
@@ -828,6 +869,31 @@
 					{@render skipFwdIcon(23)}
 				</button>
 				<div class="spacer"></div>
+				{#if offerTranscript}
+					<!-- A disclosure: the transcript opens under the player, which
+					     grows downwards (design page 3.1 A). -->
+					<button
+						type="button"
+						class="rate-btn tr-btn"
+						aria-expanded={transcriptOpen}
+						onclick={() => (toggled = !transcriptOpen)}
+						part="transcript"
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.9"
+							stroke-linecap="round"
+							aria-hidden="true"
+						>
+							<path d="M17 6.1H3M21 12.1H3M15.1 18H3"></path>
+						</svg>
+						{s.transcript}
+					</button>
+				{/if}
 				<button
 					type="button"
 					class="rate-btn"
@@ -848,6 +914,11 @@
 				</button>
 			</div>
 
+			{#if offerTranscript && transcriptOpen}
+				<!-- The player grows downwards and "Powered by" moves under the
+				     transcript (mounted by the effect above). -->
+				<div class="tr" {lang} bind:this={transcriptEl}></div>
+			{/if}
 			{@render poweredBy()}
 		</div>
 	{:else}
@@ -1296,6 +1367,38 @@
 	.brand-b {
 		color: var(--pp-logo);
 		font-weight: 700;
+	}
+
+	/* ── transcript option ────────────────────── */
+	.body-full {
+		container-type: inline-size;
+	}
+	.tr-btn {
+		gap: 6px;
+	}
+	.tr-btn[aria-expanded='true'] {
+		color: var(--pp-fg-strong);
+		background: var(--pp-tint);
+		border-color: var(--pp-accent);
+	}
+	/* Edge to edge, 18px under the controls, the footer's rule on its foot. */
+	.tr {
+		margin: 3px -22px -16px;
+		border-top: 1px solid var(--pp-border);
+	}
+	/* A narrow player keeps every control on its row: the button keeps its
+	   name but shows only its icon, and the row tightens. */
+	@container (max-width: 400px) {
+		.tr-btn {
+			gap: 0;
+			font-size: 0;
+		}
+		.transport:has(.tr-btn) {
+			gap: 4px;
+		}
+		.transport:has(.tr-btn) .transport-btn {
+			width: 36px;
+		}
 	}
 
 	/* ── error / blocked card ─────────────────── */

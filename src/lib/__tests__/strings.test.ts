@@ -2,6 +2,7 @@
  * Strings: every table has every key, the design's maximum lengths hold in
  * every language, and the fallbacks and overrides apply in order.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	ACTIONS_MAX_LENGTH,
@@ -16,6 +17,7 @@ import { STRING_TABLES } from '../string-tables';
 import { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from '../element-strings';
 import { LIST_EN, LIST_STRING_MAX_LENGTHS, resolveListStrings } from '../list-strings';
 import { PLAY_BUILDER_EN, PLAY_EN, resolvePlayStrings } from '../play-strings';
+import { TRANSCRIPT_EN, TRANSCRIPT_STRING_MAX_LENGTHS } from '../transcript-strings';
 
 const LANGUAGES = ['en', 'de', 'fr'] as const;
 
@@ -160,6 +162,43 @@ describe('the play button and the mini-player (design pages 3, 5 and 8)', () => 
 		);
 		// Not shown to visitors, so not in the chunk's table.
 		expect(resolvePlayStrings()).not.toHaveProperty('miniPlayerOff');
+	});
+});
+
+describe('the transcript (design page 3)', () => {
+	it.each(LANGUAGES)('%s: every transcript key is in the table', (language) => {
+		for (const key of [...Object.keys(TRANSCRIPT_EN), 'transcript']) {
+			expect(STRING_TABLES[language], `${language}.${key}`).toHaveProperty(key);
+		}
+	});
+
+	it.each(LANGUAGES)('%s: the transcript strings fit, with the time filled in', (language) => {
+		for (const [key, max] of Object.entries(TRANSCRIPT_STRING_MAX_LENGTHS)) {
+			const value = formatString(STRING_TABLES[language][key as keyof typeof TRANSCRIPT_EN], {
+				time: '1:02:03'
+			});
+			expect(value.length, `${language}.${key}: ${value}`).toBeLessThanOrEqual(max!);
+		}
+	});
+
+	it('has the facade title the click loader draws, in every language', () => {
+		// click-loader.ts carries its own copy; the tables are for translators.
+		expect(STRING_TABLES.en.facadeTranscriptTitle).toBe('Load transcript');
+		expect(STRING_TABLES.de.facadeTranscriptTitle).toBe('Transkript laden');
+		expect(STRING_TABLES.fr.facadeTranscriptTitle).toBe('Charger la transcription');
+		const loader = readFileSync('src/cdn/click-loader.ts', 'utf-8');
+		for (const language of LANGUAGES) {
+			expect(loader).toContain(`|${STRING_TABLES[language].facadeTranscriptTitle}'`);
+		}
+	});
+
+	it('resolves a chunk’s own table through the shared function', () => {
+		(window as unknown as { showfmStrings?: unknown }).showfmStrings = { noMatches: 'Nothing' };
+		const strings = resolveStrings('de', { clearSearch: 'Weg' }, TRANSCRIPT_EN);
+		expect(strings.noMatches).toBe('Nothing');
+		expect(strings.clearSearch).toBe('Weg');
+		expect(strings.searchTranscript).toBe('Transkript durchsuchen');
+		expect(strings).not.toHaveProperty('error');
 	});
 });
 

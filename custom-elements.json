@@ -97,6 +97,14 @@
 							"fieldName": "load"
 						},
 						{
+							"name": "transcript",
+							"type": {
+								"text": "'on' | 'open'"
+							},
+							"description": "`on` adds a Transcript button that opens the follow-along transcript under the player, which grows downwards; `open` opens it at once. Only the standard size offers it, and only when the audio and the transcript are on show.fm. Absent, there is no button.",
+							"fieldName": "transcript"
+						},
+						{
 							"name": "strings",
 							"type": {
 								"text": "Partial<Record<string, string>>"
@@ -201,6 +209,15 @@
 						},
 						{
 							"kind": "field",
+							"name": "transcript",
+							"type": {
+								"text": "'on' | 'open'"
+							},
+							"description": "`on` adds a Transcript button that opens the follow-along transcript under the player, which grows downwards; `open` opens it at once. Only the standard size offers it, and only when the audio and the transcript are on show.fm. Absent, there is no button.",
+							"attribute": "transcript"
+						},
+						{
+							"kind": "field",
 							"name": "strings",
 							"type": {
 								"text": "Partial<Record<string, string>>"
@@ -267,6 +284,10 @@
 						{
 							"name": "title",
 							"description": "The episode title link."
+						},
+						{
+							"name": "transcript",
+							"description": "The Transcript button."
 						}
 					]
 				},
@@ -366,6 +387,14 @@
 							"fieldName": "load"
 						},
 						{
+							"name": "transcript",
+							"type": {
+								"text": "'on' | 'open'"
+							},
+							"description": "`on` adds a Transcript button that opens the follow-along transcript under the player, which grows downwards; `open` opens it at once. Only the standard size offers it, and only when the audio and the transcript are on show.fm. Absent, there is no button.",
+							"fieldName": "transcript"
+						},
+						{
 							"name": "strings",
 							"type": {
 								"text": "Partial<Record<string, string>>"
@@ -470,6 +499,15 @@
 						},
 						{
 							"kind": "field",
+							"name": "transcript",
+							"type": {
+								"text": "'on' | 'open'"
+							},
+							"description": "`on` adds a Transcript button that opens the follow-along transcript under the player, which grows downwards; `open` opens it at once. Only the standard size offers it, and only when the audio and the transcript are on show.fm. Absent, there is no button.",
+							"attribute": "transcript"
+						},
+						{
+							"kind": "field",
 							"name": "strings",
 							"type": {
 								"text": "Partial<Record<string, string>>"
@@ -536,6 +574,10 @@
 						{
 							"name": "title",
 							"description": "The episode title link."
+						},
+						{
+							"name": "transcript",
+							"description": "The Transcript button."
 						}
 					]
 				},
@@ -818,6 +860,96 @@
 							"description": "The button."
 						}
 					]
+				},
+				{
+					"kind": "class",
+					"name": "ShowfmTranscript",
+					"tagName": "showfm-transcript",
+					"customElement": true,
+					"description": "The follow-along transcript: the line being spoken is highlighted (word by word when the transcript has word timings), a click on a line seeks, and the visitor can search it. It follows the episode in `episode`, the player or list named by `for`, or else whatever plays on the page. Its code loads the first time one is on the page. Its fallback is the transcript as paragraphs (renderTranscriptHTML), for search engines and visitors without JavaScript. Set --showfm-height to the height to reserve.",
+					"attributes": [
+						{
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Shows that episode's transcript, and follows along whenever it plays on the page. Without it, the transcript follows what plays."
+						},
+						{
+							"name": "for",
+							"type": {
+								"text": "string"
+							},
+							"description": "The id of a `showfm-player` or `showfm-episodes` on the page: the transcript follows what it plays."
+						},
+						{
+							"name": "height",
+							"type": {
+								"text": "number"
+							},
+							"default": "320",
+							"description": "Height of the text area in pixels, 120 to 2000. The search row adds 55px, and the border 2px."
+						},
+						{
+							"name": "heading-level",
+							"type": {
+								"text": "'2' | '3' | '4' | '5' | '6'"
+							},
+							"description": "Makes the name \"Transcript\" a heading of this level. Absent, no heading is emitted."
+						},
+						{
+							"name": "load",
+							"type": {
+								"text": "'click'"
+							},
+							"description": "`click` requests nothing from show.fm, not even the transcript's code, until `showfm.load()` runs. Until then its fallback text shows."
+						},
+						{
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting."
+						},
+						{
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour."
+						},
+						{
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only."
+						}
+					],
+					"members": [
+						{
+							"kind": "field",
+							"name": "strings",
+							"type": {
+								"text": "Partial<Record<string, string>>"
+							},
+							"description": "Overrides for visible strings, by key, usually set as a property. `window.showfmStrings` sets them for every element."
+						}
+					],
+					"cssProperties": [
+						{
+							"name": "--showfm-height",
+							"description": "The height to reserve before the transcript loads; its fallback text scrolls inside it.",
+							"default": "0"
+						}
+					],
+					"cssParts": [
+						{
+							"name": "card",
+							"description": "The transcript panel."
+						}
+					]
 				}
 			],
 			"exports": [
@@ -850,6 +982,14 @@
 					"name": "showfm-play",
 					"declaration": {
 						"name": "ShowfmPlay",
+						"module": "dist/index.js"
+					}
+				},
+				{
+					"kind": "custom-element-definition",
+					"name": "showfm-transcript",
+					"declaration": {
+						"name": "ShowfmTranscript",
 						"module": "dist/index.js"
 					}
 				}

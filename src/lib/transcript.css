@@ -1,0 +1,352 @@
+/*
+ * The transcript's styles (Transcript.svelte). transcript.svelte.ts adds them
+ * to the element's shadow root, where the transcript is alone, so nothing
+ * needs scoping. Sizes are the design's, in px like the player it sits in.
+ * Nothing transitions or animates, so reduced motion needs no rule here;
+ * the scrolling honours it in script.
+ */
+.tr {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	font-family: var(--showfm-font, inherit);
+	font-size: 14px;
+	line-height: 1.4;
+	color: var(--pp-fg);
+	background: var(--pp-bg);
+}
+.tr *,
+.tr *::before,
+.tr *::after {
+	box-sizing: border-box;
+}
+.card {
+	border: 1px solid var(--pp-border);
+	border-radius: var(--showfm-radius, 14px);
+	overflow: hidden;
+}
+button {
+	appearance: none;
+	margin: 0;
+	font: inherit;
+	cursor: pointer;
+}
+button:focus-visible,
+.scroll:focus-visible {
+	outline: 2px solid var(--pp-accent);
+	outline-offset: 2px;
+}
+
+/* ── header: name and search ── */
+.head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--pp-border);
+}
+.label {
+	margin: 0;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--pp-fg-strong);
+}
+.find {
+	flex: 1 1 180px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+.field {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	height: 34px;
+	padding: 0 10px;
+	border-radius: 8px;
+	border: 1px solid var(--pp-ctrl-border);
+	background: var(--pp-ctrl-bg);
+	color: var(--pp-muted);
+}
+.field:focus-within {
+	outline: 2px solid var(--pp-accent);
+	outline-offset: 1px;
+}
+.field svg {
+	flex: none;
+}
+input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	padding: 0;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	font: inherit;
+	font-size: 13px;
+	color: var(--pp-fg-strong);
+}
+input::placeholder {
+	color: var(--pp-muted);
+	opacity: 1;
+}
+/* The field has its own Clear search button. */
+input::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	display: none;
+}
+/* Seen by screen readers only. */
+.vh {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+input[aria-disabled='true'] {
+	cursor: default;
+}
+.count:empty {
+	display: none;
+}
+.count {
+	flex: none;
+	font-size: 12px;
+	color: var(--pp-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.icon {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border-radius: 8px;
+	border: 1px solid var(--pp-ctrl-border);
+	background: var(--pp-bg);
+	color: var(--pp-fg);
+}
+.icon:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+.clear {
+	border: 0;
+	background: transparent;
+	color: var(--pp-muted);
+}
+
+/* ── the text ── */
+.scroll {
+	position: relative;
+	overflow-x: hidden;
+	overflow-y: auto;
+	overflow-anchor: none;
+	padding: 8px 12px 56px 8px;
+}
+.scroll:focus-visible {
+	outline-offset: -2px;
+}
+.lines {
+	position: relative;
+}
+.line {
+	position: absolute;
+	left: 0;
+	right: 0;
+	display: grid;
+	grid-template-columns: 54px minmax(0, 1fr);
+	column-gap: 10px;
+	padding: 8px 10px;
+	border-radius: 8px;
+}
+.seek {
+	cursor: pointer;
+}
+.line.now {
+	background: var(--pp-tint);
+}
+.ts {
+	align-self: start;
+	justify-self: start;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 24px;
+	margin-top: 1px;
+	padding: 0 4px;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	font-family: ui-monospace, Menlo, Consolas, monospace;
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1;
+	color: var(--pp-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	cursor: inherit;
+}
+.now .ts {
+	color: var(--pp-accent-text, var(--pp-accent));
+}
+.spk {
+	grid-column: 2;
+	margin: 3px 0 2px;
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--pp-muted);
+}
+.txt {
+	grid-column: 2;
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.6;
+	color: var(--pp-fg);
+	overflow-wrap: break-word;
+}
+.now .txt {
+	color: var(--pp-fg-strong);
+}
+/* The spoken word: a solid chip, drawn with background and box-shadow only
+   so the line never reflows. Search matches are amber with ink text. */
+.txt span {
+	border-radius: 3px;
+}
+.txt .now {
+	background: var(--pp-accent);
+	color: var(--pp-accent-fg);
+	box-shadow: 0 0 0 3px var(--pp-accent);
+}
+.txt .hit {
+	background: #fde68a;
+	color: #101014;
+	box-shadow: 0 0 0 2px #fde68a;
+}
+.txt .act {
+	box-shadow:
+		0 0 0 2px #fde68a,
+		0 0 0 4px #101014;
+}
+
+/* A narrow box (a 340px sidebar): the timestamp moves onto the speaker line
+   so the text gets the full width. */
+.narrow .line {
+	grid-template-columns: auto minmax(0, 1fr);
+	column-gap: 8px;
+	row-gap: 2px;
+	padding: 7px 9px;
+}
+.narrow .ts {
+	margin: 0 0 0 -4px;
+}
+.narrow .spk {
+	align-self: center;
+	margin: 0;
+}
+.narrow .txt {
+	grid-column: 1 / -1;
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+/* ── Back to now ── */
+.back-wrap {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 14px;
+	display: flex;
+	justify-content: center;
+	pointer-events: none;
+}
+.back {
+	pointer-events: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 38px;
+	padding: 0 16px 0 13px;
+	border: 0;
+	border-radius: 9999px;
+	background: var(--pp-accent);
+	color: var(--pp-accent-fg);
+	box-shadow:
+		0 0 0 3px var(--pp-bg),
+		0 6px 18px rgba(16, 16, 20, 0.18);
+	font-size: 13px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+.back:focus-visible {
+	outline-offset: 4px;
+}
+
+/* ── loading, error, suspended and empty: the text area's height ── */
+.msg {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 20px 22px;
+	overflow: hidden;
+	font-size: 14px;
+	line-height: 1.4;
+}
+.msg p {
+	margin: 0;
+	color: var(--pp-muted);
+}
+.retry {
+	align-self: flex-start;
+	min-height: 24px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font-weight: 600;
+	color: var(--pp-accent-text, var(--pp-accent));
+}
+.retry:hover {
+	text-decoration: underline;
+}
+.skel {
+	gap: 16px;
+	padding: 14px 18px;
+}
+.skel div {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+}
+.skel span {
+	height: 11px;
+	border-radius: 5px;
+	background: rgba(128, 128, 128, 0.16);
+}
+.skel span:first-child {
+	width: 64px;
+	height: 9px;
+	background: rgba(128, 128, 128, 0.2);
+}
+.skel span:nth-child(2) {
+	width: 90%;
+}
+.skel span:nth-child(3) {
+	width: 60%;
+}
+.skel div:nth-child(even) span:nth-child(3) {
+	width: 72%;
+}

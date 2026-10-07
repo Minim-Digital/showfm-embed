@@ -1,0 +1,21 @@
+{
+	"description": "Hostile text and speaker names are escaped; empty cues are skipped.",
+	"function": "renderTranscriptHTML",
+	"args": [
+		[
+			{
+				"speaker": "<img src=x onerror=alert(1)>",
+				"text": "\"><script>alert(2)</script> & 'quoted'"
+			},
+			{
+				"speaker": "Tom",
+				"text": "   "
+			},
+			{
+				"speaker": "Tom",
+				"text": "</p></div><b>bold</b>"
+			}
+		]
+	],
+	"expected": "<div><p><strong>&lt;img src=x onerror=alert(1)&gt;:</strong> &quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt; &amp; &#39;quoted&#39;</p><p><strong>Tom:</strong> &lt;/p&gt;&lt;/div&gt;&lt;b&gt;bold&lt;/b&gt;</p></div>"
+}

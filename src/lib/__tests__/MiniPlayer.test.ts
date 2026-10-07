@@ -22,6 +22,7 @@ import {
 	api,
 	clearPage,
 	deepActive,
+	fetchMock,
 	installMedia,
 	media,
 	mediaEvent,
@@ -353,6 +354,75 @@ describe('the phone sheet', () => {
 		expect(section()!.classList.contains('pill')).toBe(false);
 		// The phone bar's own Expand.
 		expect(deepActive()).toBe(control('Expand player'));
+	});
+});
+
+describe('the transcript toggle (design page 3.3)', () => {
+	const VTT = 'https://m.cdn.media/test-signal/episode-one.vtt';
+	const withTranscript = () => (api.payload = { transcript: { url: VTT, type: 'text/vtt' } });
+	const toggle = (root: ShadowRoot) => root.querySelector<HTMLButtonElement>('button.tr') ?? null;
+	const panel = (root: ShadowRoot) => root.querySelector('showfm-transcript');
+
+	it('opens the transcript above the bar, next to the speed, and closes it again', async () => {
+		withTranscript();
+		const { mini, root } = await open();
+		const button = toggle(root)!;
+		expect(button.textContent).toBe('Transcript');
+		expect(button).toHaveAttribute('aria-expanded', 'false');
+		expect(button.previousElementSibling).toBe(
+			root.querySelector('[aria-label="Playback speed, currently 1×"]')
+		);
+		expect(panel(root)).toBeNull();
+		expect(await axe(mini, AXE)).toHaveNoViolations();
+		await press(button);
+		expect(button).toHaveAttribute('aria-expanded', 'true');
+		expect(panel(root)!.className).toBe('panel');
+		await press(button);
+		expect(panel(root)).toBeNull();
+	});
+
+	it('is not offered without a transcript, or for media off show.fm (design page 9)', async () => {
+		const { root } = await open();
+		expect(toggle(root)).toBeNull();
+		clearPage();
+		resetPage();
+		api.payload = { transcript: { url: 'https://other.example.test/one.vtt' } };
+		const external = await open();
+		expect(toggle(external.root)).toBeNull();
+	});
+
+	it('goes in the phone sheet, and away when the player collapses', async () => {
+		withTranscript();
+		viewport({ phone: true });
+		const { root, control } = await open();
+		await press(control('Expand player')!);
+		await press(toggle(root)!);
+		expect(panel(root)!.className).toBe('panel in-sheet');
+		await press(control('Collapse player')!);
+		expect(panel(root)).toBeNull();
+	});
+
+	it('follows the shared audio, whoever started it', async () => {
+		withTranscript();
+		const { defineShowfmTranscript } = await import('../transcript-element');
+		defineShowfmTranscript();
+		const vtt =
+			'WEBVTT\n\n00:00.000 --> 00:05.000\n<v Maya>Hello there.</v>\n\n00:05.000 --> 00:09.000\n<v Tom>Hi.</v>\n';
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL) =>
+			String(input) === VTT ? new Response(vtt) : fetchMock(input)
+		);
+		const { root } = await open();
+		await press(toggle(root)!);
+		const transcript = panel(root) as HTMLElement;
+		await vi.waitFor(
+			() => expect(transcript.shadowRoot?.querySelectorAll('.line')).toHaveLength(2),
+			{ timeout: 10_000 }
+		);
+		sharedAudio().currentTime = 6;
+		await settle();
+		expect(
+			transcript.shadowRoot!.querySelector<HTMLElement>('.line[aria-current="true"]')!.dataset.i
+		).toBe('1');
 	});
 });
 
