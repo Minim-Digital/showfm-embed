@@ -28,6 +28,7 @@
 	import { tick, untrack } from 'svelte';
 	import { pageController, type AudioEntry, type ControllerEpisode } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
+	import { apiGet, episodeEndpoint } from './api';
 	import { DEFAULT_ACCENT, accessibleAccent, contrastRatio, mixHex, parseHex } from './contrast';
 	import { paletteVars, resolvePalette } from './palette';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
@@ -110,25 +111,48 @@
 		return forId ? document.getElementById(forId) : embedHost;
 	}
 
+	/**
+	 * Counts the times the shown episode is heard playing (or asked to) on the
+	 * page. A late answer about the episode (the API saying its show is
+	 * suspended) is stale once the episode has played since it was asked.
+	 */
+	let heard = 0;
+
 	function pick() {
 		const owner = target();
-		if (forId && !owner) return;
 		const snapshot = controller.snapshot();
+		const audios = controller.audios();
+		// `for` names an element that is not on the page (yet, or any more):
+		// nothing to follow, but a fixed `episode` still shows, and the
+		// transcript follows the element once it is here and plays.
 		const next =
-			controller.audios().find(
-				(entry) =>
-					entry.episode &&
-					(!episodeAttr || entry.episode.id === episodeAttr) &&
-					(owner
-						? entry.owner === owner ||
-							(entry.audio.getRootNode() as ShadowRoot).host === owner ||
-							// The mini-player shows the page's shared audio, whoever started it.
-							(owner.localName === 'showfm-mini-player' && entry === controller.sharedState())
-						: // Following the page: only what is current.
-							episodeAttr || (entry.owner === snapshot.owner && entry.episode === snapshot.episode))
-			) ?? null;
+			forId && !owner
+				? null
+				: (audios.find(
+						(entry) =>
+							entry.episode &&
+							(!episodeAttr || entry.episode.id === episodeAttr) &&
+							(owner
+								? entry.owner === owner ||
+									(entry.audio.getRootNode() as ShadowRoot).host === owner ||
+									// The mini-player shows the page's shared audio, whoever started it.
+									(owner.localName === 'showfm-mini-player' && entry === controller.sharedState())
+								: // Following the page: only what is current.
+									episodeAttr ||
+									(entry.owner === snapshot.owner && entry.episode === snapshot.episode))
+					) ?? null);
 		if (next !== source) source = next;
 		suspendedNow = next?.message === 'suspended';
+		if (
+			shown &&
+			audios.some(
+				(entry) =>
+					entry.episode?.id === shown!.id &&
+					(entry.state === 'playing' || entry.state === 'loading')
+			)
+		) {
+			heard += 1;
+		}
 		const id = next?.episode?.id ?? episodeAttr ?? shown?.id ?? null;
 		if (id && id !== shown?.id) shown = { id, known: next?.episode ?? null };
 		else if (!id && shown) shown = null;
@@ -150,25 +174,44 @@
 			PLAYER_DEFAULT_API_URL
 	);
 
+	/**
+	 * Every async result belongs to one load of one episode. A new episode,
+	 * a retry or an unmount starts a new generation, and a load, a recheck,
+	 * or a scroll waiting for the DOM lands only in the generation it
+	 * started in. So nothing about episode A ever shows on B.
+	 */
+	let generation = 0;
+
 	$effect(() => {
 		const episode = shown;
 		void attempt;
+		const load = ++generation;
 		if (!episode) {
 			loaded = { status: 'idle' };
 			return;
 		}
-		let live = true;
+		const origin = untrack(() => api);
 		loaded = { status: 'loading' };
-		loadTranscript(
-			episode.id,
-			episode.known,
-			untrack(() => api),
-			!embedHost
-		).then((result) => {
-			if (live) loaded = result;
+		loadTranscript(episode.id, episode.known, origin, !embedHost).then((result) => {
+			if (load !== generation) return;
+			if (!result.vttFailed) {
+				loaded = result;
+				return;
+			}
+			// The VTT failed. The show may have been suspended since: ask the API
+			// once, as the list does when a row's audio fails. Not news if the
+			// episode has played since the question was asked.
+			const asked = heard;
+			apiGet(episodeEndpoint(origin, episode.id)).then((check) => {
+				if (load !== generation) return;
+				loaded =
+					check.status === 'unavailable' && heard === asked
+						? { status: 'suspended', episode: result.episode }
+						: result;
+			});
 		});
 		return () => {
-			live = false;
+			generation += 1;
 		};
 	});
 
@@ -390,7 +433,8 @@
 	$effect(() => {
 		const index = current;
 		if (index < 0 || detached || !scroller) return;
-		untrack(() => tick().then(() => scrollToLine(index, true)));
+		const now = generation;
+		untrack(() => tick().then(() => now === generation && scrollToLine(index, true)));
 	});
 
 	function onUserScroll() {
@@ -440,20 +484,22 @@
 	function onQuery(value: string) {
 		query = value;
 		matchIndex = 0;
-		if (searching) {
-			detached = true;
-			void tick().then(() => active && scrollToLine(active.line, true));
-		} else {
-			detached = false;
-			void tick().then(() => scrollToLine(current, true));
-		}
+		const now = generation;
+		detached = searching;
+		void tick().then(() => {
+			if (now !== generation) return;
+			if (searching) {
+				if (active) scrollToLine(active.line, true);
+			} else scrollToLine(current, true);
+		});
 	}
 
 	function step(by: number) {
 		if (!matches.length) return;
 		matchIndex = (Math.min(matchIndex, matches.length - 1) + by + matches.length) % matches.length;
 		detached = true;
-		void tick().then(() => active && scrollToLine(active.line, true));
+		const now = generation;
+		void tick().then(() => now === generation && active && scrollToLine(active.line, true));
 	}
 
 	function clearSearch() {

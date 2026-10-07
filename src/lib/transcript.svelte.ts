@@ -12,12 +12,17 @@ import { mount, unmount } from 'svelte';
 import Transcript from './Transcript.svelte';
 import styles from './transcript.css?inline';
 
-/** Every attribute the transcript reads. */
+/**
+ * Every attribute the transcript reads, and `load`, which the element reads
+ * before this chunk is fetched (lazy-element.ts). The manifest is made from
+ * this list (scripts/cem.mjs).
+ */
 const TRANSCRIPT_ATTRIBUTES = [
 	'episode',
 	'for',
 	'height',
 	'heading-level',
+	'load',
 	'theme',
 	'accent',
 	'api',

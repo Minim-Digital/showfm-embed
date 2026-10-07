@@ -22,6 +22,7 @@ import {
 } from '../../../tests/fixtures/transcript';
 
 const API = 'https://api.example.test';
+const OTHER_ID = '7b7b7b7b-1111-4222-8333-444444444444';
 const CONTROLLER = Symbol.for('showfm.page-audio-controller.v1');
 
 interface Mock {
@@ -32,6 +33,8 @@ interface Mock {
 	pending: boolean;
 	/** Status of the episode when it is asked again (after a VTT failure). */
 	recheck: number | null;
+	/** The recheck answers when this settles. */
+	recheckGate: Promise<void> | null;
 }
 let mock: Mock;
 let requests: string[];
@@ -44,6 +47,7 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
 		return new Response(mock.vtt === 200 ? mock.vttBody : '', { status: mock.vtt });
 	}
 	const again = requests.filter((request) => request === url).length > 1;
+	if (again && mock.recheckGate) await mock.recheckGate;
 	return new Response(JSON.stringify({ data: mock.episodeBody }), {
 		status: again && mock.recheck ? mock.recheck : mock.episode,
 		headers: { 'Content-Type': 'application/json' }
@@ -60,7 +64,8 @@ beforeEach(() => {
 		vtt: 200,
 		vttBody: conversationVtt().vtt,
 		pending: false,
-		recheck: null
+		recheck: null,
+		recheckGate: null
 	};
 	requests = [];
 	vi.stubGlobal('fetch', fetchMock);
@@ -185,6 +190,25 @@ describe('what it follows', () => {
 		playerAudio('later');
 		await settle();
 		expect(lines(host).length).toBeGreaterThan(5);
+	});
+
+	it('episode and for: reads the episode while the target is absent, and follows it once here', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID, for: 'later' });
+		// The fixed episode loads although the element `for` names is not on the page.
+		expect(lines(host).length).toBeGreaterThan(5);
+		expect($$(host, '.line button')).toHaveLength(0);
+		const { at } = playerAudio('later');
+		at(5);
+		await settle();
+		expect($$(host, '.line button').length).toBeGreaterThan(0);
+		expect(current(host)).not.toBeNull();
+		// The target goes: the episode stays, read without following.
+		document.getElementById('later')!.remove();
+		at(6);
+		await settle();
+		expect(lines(host).length).toBeGreaterThan(5);
+		expect($$(host, '.line button')).toHaveLength(0);
+		expect(current(host)).toBeNull();
 	});
 
 	it('with neither, follows whatever plays on the page', async () => {
@@ -391,6 +415,42 @@ describe('states', () => {
 		mock.recheck = 403;
 		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
 		expect($(host, '.msg')!.textContent).toContain('This show isn’t available right now.');
+	});
+
+	it('a recheck answered after the episode has played since is not news', async () => {
+		mock.vtt = 403;
+		mock.recheck = 403;
+		let answer!: () => void;
+		mock.recheckGate = new Promise((resolve) => (answer = resolve));
+		const { at } = playerAudio();
+		const host = await transcript({ for: 'player' });
+		expect($(host, '[role="status"][aria-label="Loading transcript"]')).not.toBeNull();
+		// The episode plays while the API is asked about it: its show is not suspended.
+		at(3);
+		answer();
+		await settle();
+		expect($(host, '[role="alert"]')!.textContent).toContain('The transcript can’t be loaded');
+		expect($(host, '.msg')!.textContent).not.toContain('This show isn’t available');
+	});
+
+	it('a load for the episode before lands nowhere', async () => {
+		mock.vtt = 403;
+		mock.recheck = 403;
+		let answer!: () => void;
+		mock.recheckGate = new Promise((resolve) => (answer = resolve));
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		// Another episode while the first one's recheck is in flight.
+		mock.recheckGate = null;
+		mock.vtt = 200;
+		mock.episodeBody = { ...transcriptEpisode(), id: OTHER_ID };
+		host.setAttribute('episode', OTHER_ID);
+		await settle();
+		expect(lines(host).length).toBeGreaterThan(5);
+		answer();
+		await settle();
+		// The first episode's "suspended" does not replace the second's text.
+		expect(lines(host).length).toBeGreaterThan(5);
+		expect($(host, '.msg')).toBeNull();
 	});
 
 	it('suspended mid-listen: the text goes with the audio', async () => {

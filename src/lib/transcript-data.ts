@@ -35,6 +35,11 @@ export interface LoadedTranscript {
 	cues?: VttCue[];
 	/** The episode payload, when it was asked for (colours, duration). */
 	episode?: PlayerEpisodeData | null;
+	/**
+	 * The VTT itself failed. The element asks the API whether the show has
+	 * been suspended since (it knows whether the answer is still news).
+	 */
+	vttFailed?: boolean;
 }
 
 const ready = new Map<string, Promise<LoadedTranscript>>();
@@ -101,10 +106,7 @@ async function fetchTranscript(
 		const cues = parseVtt(await response.text());
 		return { status: cues.length ? 'ready' : 'none', cues, episode };
 	} catch {
-		// The show may have been suspended since: ask the API once, as the
-		// list does when a row's audio fails.
-		const check = await apiGet(episodeEndpoint(api, id));
-		return { status: check.status === 'unavailable' ? 'suspended' : 'error', episode };
+		return { status: 'error', episode, vttFailed: true };
 	}
 }
 

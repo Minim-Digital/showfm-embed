@@ -241,6 +241,11 @@ const TRANSCRIPT_ATTRIBUTES = {
 		description:
 			'Makes the name "Transcript" a heading of this level. Absent, no heading is emitted.'
 	},
+	load: {
+		type: "'click'",
+		description:
+			"`click` requests nothing from show.fm, not even the transcript's code, until `showfm.load()` runs. Until then its fallback text shows."
+	},
 	theme: ATTRIBUTES.theme,
 	accent: ATTRIBUTES.accent,
 	api: ATTRIBUTES.api

@@ -898,6 +898,13 @@
 							"description": "Makes the name \"Transcript\" a heading of this level. Absent, no heading is emitted."
 						},
 						{
+							"name": "load",
+							"type": {
+								"text": "'click'"
+							},
+							"description": "`click` requests nothing from show.fm, not even the transcript's code, until `showfm.load()` runs. Until then its fallback text shows."
+						},
+						{
 							"name": "theme",
 							"type": {
 								"text": "'auto' | 'light' | 'dark'"
