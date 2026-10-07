@@ -403,7 +403,7 @@
 	async function showMessage(id: string, message: RowMessage, moveFocus: boolean) {
 		messages[id] = message;
 		// The mini-player shows it too, when this list's row is what it holds.
-		controller.report(host, message);
+		controller.report(host, id, message);
 		if (pressed === id) pressed = null;
 		// Focus follows only a press: the play button it was on has gone.
 		if (moveFocus) await focusIn(id, '[data-retry]', '[data-message]');

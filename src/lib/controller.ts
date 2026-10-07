@@ -159,12 +159,23 @@ export class PageAudioController {
 	}
 
 	/**
-	 * The shared audio's owner says why its episode cannot play (or null once
-	 * it can), so the mini-player shows the same message.
+	 * The shared audio's owner says why episode `id` cannot play (or null
+	 * once it can), so the mini-player shows the same message. A report is
+	 * about the play that failed: it is dropped when the shared audio has
+	 * moved to another episode, or started again, since (one list owns many
+	 * episodes, and the owner asks the API why before it reports).
 	 */
-	report(owner: object, message: SharedMessage | null) {
-		if (this.shared?.owner !== owner) return;
-		this.shared.message = message;
+	report(owner: object, id: string, message: SharedMessage | null) {
+		const shared = this.shared;
+		if (
+			shared?.owner !== owner ||
+			shared.episode?.id !== id ||
+			shared.state === 'playing' ||
+			shared.state === 'loading'
+		) {
+			return;
+		}
+		shared.message = message;
 		this.emit();
 	}
 

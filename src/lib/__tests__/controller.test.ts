@@ -160,14 +160,37 @@ describe('the shared audio, for the mini-player (EMB-4)', () => {
 		const { controller } = sharedController();
 		const owner = {};
 		await controller.playShared(owner, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		controller.sharedAudio().dispatchEvent(new Event('error'));
 		const seen = vi.fn();
 		controller.subscribe(seen);
-		controller.report({}, 'suspended');
+		controller.report({}, 'e1', 'suspended');
 		expect(controller.sharedState()!.message).toBeNull();
-		controller.report(owner, 'suspended');
+		controller.report(owner, 'e1', 'suspended');
 		expect(controller.sharedState()!.message).toBe('suspended');
 		expect(seen).toHaveBeenCalledTimes(2);
 		await controller.playShared(owner, { id: 'e2', title: 'Two' }, 'https://m.cdn.media/two.mp3');
+		expect(controller.sharedState()!.message).toBeNull();
+	});
+
+	it('drops a late report about an earlier episode from the same owner', async () => {
+		const { controller, shared } = sharedController();
+		const list = {};
+		// Episode A fails; while the owner asks the API why, B starts in the same list.
+		await controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		await controller.playShared(list, { id: 'b', title: 'B' }, 'https://m.cdn.media/b.mp3');
+		controller.report(list, 'a', 'error');
+		expect(controller.sharedState()!.message).toBeNull();
+		expect(shared.paused).toBe(false);
+	});
+
+	it('drops a late report when the same episode has started again since it failed', async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		controller.report(button, 'a', 'suspended');
 		expect(controller.sharedState()!.message).toBeNull();
 	});
 });

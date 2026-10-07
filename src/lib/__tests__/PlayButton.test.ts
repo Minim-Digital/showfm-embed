@@ -161,6 +161,19 @@ describe('playback states', () => {
 		expect(text(root)).toBe('Play');
 	});
 
+	it('a new episode attribute drops the old episode: a press while it loads plays nothing old', async () => {
+		const { host, root, button } = await mountButton({ size: 'lg' });
+		expect(text(root)).toBe('Play episode · 52 min');
+		api.episode = 'pending';
+		host.setAttribute('episode', '99999999-2222-4333-8444-555555555555');
+		await settle();
+		// The old episode's length has gone with it.
+		expect(text(root)).toBe('Play episode');
+		await press(button());
+		expect(pageController().sharedState()).toBeNull();
+		expect(text(root)).toBe('Loading…');
+	});
+
 	it('a press before the episode arrives plays it once it is here', async () => {
 		api.episode = 'pending';
 		const { root, button } = await mountButton();

@@ -102,9 +102,12 @@
 			if (active && !host.contains(active) && !host.shadowRoot?.contains(active)) {
 				returnTo = active;
 			}
-			// The offset can be set on the element that opened it, not only on the page.
-			const offset = from && getComputedStyle(from).getPropertyValue('--showfm-bottom-offset');
-			if (offset?.trim()) host.style.setProperty('--showfm-bottom-offset', offset.trim());
+			// The offset can be set on the element that opened it, not only on
+			// the page. Each opener's own, or none: not the last opener's.
+			const offset =
+				from && getComputedStyle(from).getPropertyValue('--showfm-bottom-offset').trim();
+			if (offset) host.style.setProperty('--showfm-bottom-offset', offset);
+			else host.style.removeProperty('--showfm-bottom-offset');
 			sync();
 		});
 	});
@@ -120,8 +123,10 @@
 	const position = $derived(parsePosition(opener?.getAttribute('mini-player-position')));
 	const languageTag = $derived(languageTagFor(opener));
 	const language = $derived(languageFromTag(languageTag));
-	const s = $derived((void localesLoaded, resolveStrings(language)));
-	const p = $derived((void localesLoaded, resolvePlayStrings(language)));
+	// The opener's own overrides (`element.strings`) win, as on the opener.
+	const overrides = $derived((opener as (Element & { strings?: unknown }) | null)?.strings);
+	const s = $derived((void localesLoaded, resolveStrings(language, overrides)));
+	const p = $derived((void localesLoaded, resolvePlayStrings(language, overrides)));
 
 	// ── the shared audio ───────────────────────────────────────────────
 	function sync() {
@@ -147,7 +152,9 @@
 	const audio = () => controller.sharedState()?.audio;
 	const playing = $derived(playback === 'playing' || playback === 'loading');
 	const total = $derived(duration || episode?.audio?.duration_seconds || 0);
-	const left = $derived(formatString(p.remaining, { time: minutesLeft(total, time, p) }));
+	// "38 min left", or nothing while the length is unknown.
+	const minutes = $derived(minutesLeft(total, time, p));
+	const left = $derived(minutes && formatString(p.remaining, { time: minutes }));
 	const label = $derived(episode ? episodeLabel(episode, p) : { short: '', spoken: '' });
 	const artwork = $derived(safeUrl(episode?.artworkUrl));
 	const listen = $derived(safeUrl(episode?.links?.listen));

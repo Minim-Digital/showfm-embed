@@ -17,10 +17,12 @@ import {
 	API,
 	AXE,
 	EPISODE_ID,
+	HOSTED_AUDIO,
 	api,
 	clearPage,
 	deepActive,
 	installMedia,
+	media,
 	mediaEvent,
 	resetPage,
 	settle,
@@ -232,6 +234,66 @@ describe('collapse, expand and close (focus goes with them)', () => {
 		expect(mini.style.getPropertyValue('--showfm-bottom-offset')).toBe('72px');
 		// The styles that use it, and the reduced-motion rule, are checked in
 		// the built chunk (tests/contract/play.test.ts): Vitest loads no CSS.
+	});
+});
+
+describe('per opener', () => {
+	it('drops a bottom offset the next opener does not set', async () => {
+		const { mini, control } = await open({ style: '--showfm-bottom-offset: 72px' });
+		expect(mini.style.getPropertyValue('--showfm-bottom-offset')).toBe('72px');
+		await press(control('Close player and stop playback')!);
+		const other = await open({ episode: '22222222-2222-4333-8444-555555555555' });
+		expect(other.mini).toBe(mini);
+		expect(mini.style.getPropertyValue('--showfm-bottom-offset')).toBe('');
+	});
+
+	it("takes the opener's own strings for its keys and the player's", async () => {
+		const host = document.createElement('showfm-play');
+		host.setAttribute('api', API);
+		host.setAttribute('episode', EPISODE_ID);
+		(host as HTMLElement & { strings?: unknown }).strings = {
+			closePlayer: 'Stop listening',
+			back15: 'Back a bit'
+		};
+		document.body.append(host);
+		await vi.waitFor(() => expect(host.shadowRoot?.querySelector('[data-play]')).toBeTruthy(), {
+			timeout: 10_000
+		});
+		await press(host.shadowRoot!.querySelector<HTMLElement>('[data-play]')!);
+		const root = await vi.waitFor(() => {
+			const found = document.querySelector('showfm-mini-player')?.shadowRoot;
+			expect(found?.querySelector('section')).toBeTruthy();
+			return found!;
+		});
+		expect(root.querySelector('[aria-label="Stop listening"]')).not.toBeNull();
+		expect(root.querySelector('[aria-label="Back a bit"]')).not.toBeNull();
+		expect(root.querySelector('[aria-label="Collapse player"]')).not.toBeNull();
+	});
+});
+
+describe('an episode of unknown length', () => {
+	it('shows no time left rather than " left", in every language', async () => {
+		api.payload = {
+			audio: { url: HOSTED_AUDIO, content_type: 'audio/mpeg', duration_seconds: null }
+		};
+		media.duration = Number.NaN;
+		for (const lang of ['en', 'de', 'fr']) {
+			const { root, control } = await open({ lang });
+			expect(root.querySelector('.time')!.textContent, lang).toBe('');
+			const collapse = control(
+				lang === 'en'
+					? 'Collapse player'
+					: lang === 'de'
+						? 'Player verkleinern'
+						: 'Réduire le lecteur'
+			)!;
+			await press(collapse);
+			expect(root.querySelector('.time')!.textContent, lang).toBe('');
+			// The next language's button plays the same episode afresh.
+			sharedAudio().pause();
+			document.body.innerHTML = '';
+			await settle();
+		}
 	});
 });
 

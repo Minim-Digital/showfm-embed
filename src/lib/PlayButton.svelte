@@ -134,6 +134,9 @@
 		}
 		let cancelled = false;
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
+		// The episode this button had is not the one it is asked for now: a
+		// press until the answer comes plays the new one, not the old.
+		data = null;
 		apiGet<PlayerEpisodeData>(url).then((result) => {
 			if (cancelled) return;
 			if (result.status === 'ok') {
@@ -294,7 +297,7 @@
 
 	async function showMessage(kind: SharedMessage, moveFocus: boolean) {
 		message = kind;
-		controller.report(host, kind);
+		controller.report(host, data!.id, kind);
 		// Spoken here unless a status line shows it: the icon variant has no
 		// room for one, and the blocked note sits beside a button that stays.
 		if (variant === 'icon' || kind === 'blocked') announcement = messageText(kind);

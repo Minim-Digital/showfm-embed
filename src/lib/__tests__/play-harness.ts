@@ -60,7 +60,8 @@ export const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
 
 // ── media: jsdom has no playback ──────────────────────────────────────
 export type PlayOutcome = 'ok' | 'blocked' | 'error';
-export const media = { outcome: 'ok' as PlayOutcome };
+/** What media does: how play() ends, and the length it reports (NaN: not known). */
+export const media = { outcome: 'ok' as PlayOutcome, duration: 3138 };
 const paused = new WeakMap<HTMLMediaElement, boolean>();
 const times = new WeakMap<HTMLMediaElement, number>();
 
@@ -88,7 +89,7 @@ export function installMedia() {
 	});
 	Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
 		configurable: true,
-		get: () => 3138
+		get: () => media.duration
 	});
 	Object.defineProperty(HTMLMediaElement.prototype, 'play', {
 		configurable: true,
@@ -122,6 +123,7 @@ export function resetPage() {
 	Object.assign(api, { episode: 200, recheck: 200, payload: {}, branded: true });
 	requests.length = 0;
 	media.outcome = 'ok';
+	media.duration = 3138;
 	fetchMock.mockClear();
 	vi.stubGlobal('fetch', fetchMock);
 	delete (globalThis as unknown as Record<symbol, unknown>)[CONTROLLER];
