@@ -142,10 +142,9 @@ export class PageAudioController {
 		return () => {
 			for (const type in AUDIO_EVENTS) audio.removeEventListener(type, onEvent);
 			this.entries.delete(entry);
-			if (this.current === entry) {
-				this.current = null;
-				this.emit();
-			}
+			if (this.current === entry) this.current = null;
+			// As on attach: anyone following this audio (a transcript) looks again.
+			this.emit();
 		};
 	}
 

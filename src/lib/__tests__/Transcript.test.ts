@@ -128,6 +128,8 @@ function playerAudio(id = 'player', episode = transcriptEpisode()) {
 	return {
 		player,
 		audio,
+		/** The player goes: its audio leaves the page controller. */
+		detach,
 		/** Plays from `seconds`, as the audio's events would say. */
 		at(seconds: number) {
 			time = seconds;
@@ -656,6 +658,22 @@ describe('every attribute is live', () => {
 		host.setAttribute('lang', 'de');
 		await settle();
 		expect($(host, '.label')!.textContent).toBe('Transkript');
+	});
+});
+
+describe('a followed player that goes away', () => {
+	it('is dropped though another audio is current: no seek targets a detached audio', async () => {
+		const followed = playerAudio('player');
+		const other = playerAudio('other');
+		const host = await transcript({ for: 'player' });
+		expect($$(host, '.line button').length).toBeGreaterThan(0);
+		// Another player is current, then the followed one is removed.
+		other.at(3);
+		await settle();
+		followed.player.remove();
+		followed.detach();
+		await settle();
+		expect($$(host, '.line button')).toHaveLength(0);
 	});
 });
 

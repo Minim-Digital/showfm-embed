@@ -10,6 +10,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { tick } from 'svelte';
 import PlayerCore from '../PlayerCore.svelte';
 import type { PlayerEpisodeData } from '../types';
+import { contrastRatio, mixHex } from '../contrast';
 
 const AXE_MEDIA_OPTIONS = {
 	rules: { 'no-autoplay-audio': { enabled: false }, 'audio-caption': { enabled: false } }
@@ -277,6 +278,37 @@ describe('the transcript option (design page 3.1 A)', () => {
 		).toBeTruthy();
 		await fireEvent.click(button()!);
 		expect(container.querySelector('.tr')).toBeNull();
+	});
+
+	it('keeps the accent text at 4.5:1 when the player’s accent or theme changes', async () => {
+		const { container, rerender } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'open', theme: 'light', accent: '#7E22CE' }
+		});
+		const panel = container.querySelector('.tr')!;
+		await vi.waitFor(() => expect(panel.shadowRoot?.querySelector('.line')).toBeTruthy(), {
+			timeout: 10_000
+		});
+		const text = () =>
+			panel
+				.shadowRoot!.querySelector<HTMLElement>('.tr')!
+				.style.getPropertyValue('--pp-accent-text')
+				.trim();
+		const player = container.querySelector<HTMLElement>('.player')!;
+		const ratio = () => {
+			const bg = player.style.getPropertyValue('--pp-bg').trim();
+			const accent = player.style.getPropertyValue('--pp-accent').trim();
+			const dark = bg.toLowerCase() !== '#ffffff';
+			return contrastRatio(text(), dark ? mixHex(bg, '#ffffff', 0.07) : mixHex(accent, bg, 0.92));
+		};
+		const light = text();
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
+		await rerender({ accent: '#facc15' });
+		await vi.waitFor(() => expect(text()).not.toBe(light));
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
+		const yellow = text();
+		await rerender({ theme: 'dark' });
+		await vi.waitFor(() => expect(text()).not.toBe(yellow));
+		expect(ratio()).toBeGreaterThanOrEqual(4.5);
 	});
 
 	it('open: opens at once', () => {

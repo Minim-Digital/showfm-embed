@@ -260,22 +260,29 @@
 		return () => query.removeEventListener?.('change', onChange);
 	});
 	// Inside an element that sets no 4.5:1 accent for text (the player), make
-	// one from the colours it passes down, read once they have settled.
+	// one from the colours it sets on itself, and again whenever it changes
+	// them (an accent or theme attribute, the visitor's colour scheme, a new
+	// episode): the element's inline style is watched.
 	let inherited = $state<string | undefined>(undefined);
 	$effect(() => {
-		void systemDark;
-		if (!inside) return;
-		const frame = requestAnimationFrame(() => {
-			const style = getComputedStyle(host);
+		const palette = inside ? host.closest<HTMLElement>('[style*="--pp-accent"]') : null;
+		if (!palette) return;
+		const update = () => {
+			const style = palette.style;
 			const accent = style.getPropertyValue('--pp-accent').trim();
 			const bg = style.getPropertyValue('--pp-bg').trim();
-			if (style.getPropertyValue('--pp-accent-text').trim() || !parseHex(accent) || !parseHex(bg))
+			if (style.getPropertyValue('--pp-accent-text') || !parseHex(accent) || !parseHex(bg)) {
+				inherited = undefined;
 				return;
+			}
 			const dark = contrastRatio(bg, '#ffffff') > contrastRatio(bg, '#000000');
 			const surface = dark ? mixHex(bg, '#ffffff', 0.07) : mixHex(accent, bg, 0.92);
 			inherited = `--pp-accent-text:${accessibleAccent(accent, surface, 4.5)}`;
-		});
-		return () => cancelAnimationFrame(frame);
+		};
+		update();
+		const observer = new MutationObserver(update);
+		observer.observe(palette, { attributes: true, attributeFilter: ['style'] });
+		return () => observer.disconnect();
 	});
 	const cssVars = $derived.by(() => {
 		if (inside) return inherited;

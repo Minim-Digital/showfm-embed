@@ -95,6 +95,21 @@ describe('what a transcript can follow', () => {
 		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['one']);
 	});
 
+	it('tells subscribers when any audio is detached, current or not', async () => {
+		const controller = new PageAudioController();
+		const kept = fakeAudio();
+		const gone = fakeAudio();
+		controller.attach(kept, kept, { id: 'kept', title: 'Kept' });
+		const detach = controller.attach(gone, gone, { id: 'gone', title: 'Gone' });
+		await kept.play();
+		const seen = vi.fn();
+		controller.subscribe(seen);
+		seen.mockClear();
+		detach();
+		expect(seen).toHaveBeenCalledTimes(1);
+		expect(controller.audios().map((entry) => entry.episode?.id)).toEqual(['kept']);
+	});
+
 	it('creating the shared audio does not call subscribers back into it', () => {
 		const controller = new PageAudioController();
 		controller.subscribe(() => controller.sharedAudio());
