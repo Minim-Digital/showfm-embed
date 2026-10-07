@@ -1,5 +1,15 @@
 # @showfm/embed
 
+## 1.4.0
+
+### Minor Changes
+
+- [#10](https://github.com/Minim-Digital/showfm-embed/pull/10) [`44d63b2`](https://github.com/Minim-Digital/showfm-embed/commit/44d63b290b0ffbd1f1269cdb6b6cebb792193273) Thanks [@danmaby](https://github.com/danmaby)! - Add `<showfm-transcript>`, the follow-along transcript. It follows a player or list on the page (`for`), an episode (`episode`), or whatever plays, and highlights the line being spoken, word by word when the WebVTT has word timings (falling back to whole lines when it has none, or when the timings no longer match the audio). A click on a line seeks. It has search with match navigation, "Back to now" when the visitor scrolls away, a narrow layout for sidebars, loading, error, suspended and empty states at a fixed height, and only the lines near the one in view are in the DOM, so long transcripts stay light. It takes `height`, `heading-level`, `load="click"`, `theme`, `accent` and `lang`, and its strings ship in English, German and French. On the CDN its code is a lazy chunk (`cdn/chunks/transcript-*.js`); the npm root bundles it.
+
+  The player gets `transcript="on|open"`: a Transcript button that opens the transcript under the standard player, which grows downwards. The player mounts the transcript itself, so the option works from `@showfm/embed/svelte` too. The mini-player gets its Transcript toggle: a panel above the bar, or in the phone sheet, that follows the shared audio. The click loader draws a "Load transcript" facade for a `load="click"` transcript, and `showfm.load()` now also marks elements added after the loader ran, which load when `v1.js` arrives. Removing `load="click"` from an element that has not loaded yet loads it. `@showfm/embed/server` adds `renderTranscriptHTML`, the transcript as paragraphs for search engines and visitors without JavaScript, with shared fixtures, and `v1-fallback.css` keeps that text inside `--showfm-height` until the element upgrades.
+
+  The episode list's accent text in the dark theme now reaches 4.5:1 on the tint; it had stayed at the 3:1 fill colour.
+
 ## 1.3.0
 
 ### Minor Changes
