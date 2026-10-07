@@ -345,3 +345,33 @@ test('the mini-player opens the transcript above its bar, and in the phone sheet
 	);
 	expect(sheetBox!.height).toBeLessThanOrEqual(800 * 0.9 + 0.5);
 });
+
+test("inside the player, the spoken line's timestamp reaches 4.5:1 on its tint", async ({
+	page
+}) => {
+	await serveTranscript(page, player('transcript="open" theme="dark"'));
+	await playerTranscriptReady(page);
+	await page.getByRole('button', { name: 'Play', exact: true }).click();
+	const ratio = await page.waitForFunction(() => {
+		const transcript = document
+			.querySelector('showfm-player')!
+			.shadowRoot!.querySelector('showfm-transcript')!.shadowRoot!;
+		const line = transcript.querySelector<HTMLElement>('.line.now');
+		if (!line) return null;
+		const rgb = (value: string) => value.match(/[\d.]+/g)!.map(Number);
+		const channel = (c: number) => {
+			const v = c / 255;
+			return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+		};
+		const luminance = ([r, g, b]: number[]) =>
+			0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+		// The tint is translucent in the dark theme: blend it over the panel.
+		const panel = rgb(getComputedStyle(transcript.querySelector('.tr')!).backgroundColor);
+		const [r, g, b, a = 1] = rgb(getComputedStyle(line).backgroundColor);
+		const surface = [r, g, b].map((c, i) => c * a + panel[i] * (1 - a));
+		const text = rgb(getComputedStyle(line.querySelector('.ts')!).color);
+		const [light, dark] = [luminance(text), luminance(surface)].sort((x, y) => y - x);
+		return (light + 0.05) / (dark + 0.05);
+	});
+	expect(await ratio.jsonValue()).toBeGreaterThanOrEqual(4.5);
+});

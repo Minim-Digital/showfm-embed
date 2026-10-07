@@ -28,7 +28,7 @@
 	import { tick, untrack } from 'svelte';
 	import { pageController, type AudioEntry, type ControllerEpisode } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
-	import { DEFAULT_ACCENT, accessibleAccent, mixHex, parseHex } from './contrast';
+	import { DEFAULT_ACCENT, accessibleAccent, contrastRatio, mixHex, parseHex } from './contrast';
 	import { paletteVars, resolvePalette } from './palette';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
@@ -192,8 +192,26 @@
 		query.addEventListener?.('change', onChange);
 		return () => query.removeEventListener?.('change', onChange);
 	});
+	// Inside an element that sets no 4.5:1 accent for text (the player), make
+	// one from the colours it passes down, read once they have settled.
+	let inherited = $state<string | undefined>(undefined);
+	$effect(() => {
+		void systemDark;
+		if (!embedHost) return;
+		const frame = requestAnimationFrame(() => {
+			const style = getComputedStyle(host);
+			const accent = style.getPropertyValue('--pp-accent').trim();
+			const bg = style.getPropertyValue('--pp-bg').trim();
+			if (style.getPropertyValue('--pp-accent-text').trim() || !parseHex(accent) || !parseHex(bg))
+				return;
+			const dark = contrastRatio(bg, '#ffffff') > contrastRatio(bg, '#000000');
+			const surface = dark ? mixHex(bg, '#ffffff', 0.07) : mixHex(accent, bg, 0.92);
+			inherited = `--pp-accent-text:${accessibleAccent(accent, surface, 4.5)}`;
+		});
+		return () => cancelAnimationFrame(frame);
+	});
 	const cssVars = $derived.by(() => {
-		if (embedHost) return undefined;
+		if (embedHost) return inherited;
 		const podcast = loaded.episode?.podcast;
 		const theme =
 			[attr('theme'), podcast?.player_theme].find(
@@ -211,7 +229,7 @@
 		// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
 		const text = accessibleAccent(
 			palette.accent,
-			dark ? mixHex('#ffffff', palette.bg, 0.07) : palette.tint,
+			dark ? mixHex(palette.bg, '#ffffff', 0.07) : palette.tint,
 			4.5
 		);
 		return `${paletteVars(palette)};--pp-accent-text:${text}`;

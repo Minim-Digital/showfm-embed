@@ -218,7 +218,8 @@ describe('what it follows', () => {
 		await settle();
 		expect(requests[0]).toBe(`${API}/v1/episodes/${TRANSCRIPT_EPISODE_ID}`);
 		expect($$(host, '.line button').length).toBeGreaterThan(0);
-		// The player's colours are inherited, not set here.
+		// The player's colours are inherited, not set here (jsdom computes no
+		// custom properties, so no 4.5:1 accent text is made from them either).
 		expect($(host, '.tr')!.getAttribute('style')).toBeNull();
 		expect($(host, '.tr')!.classList.contains('card')).toBe(false);
 	});
