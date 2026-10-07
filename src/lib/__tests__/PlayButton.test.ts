@@ -304,6 +304,99 @@ describe('playback states', () => {
 	});
 });
 
+describe('one generation per load and per play: nothing stale lands', () => {
+	const OTHER = '22222222-2222-4333-8444-555555555555';
+
+	/** A fetch whose answers the test gives, one request at a time. */
+	function heldFetch() {
+		const held: { path: string; answer: (status: number, data?: unknown) => void }[] = [];
+		vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
+			return new Promise<Response>((resolve) => {
+				held.push({
+					path: new URL(String(input)).pathname,
+					answer: (status, data) => resolve(new Response(JSON.stringify({ data }), { status }))
+				});
+			});
+		});
+		return held;
+	}
+
+	it("a new episode starts clean: the old one's error does not follow it", async () => {
+		media.outcome = 'error';
+		const { host, root, button } = await mountButton();
+		await press(button());
+		expect(message(root)).toHaveTextContent('This episode can’t be played right now.');
+		media.outcome = 'ok';
+		api.payload = { id: OTHER, title: 'Episode Two' };
+		host.setAttribute('episode', OTHER);
+		await settle();
+		expect(message(root)).toBeNull();
+		expect(button()!.getAttribute('aria-label')).toBe('Play: Episode Two');
+	});
+
+	it("a new episode starts clean: the old show's suspension does not follow it", async () => {
+		media.outcome = 'error';
+		api.recheck = 403;
+		const { host, root, button } = await mountButton();
+		await press(button());
+		expect(message(root)).toHaveTextContent('This show isn’t available right now.');
+		media.outcome = 'ok';
+		api.payload = { id: OTHER, title: 'Episode Two' };
+		host.setAttribute('episode', OTHER);
+		await settle();
+		await press(button());
+		expect(button()!.getAttribute('aria-label')).toMatch(/^Pause · /);
+	});
+
+	it('a late recheck about the old episode is neither shown nor reported for the new one', async () => {
+		const held = heldFetch();
+		const { host, root, button } = await mountButton();
+		held[0].answer(200, payload());
+		await settle();
+		media.outcome = 'error';
+		await press(button());
+		// A's failure recheck is out; the element moves to B before it answers.
+		expect(held[1].path).toBe(`/v1/episodes/${EPISODE_ID}`);
+		host.setAttribute('episode', OTHER);
+		await settle();
+		held[2].answer(200, { ...payload(), id: OTHER, title: 'Episode Two' });
+		await settle();
+		held[1].answer(403);
+		await settle();
+		expect(message(root)).toBeNull();
+		expect(button()!.getAttribute('aria-label')).toBe('Play: Episode Two');
+		expect(pageController().sharedState()!.message).toBeNull();
+	});
+
+	it('a late recheck lands nowhere once the same episode has started again', async () => {
+		const held = heldFetch();
+		const { root, button } = await mountButton();
+		held[0].answer(200, payload());
+		await settle();
+		media.outcome = 'error';
+		await press(button());
+		media.outcome = 'ok';
+		await press(button());
+		expect(button()!.getAttribute('aria-label')).toMatch(/^Pause · /);
+		held[1].answer(500);
+		await settle();
+		expect(message(root)).toBeNull();
+		expect(button()!.getAttribute('aria-label')).toMatch(/^Pause · /);
+	});
+
+	it('a late answer for the old episode does not replace the new one', async () => {
+		const held = heldFetch();
+		const { host, root } = await mountButton({ size: 'lg' });
+		host.setAttribute('episode', OTHER);
+		await settle();
+		held[1].answer(200, { ...payload(), id: OTHER, title: 'Episode Two' });
+		await settle();
+		held[0].answer(200, payload());
+		await settle();
+		expect(root.querySelector('[data-play]')!.getAttribute('aria-label')).toMatch(/: Episode Two$/);
+	});
+});
+
 describe('the page audio controller', () => {
 	it('buttons for one episode show the same state; a press on either pauses', async () => {
 		const first = await mountButton();

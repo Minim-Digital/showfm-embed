@@ -124,21 +124,43 @@
 			(attr('credit') !== 'off' && !!data?.podcast.branding?.show_powered_by)
 	);
 
+	// ── generations ────────────────────────────────────────────────────
+	// Every async result belongs to one load of one episode, and within it
+	// to one play. `generation` counts both: a load and a press each start a
+	// new one, and an API answer, a failure recheck, a report or a message
+	// only lands while the generation it started in is still current. So a
+	// late answer about episode A never shows on, or is reported for, the B
+	// the button holds now, nor on A started again since.
+	let generation = 0;
+	let checking = false;
+	// The audio's error event can arrive before play() rejects: a press in
+	// either path moves focus once the message is here.
+	let focusMessage = false;
+
+	/** Forgets everything about the episode the button had: one place, for every load. */
+	function reset() {
+		generation += 1;
+		data = null;
+		message = null;
+		checking = focusMessage = false;
+		phase = 'idle';
+		time = duration = 0;
+		announcement = '';
+	}
+
 	// ── data ───────────────────────────────────────────────────────────
 	$effect(() => {
 		const url = endpoint;
 		void reload;
+		untrack(reset);
 		if (!url) {
 			status = 'error';
 			return;
 		}
-		let cancelled = false;
+		const load = generation;
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
-		// The episode this button had is not the one it is asked for now: a
-		// press until the answer comes plays the new one, not the old.
-		data = null;
 		apiGet<PlayerEpisodeData>(url).then((result) => {
-			if (cancelled) return;
+			if (load !== generation) return;
 			if (result.status === 'ok') {
 				data = readPlayEpisode(result.data);
 				status = 'ready';
@@ -151,9 +173,6 @@
 							: 'error';
 			}
 		});
-		return () => {
-			cancelled = true;
-		};
 	});
 
 	// Collapse releases the reserved line (the host style in play.svelte.ts).
@@ -199,10 +218,6 @@
 	// The button follows the page's shared audio whenever it holds this
 	// button's episode, whoever started it: two buttons for one episode, or
 	// a list row and a button, show the same state.
-	let checking = false;
-	// The audio's error event can arrive before play() rejects: a press in
-	// either path moves focus once the message is here.
-	let focusMessage = false;
 	function sync() {
 		const shared = controller.sharedState();
 		// Read in the subscribing effect, so it subscribes again once the episode is here.
@@ -247,6 +262,7 @@
 		const episode = data!;
 		const src = embedSource(episode.audio.url);
 		if (!src) return;
+		const play = ++generation;
 		message = null;
 		checking = focusMessage = false;
 		phase = 'loading';
@@ -262,7 +278,7 @@
 				credit: wantsCredit
 			};
 			await controller.playShared(host, shared, src);
-			if (miniPlayer) {
+			if (miniPlayer && play === generation) {
 				host.dispatchEvent(
 					new CustomEvent('showfm:mini-player', { bubbles: true, composed: true })
 				);
@@ -270,12 +286,18 @@
 		} catch (error) {
 			const name = (error as DOMException | undefined)?.name;
 			// A pause() or another element's play interrupted this one: not an error.
-			if (name === 'AbortError' || controller.sharedState()?.owner !== host) return;
+			if (
+				name === 'AbortError' ||
+				play !== generation ||
+				controller.sharedState()?.owner !== host
+			) {
+				return;
+			}
 			if (name === 'NotAllowedError') {
 				// The browser refused (often a facade press that took too long):
 				// the audio is fine, so play stays ready beside the message.
 				phase = 'idle';
-				await showMessage('blocked', false);
+				await showMessage('blocked', false, episode.id);
 				return;
 			}
 			await failed(true);
@@ -291,13 +313,18 @@
 		focusMessage ||= moveFocus;
 		if (checking || !data) return;
 		checking = true;
-		const result = await apiGet(episodeEndpoint(api, data.id));
-		await showMessage(result.status === 'unavailable' ? 'suspended' : 'error', focusMessage);
+		const { id } = data;
+		const failedIn = generation;
+		const result = await apiGet(episodeEndpoint(api, id));
+		// Another episode, or the same one started again, since: not news.
+		if (failedIn !== generation) return;
+		await showMessage(result.status === 'unavailable' ? 'suspended' : 'error', focusMessage, id);
 	}
 
-	async function showMessage(kind: SharedMessage, moveFocus: boolean) {
+	/** Shows, speaks and reports why episode `id` cannot play. */
+	async function showMessage(kind: SharedMessage, moveFocus: boolean, id: string) {
 		message = kind;
-		controller.report(host, data!.id, kind);
+		controller.report(host, id, kind);
 		// Spoken here unless a status line shows it: the icon variant has no
 		// room for one, and the blocked note sits beside a button that stays.
 		if (variant === 'icon' || kind === 'blocked') announcement = messageText(kind);

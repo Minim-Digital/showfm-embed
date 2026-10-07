@@ -13,6 +13,7 @@ import { axe } from 'jest-axe';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineShowfmPlay } from '../play-element';
 import { defineShowfmEpisodes } from '../episodes-element';
+import { pageController } from '../controller';
 import {
 	API,
 	AXE,
@@ -196,6 +197,23 @@ describe('the bar (desktop)', () => {
 			'Sourdough, salt and the slow return of the village bakery'
 		);
 		expect(spoken()).toBe('Now playing: Sourdough, salt and the slow return of the village bakery');
+	});
+});
+
+describe('nothing stale lands', () => {
+	it('"Playing" is not said for an episode the shared audio no longer holds', async () => {
+		const { control, spoken } = await open();
+		await press(control('Pause: Episode One')!);
+		// Play from the mini-player, and before that play resolves another
+		// element starts a different episode on the shared audio.
+		control('Play: Episode One')!.click();
+		void pageController().playShared(
+			{},
+			{ id: 'other', title: 'Another episode' },
+			'https://m.cdn.media/other.mp3'
+		);
+		await settle();
+		expect(spoken()).toBe('Now playing: Another episode');
 	});
 });
 

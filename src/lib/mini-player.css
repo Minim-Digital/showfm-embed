@@ -85,7 +85,6 @@ text {
 	box-shadow: 0 8px 26px rgba(16, 16, 20, 0.14);
 }
 .line,
-.grab,
 .info,
 .time,
 [data-expand],
@@ -393,20 +392,12 @@ input {
 		gap: 18px 14px;
 		max-height: 90vh;
 		overflow-y: auto;
-		padding: 8px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+		padding: 44px 16px calc(24px + env(safe-area-inset-bottom, 0px));
 		border: 0;
 		border-radius: 16px 16px 0 0;
 	}
 	.sheet .line {
 		display: none;
-	}
-	.sheet .grab {
-		display: block;
-		width: 36px;
-		height: 4px;
-		margin: 0 calc(50% - 18px) 12px;
-		border-radius: 99px;
-		background: var(--pp-ctrl-border);
 	}
 	.sheet .art {
 		width: 72px;

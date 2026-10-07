@@ -170,8 +170,10 @@
 			media.pause();
 			announcement = s.paused;
 		} else {
+			// Said only if the shared audio still holds this episode when it plays.
+			const pressed = episode;
 			media.play().then(
-				() => (announcement = s.playing),
+				() => pressed === episode && (announcement = s.playing),
 				() => {}
 			);
 		}
@@ -180,15 +182,14 @@
 	function skip(seconds: number) {
 		const media = audio();
 		if (!media) return;
+		// The audio's timeupdate brings the bar up to date.
 		media.currentTime = Math.max(0, Math.min(total || Infinity, media.currentTime + seconds));
-		sync();
 	}
 
 	function seek(event: Event) {
 		const media = audio();
 		if (!media) return;
 		media.currentTime = Number((event.currentTarget as HTMLInputElement).value);
-		sync();
 	}
 
 	function changeRate() {
@@ -349,7 +350,7 @@
 		stroke-linejoin="round"
 		aria-hidden="true"
 		><path {d}></path>{#if label}<text
-				x={label === '15' ? 12.5 : 11.5}
+				x="12"
 				y="15.6"
 				text-anchor="middle"
 				fill="currentColor"
@@ -391,7 +392,6 @@
 			<span class="line" aria-hidden="true"
 				><span style="width:{total > 0 ? Math.min(100, (time / total) * 100) : 0}%"></span></span
 			>
-			<span class="grab" aria-hidden="true"></span>
 			{#if artwork}
 				<img class="art" src={artwork} alt="" />
 			{:else}

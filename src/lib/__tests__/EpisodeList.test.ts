@@ -700,6 +700,39 @@ describe('playing a row', () => {
 		expect(pageController().sharedState()!.message).toBe('suspended');
 	});
 
+	it('a late recheck lands nowhere once the row has started again (EMB-4)', async () => {
+		// Hold the row's failure recheck until the test answers it.
+		let answer!: (response: Response) => void;
+		vi.stubGlobal('fetch', (input: RequestInfo | URL) =>
+			new URL(String(input)).pathname.startsWith('/v1/episodes/')
+				? new Promise<Response>((resolve) => (answer = resolve))
+				: fetchMock(input)
+		);
+		playOutcome = 'error';
+		const { root, view } = await mountList();
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		playOutcome = 'ok';
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		answer(new Response('{}', { status: 403 }));
+		await settle();
+		expect(row(root, 0)).not.toHaveTextContent('This show isn’t available right now.');
+		expect(view.getByRole('button', { name: /^Pause: Sourdough/ })).toBeInTheDocument();
+	});
+
+	it("a new first page forgets the last one's row messages (EMB-4)", async () => {
+		playOutcome = 'error';
+		const { host, root, view } = await mountList();
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		expect(row(root, 0)).toHaveTextContent('This episode can’t be played right now.');
+		host.setAttribute('count', '5');
+		await settle();
+		expect(row(root, 0)).not.toHaveTextContent('This episode can’t be played right now.');
+		expect(row(root, 0).querySelector('[data-play]')).not.toBeNull();
+	});
+
 	it('mini-player="on" asks for the shared mini-player; off by default', async () => {
 		const plain = await mountList();
 		const asked = vi.fn();

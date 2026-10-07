@@ -176,6 +176,8 @@
 		void reload;
 		generation += 1;
 		more = 'idle';
+		// A new first page: no row keeps a message from the last one.
+		messages = {};
 		if (!podcast) {
 			status = 'error';
 			return;
@@ -295,6 +297,8 @@
 	// paused shows as paused; once another element loads something else
 	// there, the row goes back to its resting state.
 	let mine: { id: string; src: string } | null = null;
+	// Counts presses: a failure's API recheck lands only if none came since.
+	let plays = 0;
 	let pressed: string | null = null;
 
 	function sync(snapshot: PlaybackSnapshot) {
@@ -346,6 +350,7 @@
 	async function start(episode: ListEpisode, reloadAudio = false) {
 		const src = audioSrc(episode);
 		if (!src) return;
+		plays += 1;
 		delete messages[episode.id];
 		pressed = episode.id;
 		mine = { id: episode.id, src };
@@ -396,7 +401,10 @@
 	 * anything else the error.
 	 */
 	async function failed(id: string, moveFocus: boolean) {
+		const play = plays;
 		const result = await apiGet(episodeEndpoint(query.api, id));
+		// A row started since (this one again, or another) makes it stale.
+		if (play !== plays) return;
 		await showMessage(id, result.status === 'unavailable' ? 'suspended' : 'error', moveFocus);
 	}
 
