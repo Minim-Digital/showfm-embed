@@ -13,12 +13,12 @@ export const BUNDLED_LOCALES: Partial<Record<Language, Strings>> = {};
 
 const KEY = Symbol.for('showfm.locales.v1');
 
-// The script's own URL, read while it runs: classic scripts only expose it
-// then. A copy without one (the ESM root) has its locales registered.
-const base =
-	typeof document !== 'undefined'
-		? (document.currentScript as HTMLScriptElement | null)?.src || null
-		: null;
+// Capture the URL and nonce while the classic script is current. A copy
+// without a URL (the ESM root) has its locales registered.
+const currentScript =
+	typeof document !== 'undefined' ? (document.currentScript as HTMLScriptElement | null) : null;
+const base = currentScript?.src || null;
+const nonce = currentScript?.nonce;
 
 const pending: Partial<Record<Language, Promise<boolean>>> = {};
 
@@ -32,6 +32,7 @@ export function loadLocale(language: Language): Promise<boolean> {
 	return (pending[language] ??= new Promise<boolean>((resolve) => {
 		const script = document.createElement('script');
 		script.src = new URL(`locales/${language}.js`, base).href;
+		if (nonce) script.nonce = nonce;
 		script.async = true;
 		script.onload = () => resolve(registered(language));
 		script.onerror = () => {

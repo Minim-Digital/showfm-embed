@@ -16,6 +16,8 @@ async function runLoader(currentScript: HTMLScriptElement | null = null) {
 	});
 	vi.resetModules();
 	await import('../click-loader');
+	Object.defineProperty(document, 'currentScript', { configurable: true, get: () => null });
+	if (currentScript) currentScript.nonce = 'changed-after-evaluation';
 }
 
 const scripts = () => [...document.head.querySelectorAll('script[src]')] as HTMLScriptElement[];
@@ -117,6 +119,26 @@ describe('before the press', () => {
 });
 
 describe('the press', () => {
+	it.each([undefined, '', 'host-nonce'])(
+		'propagates only a non-empty nonce (%s)',
+		async (nonce) => {
+			const self = document.createElement('script');
+			if (nonce !== undefined) self.nonce = nonce;
+			await runLoader(self);
+			facadeButton(document.getElementById('one')!).click();
+			expect(scripts()).toHaveLength(1);
+			expect(scripts()[0].nonce).toBe(nonce || '');
+			expect(scripts()[0].hasAttribute('nonce')).toBe(!!nonce);
+			scripts()[0].dispatchEvent(new Event('error'));
+
+			// Consent activation and retries use the same captured nonce.
+			(window as ShowfmWindow).showfm!.load!();
+			expect(scripts()).toHaveLength(1);
+			expect(scripts()[0].nonce).toBe(nonce || '');
+			expect(scripts()[0].hasAttribute('nonce')).toBe(!!nonce);
+		}
+	);
+
 	it('adds v1.js once and marks the element to load and play', async () => {
 		await runLoader();
 		const one = document.getElementById('one')!;

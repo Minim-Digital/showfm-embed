@@ -31,6 +31,7 @@
 	const BUSY = 'aria-busy';
 	const script = d.currentScript;
 	const src = script?.getAttribute('data-src') || 'https://embed.cdn.media/player/v1.js';
+	const nonce = script?.nonce;
 	// [player title, player meta, list title, list meta] per language.
 	const STRINGS: Record<string, string[]> = {
 		en: [
@@ -93,6 +94,7 @@
 			added = true;
 			const tag = d.createElement('script');
 			tag.src = src;
+			if (nonce) tag.nonce = nonce;
 			tag.async = true;
 			// A failed load (network, CDN) must not strand the page: every
 			// pressed facade becomes pressable again, focus stays where it is,

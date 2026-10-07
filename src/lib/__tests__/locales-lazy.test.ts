@@ -7,11 +7,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const KEY = Symbol.for('showfm.locales.v1');
 type Registry = Record<symbol, Record<string, unknown> | undefined>;
 
-async function lazyFrom(src: string | null) {
+async function lazyFrom(src: string | null, nonce?: string) {
 	const script = src ? Object.assign(document.createElement('script'), { src }) : null;
+	if (script && nonce !== undefined) script.nonce = nonce;
 	Object.defineProperty(document, 'currentScript', { configurable: true, get: () => script });
 	vi.resetModules();
-	return import('../locales/lazy');
+	const lazy = await import('../locales/lazy');
+	// Later loads run after the original script has finished evaluating.
+	Object.defineProperty(document, 'currentScript', { configurable: true, get: () => null });
+	if (script) script.nonce = 'changed-after-evaluation';
+	return lazy;
 }
 
 const added = () => [...document.head.querySelectorAll('script')] as HTMLScriptElement[];
@@ -22,6 +27,24 @@ afterEach(() => {
 });
 
 describe('loadLocale (CDN build)', () => {
+	it.each([undefined, '', 'host-nonce'])(
+		'propagates only a non-empty nonce (%s)',
+		async (nonce) => {
+			const { loadLocale } = await lazyFrom('https://embed.cdn.media/player/v1.js', nonce);
+			for (const language of ['de', 'fr'] as const) {
+				// Both the initial request and a retry must use the captured nonce.
+				for (let attempt = 0; attempt < 2; attempt++) {
+					const loading = loadLocale(language);
+					const [script] = added();
+					expect(script.nonce).toBe(nonce || '');
+					expect(script.hasAttribute('nonce')).toBe(!!nonce);
+					script.dispatchEvent(new Event('error'));
+					expect(await loading).toBe(false);
+				}
+			}
+		}
+	);
+
 	it('bundles nothing and needs nothing for English', async () => {
 		const { BUNDLED_LOCALES, loadLocale } = await lazyFrom('https://embed.cdn.media/player/v1.js');
 		expect(BUNDLED_LOCALES).toEqual({});
