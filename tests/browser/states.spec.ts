@@ -423,30 +423,28 @@ for (const [name, look] of Object.entries(LOOKS)) {
 				await rowsReady(page);
 				await failAudio(page);
 				if (status === 403) await suspend(page);
-				for (const host of ['showfm-episodes >> nth=0', 'showfm-episodes >> nth=1']) {
-					await page.locator(host).locator('[part="play"]').first().click();
+				const message =
+					status === 403
+						? 'This show isn’t available right now.'
+						: 'This episode can’t be played right now.';
+				// One list at a time, each its own episode: a press of the same
+				// episode elsewhere rightly makes a pending failure stale.
+				for (const n of [0, 1]) {
+					const host = page.locator('showfm-episodes').nth(n);
+					await host.locator('[part="play"]').nth(n).click();
+					await expect(host.getByText(message)).toHaveCount(1);
 				}
-				await expect(
-					page.locator(
-						'showfm-episodes [part="card"] [role="alert"], showfm-episodes [part="card"] [role="status"]'
-					)
-				).not.toHaveCount(0);
-				await expect(
-					page.getByText(
-						status === 403
-							? 'This show isn’t available right now.'
-							: 'This episode can’t be played right now.'
-					)
-				).toHaveCount(2);
 				await expectPalette(page, ['showfm-episodes'], 10);
 			}
 
 			await blockPlay(page);
 			await serveList(page, list() + list('variant="minimal"'), {}, { head });
 			await rowsReady(page);
-			await page.locator('showfm-episodes >> nth=0').locator('[part="play"]').first().click();
-			await page.locator('showfm-episodes >> nth=1').locator('[part="play"]').first().click();
-			await expect(page.getByText('Your browser blocked audio playback.')).toHaveCount(2);
+			for (const n of [0, 1]) {
+				const host = page.locator('showfm-episodes').nth(n);
+				await host.locator('[part="play"]').nth(n).click();
+				await expect(host.getByText('Your browser blocked audio playback.')).toHaveCount(1);
+			}
 			await expectPalette(page, ['showfm-episodes'], 10);
 		});
 
