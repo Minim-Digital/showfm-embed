@@ -168,9 +168,14 @@
 	);
 
 	// ── data ───────────────────────────────────────────────────────────
+	// Each load of the first page starts a new generation. A "Load more"
+	// answer for an earlier one (the query changed, or Retry ran) is dropped.
+	let generation = 0;
 	$effect(() => {
 		const { podcast, api, limit, season, types } = query;
 		void reload;
+		generation += 1;
+		more = 'idle';
 		if (!podcast) {
 			status = 'error';
 			return;
@@ -193,7 +198,6 @@
 				episodes = Array.isArray(page.data) ? page.data : [];
 				cursor = page.nextCursor;
 				pages = 1;
-				more = 'idle';
 				ownShare = ownArtworkShare(episodes);
 				status = episodes.length ? 'ready' : 'empty';
 			}
@@ -207,10 +211,12 @@
 		if (!cursor || more === 'loading') return;
 		more = 'loading';
 		const { podcast, api, limit, season, types } = query;
+		const asked = generation;
 		const firstNew = episodes.length;
 		const page = await apiGet<ListEpisode[]>(
 			episodesEndpoint(api, podcast, { limit, season, types, cursor })
 		);
+		if (asked !== generation) return;
 		if (page.status === 'ok') {
 			episodes = [...episodes, ...(Array.isArray(page.data) ? page.data : [])];
 			cursor = page.nextCursor;

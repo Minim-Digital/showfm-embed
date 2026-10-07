@@ -320,6 +320,33 @@ describe('loading more', () => {
 		);
 		expect(root.querySelectorAll('[data-row]')).toHaveLength(0);
 	});
+
+	it.each([
+		['a page of the old query', 200],
+		['a 403 for the old query', 403]
+	])('drops %s once the query has changed', async (_, oldStatus) => {
+		const { root, view, rows, host } = await mountList({ count: '3' });
+		// Hold the next page until the new query has loaded.
+		let answer!: (response: Response) => void;
+		vi.stubGlobal('fetch', (input: RequestInfo | URL) =>
+			new URL(String(input)).searchParams.has('cursor')
+				? new Promise<Response>((resolve) => (answer = resolve))
+				: fetchMock(input)
+		);
+		view.getByRole('button', { name: 'Load more episodes' }).click();
+		await settle();
+		api.episodes = [episodeItem({ index: 20 }), episodeItem({ index: 21 })];
+		host.setAttribute('podcast', 'another-show');
+		await settle();
+		const fresh = rows().map((element) => element.dataset.row);
+		expect(fresh).toEqual(api.episodes.map((episode) => episode.id));
+		// The old answer arrives last.
+		answer(respond(oldStatus, listPage(sampleEpisodes().slice(3, 6), 'c6')));
+		await settle();
+		expect(rows().map((element) => element.dataset.row)).toEqual(fresh);
+		expect(view.queryByRole('button', { name: /more episodes|Loading episodes/ })).toBeNull();
+		expect(root.querySelector('.message-card')).toBeNull();
+	});
 });
 
 describe('filters', () => {
