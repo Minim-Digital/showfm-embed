@@ -8,14 +8,15 @@ import { ELEMENT_DE } from '../element-strings.js';
 import type { ListFacadeStrings, ListStrings } from '../list-strings.js';
 import type { PlayBuilderStrings, PlayStrings } from '../play-strings.js';
 import type { Strings } from '../strings.js';
-import type { TranscriptStrings } from '../transcript-strings.js';
+import type { TranscriptFacadeStrings, TranscriptStrings } from '../transcript-strings.js';
 
 const DE: Strings &
 	ListStrings &
 	ListFacadeStrings &
 	PlayStrings &
 	PlayBuilderStrings &
-	TranscriptStrings = {
+	TranscriptStrings &
+	TranscriptFacadeStrings = {
 	// The play button's labels (element-strings.ts); `minutes` and
 	// `actionName` are the list's too.
 	...ELEMENT_DE,
@@ -89,7 +90,8 @@ const DE: Strings &
 	expandPlayer: 'Player vergrößern',
 	closePlayer: 'Player schließen und Wiedergabe beenden',
 	miniPlayerOff: 'Besucher können nur abspielen und pausieren.',
-	// The transcript (transcript-strings.ts).
+	// The transcript (transcript-strings.ts); its facade is the click loader's.
+	facadeTranscriptTitle: 'Transkript laden',
 	transcriptText: 'Transkripttext',
 	searchTranscript: 'Transkript durchsuchen',
 	matchCount: '{n} von {total}',

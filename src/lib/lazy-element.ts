@@ -76,7 +76,8 @@ export function lazyElement(chunk: () => string | Promise<unknown>, mount: strin
 	return class extends HTMLElement {
 		declare showfmConnection?: Connection | null;
 
-		static observedAttributes = [ACTIVATED];
+		// `load` too: an element whose load="click" is taken away loads then.
+		static observedAttributes = [ACTIVATED, 'load'];
 
 		attributeChangedCallback() {
 			if (this.isConnected) this.connectedCallback();

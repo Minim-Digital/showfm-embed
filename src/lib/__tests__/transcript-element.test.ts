@@ -80,6 +80,15 @@ describe('<showfm-transcript>', () => {
 		expect(fetchMock).toHaveBeenCalled();
 	});
 
+	it('load: taking load="click" away loads it, as showfm.load() would', async () => {
+		const element = transcript({ load: 'click' });
+		document.body.append(element);
+		await settle();
+		expect(fetchMock).not.toHaveBeenCalled();
+		element.removeAttribute('load');
+		await loaded(element);
+	});
+
 	it('unmounts when removed and mounts again when put back', async () => {
 		const element = transcript();
 		document.body.append(element);

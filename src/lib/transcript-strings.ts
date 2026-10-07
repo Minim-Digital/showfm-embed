@@ -37,6 +37,16 @@ export const TRANSCRIPT_EN = {
 	backToNow: 'Back to now · {time}'
 };
 
+/**
+ * The transcript's load="click" facade. The inline loader draws it and
+ * carries its own copy (click-loader.ts); it is here for the tables, so
+ * translators and `window.showfmStrings` see the key.
+ */
+export const TRANSCRIPT_FACADE_EN = {
+	facadeTranscriptTitle: 'Load transcript'
+};
+
+export type TranscriptFacadeStrings = typeof TRANSCRIPT_FACADE_EN;
 export type TranscriptStrings = typeof TRANSCRIPT_EN;
 export type TranscriptStringKey = keyof TranscriptStrings;
 

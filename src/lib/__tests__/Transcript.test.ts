@@ -566,6 +566,99 @@ describe('long transcripts', () => {
 	});
 });
 
+describe('every attribute is live', () => {
+	it('episode: another episode loads in place of the first', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		mock.episodeBody = { ...transcriptEpisode(), id: OTHER_ID };
+		host.setAttribute('episode', OTHER_ID);
+		await settle();
+		expect(requests.at(-2)).toBe(`${API}/v1/episodes/${OTHER_ID}`);
+		expect(lines(host).length).toBeGreaterThan(5);
+	});
+
+	it('for: follows the element it names now', async () => {
+		const first = playerAudio('first');
+		const second = playerAudio('second');
+		const host = await transcript({ for: 'first' });
+		host.setAttribute('for', 'second');
+		await settle();
+		lines(host)[3].querySelector('button')!.click();
+		await settle();
+		expect(second.audio.currentTime).toBeGreaterThan(0);
+		expect(first.audio.currentTime).toBe(0);
+	});
+
+	it('height: the text area takes the new height', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID, height: '220' });
+		expect($(host, '.scroll')!.style.height).toBe('220px');
+		host.setAttribute('height', '400');
+		await settle();
+		expect($(host, '.scroll')!.style.height).toBe('400px');
+		host.removeAttribute('height');
+		await settle();
+		expect($(host, '.scroll')!.style.height).toBe('320px');
+	});
+
+	it('heading-level: the name becomes a heading, and stops being one', async () => {
+		const host = await transcript();
+		expect($(host, '[role="heading"]')).toBeNull();
+		host.setAttribute('heading-level', '4');
+		await settle();
+		expect($(host, '[role="heading"]')!.getAttribute('aria-level')).toBe('4');
+		host.removeAttribute('heading-level');
+		await settle();
+		expect($(host, '[role="heading"]')).toBeNull();
+	});
+
+	it('theme and accent: the colours follow', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID, theme: 'light' });
+		const style = () => $(host, '.tr')!.getAttribute('style')!;
+		expect(style()).toContain('--pp-bg: #FFFFFF');
+		host.setAttribute('theme', 'dark');
+		await settle();
+		expect(style()).toContain('--pp-bg: #17151f');
+		host.setAttribute('accent', '#0ea5e9');
+		await settle();
+		expect(style()).toContain('--pp-accent: #0ea5e9');
+	});
+
+	it('api: a new origin loads the episode again from it', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		host.setAttribute('api', 'https://staging.example.test');
+		await settle();
+		expect(requests).toContain(`https://staging.example.test/v1/episodes/${TRANSCRIPT_EPISODE_ID}`);
+		expect(lines(host).length).toBeGreaterThan(5);
+	});
+
+	it('api: an answer from the old origin that arrives late lands nowhere', async () => {
+		// The old origin answers 404, but only after the new one has answered.
+		let answerOld!: () => void;
+		const oldAnswer = new Promise<void>((resolve) => (answerOld = resolve));
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+			if (String(input).startsWith(API)) {
+				await oldAnswer;
+				return new Response('{}', { status: 404 });
+			}
+			return fetchMock(input);
+		});
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		host.setAttribute('api', 'https://staging.example.test');
+		await settle();
+		expect(lines(host).length).toBeGreaterThan(5);
+		answerOld();
+		await settle();
+		expect(lines(host).length).toBeGreaterThan(5);
+		expect(host.hasAttribute('data-showfm-collapsed')).toBe(false);
+	});
+
+	it('lang: the strings follow the element’s language', async () => {
+		const host = await transcript();
+		host.setAttribute('lang', 'de');
+		await settle();
+		expect($(host, '.label')!.textContent).toBe('Transkript');
+	});
+});
+
 describe('strings and headings', () => {
 	it('German from the page’s lang', async () => {
 		document.documentElement.setAttribute('lang', 'de-DE');

@@ -261,6 +261,7 @@ What the visitor can do:
 
 How it behaves:
 
+- Every attribute is live: change `episode`, `for` or `api` and it loads or follows afresh (an answer for the old value never lands); change `height`, `heading-level`, `theme`, `accent` or `lang` and it redraws. Removing `load="click"` before it has loaded loads it, as `showfm.load()` would.
 - It keeps its height in every state: the search row (55px) over a text area of `height` pixels (320 by default), inside a 1px border, 377px in all. Loading shows a skeleton, with search disabled.
 - In a box under 400px wide (a sidebar) the timestamp moves onto the speaker line and the text takes the full width.
 - Speaker names come from the transcript's voice tags and show when the speaker changes. Unlabelled speakers ("Speaker A") show no name.
@@ -271,17 +272,17 @@ How it behaves:
 - The transcript is offered only when the audio and the WebVTT are both on a show.fm media host. Otherwise, with `episode` the element renders nothing; following, it says "There’s no transcript for this episode."
 - If the transcript cannot load it says so, with Try again; playback is not affected. A suspended show shows "This show isn’t available right now." An unknown or unpublished `episode` (404) renders nothing and gives back its reserved height.
 
-| Attribute       | Values                  | Default               | What it does                                                                           |
-| --------------- | ----------------------- | --------------------- | -------------------------------------------------------------------------------------- |
-| `episode`       | episode UUID            |                       | That episode's transcript.                                                             |
-| `for`           | element id              |                       | Follows what that player or list plays.                                                |
-| `height`        | `120` to `2000`         | `320`                 | Height of the text area in pixels.                                                     |
-| `heading-level` | `2` to `6`              | none                  | Makes the name "Transcript" a heading of that level. Without it no heading is emitted. |
-| `load`          | `click`                 |                       | Requests nothing, not even the transcript's code, until `showfm.load()` runs.          |
-| `theme`         | `auto`, `light`, `dark` | the show's setting    | Pins the theme.                                                                        |
-| `accent`        | hex colour              | the show's colour     | Pins the accent.                                                                       |
-| `api`           | URL                     | `https://api.show.fm` | API origin. For development and testing only.                                          |
-| `lang`          | language tag            | `<html lang>`         | The language of the transcript's own strings.                                          |
+| Attribute       | Values                  | Default               | What it does                                                                                                                                |
+| --------------- | ----------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `episode`       | episode UUID            |                       | That episode's transcript.                                                                                                                  |
+| `for`           | element id              |                       | Follows what that player or list plays.                                                                                                     |
+| `height`        | `120` to `2000`         | `320`                 | Height of the text area in pixels.                                                                                                          |
+| `heading-level` | `2` to `6`              | none                  | Makes the name "Transcript" a heading of that level. Without it no heading is emitted.                                                      |
+| `load`          | `click`                 |                       | Requests nothing, not even the transcript's code, until its facade is pressed or `showfm.load()` runs. See [Load on click](#load-on-click). |
+| `theme`         | `auto`, `light`, `dark` | the show's setting    | Pins the theme.                                                                                                                             |
+| `accent`        | hex colour              | the show's colour     | Pins the accent.                                                                                                                            |
+| `api`           | URL                     | `https://api.show.fm` | API origin. For development and testing only.                                                                                               |
+| `lang`          | language tag            | `<html lang>`         | The language of the transcript's own strings.                                                                                               |
 
 - The transcript's code is a separate file that `v1.js` adds from `chunks/` the first time a transcript is on the page (or a player's transcript is opened). A page without one never downloads it.
 - Put the transcript as text inside the element (`renderTranscriptHTML`) so search engines and visitors without JavaScript can read it. It scrolls inside `--showfm-height` until the element upgrades.
@@ -308,11 +309,12 @@ For sites that need consent before any third-party request, `load="click"` makes
 - Until a press, the loader draws a facade that knows only the accent, the element type and the reserved height. Nothing is requested from show.fm or embed.cdn.media.
 - The first press adds `v1.js` once. A player loads and plays; focus stays on its play button. If the browser no longer treats the press as permission to play, the player shows its blocked message with Play ready.
 - Other facades stay facades until they are pressed.
-- `showfm.load()` loads every facade at once, for consent tools.
+- `showfm.load()` loads every facade at once, for consent tools, including elements added after the loader ran. It may run before `v1.js` has arrived: each element is marked, and loads when `v1.js` upgrades it.
 - A list's facade loads the list and moves focus to its first episode. Without the loader, a `load="click"` list shows its fallback links until `showfm.load()` runs.
 - A play button's facade is its button alone, in its 40px line. One press loads and plays, and opens the mini-player; focus stays on the button. Without the loader, it shows its fallback until `showfm.load()` runs.
+- A transcript's facade, "Load transcript", keeps the height the element reserves (`--showfm-height`, else 377px) and hides the fallback text behind it. One press loads the transcript. On a page with only a transcript, `showfm.load()` adds `v1.js` too.
 - Set `data-src` on the loader's `<script>` to load a self-hosted copy of `v1.js`.
-- The loader is about 4.7 kB as written (2.2 kB gzipped). iframes cannot be facades.
+- The loader is about 4.7 kB as written (2.3 kB gzipped). iframes cannot be facades.
 
 ## Fallback markup
 

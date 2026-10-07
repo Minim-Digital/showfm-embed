@@ -13,6 +13,8 @@
  *   player's transcript is opened).
  * - A keyboard pass, and reduced motion.
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { renderTranscriptHTML } from '../../src/lib/fallback';
 import { TRANSCRIPT_EPISODE_ID, conversationVtt } from '../fixtures/transcript';
@@ -374,4 +376,32 @@ test("inside the player, the spoken line's timestamp reaches 4.5:1 on its tint",
 		return (light + 0.05) / (dark + 0.05);
 	});
 	expect(await ratio.jsonValue()).toBeGreaterThanOrEqual(4.5);
+});
+
+test('consent mode: a transcript facade loads nothing until pressed, then the transcript in its place', async ({
+	page
+}) => {
+	const loader = readFileSync(
+		fileURLToPath(new URL('../../dist/cdn/click-loader.js', import.meta.url)),
+		'utf-8'
+	);
+	const requests = await serveTranscript(
+		page,
+		transcript(
+			'load="click" style="--showfm-height:377px"',
+			renderTranscriptHTML(conversationVtt().vtt)
+		),
+		{ script: `<script data-src="/player/v1.js">${loader}</script>` }
+	);
+	const button = page.getByRole('button', { name: 'Load transcript' });
+	await expect(button).toBeVisible();
+	const host = page.locator('showfm-transcript');
+	expect((await host.boundingBox())!.height).toBe(377);
+	expect(requests).toEqual(['v1-fallback.css']);
+	const after = (await page.locator('#after').boundingBox())!.y;
+	await button.click();
+	await transcriptReady(page);
+	expect((await host.boundingBox())!.height).toBe(377);
+	expect((await page.locator('#after').boundingBox())!.y).toBe(after);
+	expect(requests).toContain('v1.js');
 });

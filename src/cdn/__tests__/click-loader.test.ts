@@ -37,6 +37,9 @@ beforeEach(() => {
 		<p>Hear it: <showfm-play id="button" episode="${EPISODE}" load="click" accent="#0ea5e9">
 			<a href="https://show.fm/x/e/one">Episode One</a><audio controls preload="none"></audio>
 		</showfm-play></p>
+		<showfm-transcript id="transcript" episode="${EPISODE}" load="click" style="--showfm-height:377px">
+			<div><p><strong>Maya:</strong> So the bakery had been closed.</p></div>
+		</showfm-transcript>
 		<showfm-player id="eager" episode="${EPISODE}"></showfm-player>`;
 });
 
@@ -54,7 +57,7 @@ describe('before the press', () => {
 		await runLoader();
 		expect(fetchSpy).not.toHaveBeenCalled();
 		expect(scripts()).toHaveLength(0);
-		for (const id of ['one', 'two', 'list', 'button']) {
+		for (const id of ['one', 'two', 'list', 'button', 'transcript']) {
 			expect(document.getElementById(id)!.querySelector('[data-showfm-facade-ui]')).not.toBeNull();
 		}
 		expect(document.getElementById('eager')!.children).toHaveLength(0);
@@ -79,7 +82,7 @@ describe('before the press', () => {
 		// list's or play button's stay hidden after v1.js defines it (a stub),
 		// until its chunk mounts.
 		expect(document.head.querySelector('style')!.textContent).toContain(
-			'[data-showfm-facade]:is(showfm-episodes,showfm-play,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
+			'[data-showfm-facade]:is(showfm-episodes,showfm-play,showfm-transcript,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
 		);
 	});
 
@@ -139,6 +142,63 @@ describe('before the press', () => {
 		const box = document.querySelector('#one [data-showfm-facade-ui]') as HTMLElement;
 		expect(box.style.getPropertyValue('--a')).toBe('#7E22CE');
 		expect(box.style.getPropertyValue('--f')).toBe('#fff');
+	});
+});
+
+describe('a transcript facade', () => {
+	it('is named for the transcript, keeps the reserved height and hides the text behind it', async () => {
+		await runLoader();
+		const transcript = document.getElementById('transcript')!;
+		expect(facadeButton(transcript).getAttribute('aria-label')).toBe('Load transcript');
+		expect(transcript.querySelector('b')!.textContent).toBe('Load transcript');
+		expect(transcript.querySelector('small')!.textContent).toBe('');
+		const box = transcript.querySelector('[data-showfm-facade-ui]') as HTMLElement;
+		expect(box.style.getPropertyValue('--h')).toBe('var(--showfm-height,377px)');
+		const css = document.head.querySelector('style')!.textContent!;
+		expect(css).toContain(
+			'showfm-transcript,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
+		);
+	});
+
+	it('loads without playing when pressed, adding v1.js once', async () => {
+		await runLoader();
+		const transcript = document.getElementById('transcript')!;
+		facadeButton(transcript).click();
+		expect(transcript.getAttribute('data-showfm-activated')).toBe('load');
+		expect(scripts()).toHaveLength(1);
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it('speaks German and French, and takes window.showfmStrings', async () => {
+		document.getElementById('transcript')!.setAttribute('lang', 'de');
+		await runLoader();
+		expect(facadeButton(document.getElementById('transcript')!).getAttribute('aria-label')).toBe(
+			'Transkript laden'
+		);
+		document.head.innerHTML = '';
+		document.body.innerHTML =
+			'<showfm-transcript id="t" lang="fr" load="click"></showfm-transcript><showfm-transcript id="u" load="click"></showfm-transcript>';
+		(window as ShowfmWindow).showfmStrings = { facadeTranscriptTitle: 'Read along' };
+		await runLoader();
+		expect(facadeButton(document.getElementById('t')!).getAttribute('aria-label')).toBe(
+			'Read along'
+		);
+		delete (window as ShowfmWindow).showfmStrings;
+		document.head.innerHTML = '';
+		document.body.innerHTML =
+			'<showfm-transcript id="t" lang="fr" load="click"></showfm-transcript>';
+		await runLoader();
+		expect(facadeButton(document.getElementById('t')!).getAttribute('aria-label')).toBe(
+			'Charger la transcription'
+		);
+	});
+
+	it('on a page with only a transcript, showfm.load() adds v1.js and marks it', async () => {
+		document.body.innerHTML = `<showfm-transcript id="only" episode="${EPISODE}" load="click"></showfm-transcript>`;
+		await runLoader();
+		(window as ShowfmWindow).showfm!.load!();
+		expect(scripts()).toHaveLength(1);
+		expect(document.getElementById('only')!.getAttribute('data-showfm-activated')).toBe('load');
 	});
 });
 
@@ -230,10 +290,24 @@ describe('showfm.load()', () => {
 		document.addEventListener('showfm:load', heard);
 		(window as ShowfmWindow).showfm!.load!();
 		expect(scripts()).toHaveLength(1);
-		for (const id of ['one', 'two', 'list', 'button']) {
+		for (const id of ['one', 'two', 'list', 'button', 'transcript']) {
 			expect(document.getElementById(id)!.getAttribute('data-showfm-activated')).toBe('load');
 		}
 		expect(heard).toHaveBeenCalledTimes(1);
 		document.removeEventListener('showfm:load', heard);
+	});
+
+	it('marks elements added since the loader ran, for v1.js to find when it arrives', async () => {
+		await runLoader();
+		const late = document.createElement('showfm-transcript');
+		late.setAttribute('load', 'click');
+		document.body.append(late);
+		(window as ShowfmWindow).showfm!.load!();
+		expect(late.getAttribute('data-showfm-activated')).toBe('load');
+		expect(late.querySelector('[data-showfm-facade-ui]')).not.toBeNull();
+		// Again: the same marks, still one script.
+		(window as ShowfmWindow).showfm!.load!();
+		expect(late.getAttribute('data-showfm-activated')).toBe('load');
+		expect(scripts()).toHaveLength(1);
 	});
 });

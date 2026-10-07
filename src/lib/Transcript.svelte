@@ -190,7 +190,8 @@
 			loaded = { status: 'idle' };
 			return;
 		}
-		const origin = untrack(() => api);
+		// The API origin is live too: a new one is a new load.
+		const origin = api;
 		loaded = { status: 'loading' };
 		loadTranscript(episode.id, episode.known, origin, !embedHost).then((result) => {
 			if (load !== generation) return;

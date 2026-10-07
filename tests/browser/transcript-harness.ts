@@ -45,6 +45,8 @@ export interface TranscriptPage {
 	gate?: Promise<unknown>;
 	/** Repeat the conversation this many times (a long transcript). */
 	repeat?: number;
+	/** The script tag(s) after the body; v1.js by default. */
+	script?: string;
 	/** The page's language. */
 	lang?: string;
 }
@@ -61,7 +63,13 @@ const json = (route: Route, status: number, body: unknown) =>
 export async function serveTranscript(
 	page: Page,
 	body: string,
-	{ width = 720, gate, repeat = 1, lang = 'en' }: TranscriptPage = {}
+	{
+		width = 720,
+		gate,
+		repeat = 1,
+		lang = 'en',
+		script = '<script src="/player/v1.js"></script>'
+	}: TranscriptPage = {}
 ) {
 	const requests: string[] = [];
 	const { vtt, duration } = conversationVtt({ repeat });
@@ -85,7 +93,7 @@ export async function serveTranscript(
 		}
 		return route.fulfill({
 			contentType: 'text/html',
-			body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="/player/v1-fallback.css"><style>body{margin:0;padding:0 16px;width:${width}px;font:16px/1.5 system-ui,sans-serif}</style></head><body>${body}<p id="after">After the transcript</p><script src="/player/v1.js"></script></body></html>`
+			body: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="/player/v1-fallback.css"><style>body{margin:0;padding:0 16px;width:${width}px;font:16px/1.5 system-ui,sans-serif}</style></head><body>${body}<p id="after">After the transcript</p>${script}</body></html>`
 		});
 	});
 	await page.route(`${API_ORIGIN}/**`, (route) => {

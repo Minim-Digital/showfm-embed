@@ -2,6 +2,7 @@
  * Strings: every table has every key, the design's maximum lengths hold in
  * every language, and the fallbacks and overrides apply in order.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	ACTIONS_MAX_LENGTH,
@@ -177,6 +178,17 @@ describe('the transcript (design page 3)', () => {
 				time: '1:02:03'
 			});
 			expect(value.length, `${language}.${key}: ${value}`).toBeLessThanOrEqual(max!);
+		}
+	});
+
+	it('has the facade title the click loader draws, in every language', () => {
+		// click-loader.ts carries its own copy; the tables are for translators.
+		expect(STRING_TABLES.en.facadeTranscriptTitle).toBe('Load transcript');
+		expect(STRING_TABLES.de.facadeTranscriptTitle).toBe('Transkript laden');
+		expect(STRING_TABLES.fr.facadeTranscriptTitle).toBe('Charger la transcription');
+		const loader = readFileSync('src/cdn/click-loader.ts', 'utf-8');
+		for (const language of LANGUAGES) {
+			expect(loader).toContain(`|${STRING_TABLES[language].facadeTranscriptTitle}'`);
 		}
 	});
 

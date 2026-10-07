@@ -17,17 +17,36 @@ import {
 	type PlayBuilderStrings,
 	type PlayStrings
 } from './play-strings.js';
-import { TRANSCRIPT_EN, type TranscriptStrings } from './transcript-strings.js';
+import {
+	TRANSCRIPT_EN,
+	TRANSCRIPT_FACADE_EN,
+	type TranscriptFacadeStrings,
+	type TranscriptStrings
+} from './transcript-strings.js';
 import de from './locales/de.js';
 import fr from './locales/fr.js';
 
 export const STRING_TABLES: Readonly<
 	Record<
 		Language,
-		Strings & ListStrings & ListFacadeStrings & PlayStrings & PlayBuilderStrings & TranscriptStrings
+		Strings &
+			ListStrings &
+			ListFacadeStrings &
+			PlayStrings &
+			PlayBuilderStrings &
+			TranscriptStrings &
+			TranscriptFacadeStrings
 	>
 > = {
-	en: { ...EN, ...LIST_EN, ...LIST_FACADE_EN, ...PLAY_EN, ...PLAY_BUILDER_EN, ...TRANSCRIPT_EN },
+	en: {
+		...EN,
+		...LIST_EN,
+		...LIST_FACADE_EN,
+		...PLAY_EN,
+		...PLAY_BUILDER_EN,
+		...TRANSCRIPT_EN,
+		...TRANSCRIPT_FACADE_EN
+	},
 	de,
 	fr
 };
