@@ -1,5 +1,13 @@
 name: Security Review
 
+# FORK BOUNDARY. The scan runs scripts from the pull request's head with the
+# review token in the environment. A fork pull request never receives
+# repository secrets under a `pull_request` trigger, and the job's `if` below
+# also skips forks explicitly, so the boundary is visible here rather than
+# implied. A same-repository branch needs write access, which can already reach
+# secrets through any workflow. The wider hardening for all three repositories
+# is tracked in Minim-Digital/podcaster-plus-app#734.
+
 # ⚠ A GREEN TICK HERE IS NOT ALWAYS A REAL REVIEW.
 #
 # The action caches a per-PR marker file and writes it EVEN WHEN THE RUN FAILS.
@@ -106,7 +114,10 @@ jobs:
     # push, so gate on the label actually being present. This one condition
     # covers both events: on `labeled` it is true only for the right label, and
     # on `synchronize` it is true only once the PR has been marked ready.
-    if: contains(github.event.pull_request.labels.*.name, 'security-review')
+    # The second condition skips fork pull requests: see FORK BOUNDARY above.
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'security-review') &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     # TWO COST BOUNDS, deliberately layered. `claudecode-timeout` below caps the
     # Anthropic analysis; this caps EVERYTHING ELSE, including the parts of the
