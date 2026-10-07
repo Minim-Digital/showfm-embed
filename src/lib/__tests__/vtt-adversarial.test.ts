@@ -1,0 +1,71 @@
+/** @vitest-environment node */
+import { describe, expect, it } from 'vitest';
+import { parseVtt } from '../vtt';
+
+describe('parseVtt on adversarial input (200 KB, timed)', () => {
+	// Ported from podcaster-plus-app PR #740, including the original EMB-2
+	// cases. Failed searches used to take seconds on these inputs.
+	// The budget leaves room for a slow CI machine while catching rescans.
+	const SIZE = 200_000;
+	const BUDGET_MS = 250;
+	const HEAD = 'WEBVTT\n\n00:00:00.000 --> 00:00:01.000\n';
+
+	it('parses the minimal 40-dot voice-class regression within 50 ms', () => {
+		const payload = '<v.' + '.'.repeat(40);
+		const started = performance.now();
+		const cues = parseVtt(HEAD + payload);
+		expect(performance.now() - started).toBeLessThan(50);
+		expect(cues).toEqual([{ index: 0, start: 0, end: 1, speaker: null, text: payload }]);
+	});
+
+	const inputs: Record<string, string> = {
+		'a payload of unclosed tags': HEAD + '<'.repeat(SIZE),
+		'unclosed voice spans in a cut final cue': HEAD + '<v '.repeat(SIZE / 3),
+		'a run of newlines before the end': HEAD + 'a' + '\n'.repeat(SIZE) + 'x',
+		'timestamp-like tags that never close': HEAD + '<0'.repeat(SIZE / 2),
+		'entity-like runs without a semicolon': HEAD + '&a'.repeat(SIZE / 2),
+		'voice classes without a separator': HEAD + '<v.' + '.'.repeat(SIZE),
+		'voice whitespace without a closing tag': HEAD + '<v' + ' '.repeat(SIZE) + 'x',
+		'a timing line of digits': '9'.repeat(SIZE) + ':00.000 --> 00:01.000\nx\n',
+		'cue settings with an embedded line separator':
+			'WEBVTT\n\n00:00:00.000 --> 00:00:01.000' + ' '.repeat(SIZE) + 'x\u2028y\ntext\n',
+		'cue settings with an embedded paragraph separator':
+			'WEBVTT\n\n00:00:00.000 --> 00:00:01.000' + ' '.repeat(SIZE) + 'x\u2029y\ntext\n',
+		'thousands of ordinary timed cues': `WEBVTT\n\n${'00:00:00.000 --> 00:00:01.000\n<v A>hi <00:00:00.500>there</v>\n\n'.repeat(SIZE / 60)}`
+	};
+
+	it.each(Object.entries(inputs))('parses %s within the budget', (_name, input) => {
+		expect(input.length).toBeGreaterThanOrEqual(SIZE - 10);
+		const started = performance.now();
+		parseVtt(input);
+		expect(performance.now() - started).toBeLessThan(BUDGET_MS);
+	});
+
+	it.each(['\u2028', '\u2029'])('preserves cue settings with separator %s', (separator) => {
+		const timing = 'WEBVTT\n\n00:00:00.000 --> 00:00:01.000';
+		expect(parseVtt(`${timing} \t${separator} align:start\nhello\n`)[0].text).toBe('hello');
+		expect(parseVtt(`${timing} align:start${separator}x\nhello\n`)).toEqual([]);
+		expect(parseVtt(`${timing} align:start${separator}\nhello\n`)).toEqual([]);
+	});
+
+	it.each([
+		['<v.loud.fast \t Ana &amp; Bob>hello</v>', 'Ana & Bob'],
+		['<V.. \t Ana>hello</V>', 'Ana'],
+		['<v\t\tAna>hello</v>', 'Ana'],
+		['<v \t >hello</v>', null],
+		['<v. Ana>hello</v>', null]
+	])('preserves speaker extraction for %s', (payload, speaker) => {
+		expect(parseVtt(`${HEAD}${payload}\n`)).toEqual([
+			{ index: 0, start: 0, end: 1, speaker, text: 'hello' }
+		]);
+	});
+
+	it('keeps the results the quadratic expressions gave', () => {
+		// Tags without a closing > stay as text; a cut voice span drops the cue.
+		expect(parseVtt(`${HEAD}a <b c\n`)[0].text).toBe('a <b c');
+		expect(parseVtt(`${HEAD}<b>a</b> <i>b\n`)[0].text).toBe('a b');
+		expect(parseVtt(`${HEAD}<v Ann>cut mid`)).toEqual([]);
+		expect(parseVtt(`${HEAD}<v Ann>whole</v>`)[0].speaker).toBe('Ann');
+		expect(parseVtt(`${HEAD}text\n\n\t \n`)).toHaveLength(1);
+	});
+});
