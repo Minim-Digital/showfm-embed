@@ -721,6 +721,52 @@ describe('playing a row', () => {
 		expect(view.getByRole('button', { name: /^Pause: Sourdough/ })).toBeInTheDocument();
 	});
 
+	/** Holds the rows' failure rechecks until the test answers them. */
+	function holdRechecks() {
+		const answers: ((response: Response) => void)[] = [];
+		vi.stubGlobal('fetch', (input: RequestInfo | URL) =>
+			new URL(String(input)).pathname.startsWith('/v1/episodes/')
+				? new Promise<Response>((resolve) => answers.push(resolve))
+				: fetchMock(input)
+		);
+		return (status: number) => answers.shift()!(new Response('{}', { status }));
+	}
+
+	it('a late recheck lands nowhere once the list has loaded a new first page (EMB-4)', async () => {
+		const answer = holdRechecks();
+		playOutcome = 'error';
+		const { host, root } = await mountList();
+		row(root, 0).querySelector<HTMLElement>('[data-play]')!.click();
+		await settle();
+		// count changes: a new first page, and no row pressed since.
+		host.setAttribute('count', '5');
+		await settle();
+		answer(403);
+		await settle();
+		expect(row(root, 0)).not.toHaveTextContent('This show isn’t available right now.');
+		expect(row(root, 0).querySelector('[data-play]')).not.toBeNull();
+	});
+
+	it('a late recheck lands nowhere once the episode has started elsewhere (EMB-4)', async () => {
+		const answer = holdRechecks();
+		playOutcome = 'error';
+		const { root } = await mountList();
+		row(root, 0).querySelector<HTMLElement>('[data-play]')!.click();
+		await settle();
+		// Another element (a play button, say) starts the same episode.
+		playOutcome = 'ok';
+		const first = sampleEpisodes()[0];
+		await pageController().playShared(
+			{},
+			{ id: first.id, title: first.title },
+			`${HOSTED_AUDIO}?src=embed`
+		);
+		answer(403);
+		await settle();
+		expect(row(root, 0)).not.toHaveTextContent('This show isn’t available right now.');
+		expect(pageController().sharedState()!.message).toBeNull();
+	});
+
 	it("a new first page forgets the last one's row messages (EMB-4)", async () => {
 		playOutcome = 'error';
 		const { host, root, view } = await mountList();

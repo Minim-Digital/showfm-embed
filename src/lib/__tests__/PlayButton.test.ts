@@ -368,6 +368,26 @@ describe('one generation per load and per play: nothing stale lands', () => {
 		expect(pageController().sharedState()!.message).toBeNull();
 	});
 
+	it('a late recheck lands nowhere once another button has started the episode', async () => {
+		const held = heldFetch();
+		const first = await mountButton();
+		const second = await mountButton({ variant: 'icon' });
+		held[0].answer(200, payload());
+		held[1].answer(200, payload());
+		await settle();
+		media.outcome = 'error';
+		await press(first.button());
+		// The first button's recheck is out; the second starts the episode fine.
+		expect(held[2].path).toBe(`/v1/episodes/${EPISODE_ID}`);
+		media.outcome = 'ok';
+		await press(second.button());
+		held[2].answer(403);
+		await settle();
+		expect(message(first.root)).toBeNull();
+		expect(first.button()!.getAttribute('aria-label')).toMatch(/^Pause · /);
+		expect(pageController().sharedState()!.message).toBeNull();
+	});
+
 	it('a late recheck lands nowhere once the same episode has started again', async () => {
 		const held = heldFetch();
 		const { root, button } = await mountButton();

@@ -315,9 +315,11 @@
 		checking = true;
 		const { id } = data;
 		const failedIn = generation;
+		const applies = controller.failure(host, id);
 		const result = await apiGet(episodeEndpoint(api, id));
-		// Another episode, or the same one started again, since: not news.
-		if (failedIn !== generation) return;
+		// Not news if, since: this button loaded or pressed again, or the
+		// episode started anywhere on the page, or another element took over.
+		if (failedIn !== generation || !applies()) return;
 		await showMessage(result.status === 'unavailable' ? 'suspended' : 'error', focusMessage, id);
 	}
 

@@ -350,7 +350,8 @@
 	async function start(episode: ListEpisode, reloadAudio = false) {
 		const src = audioSrc(episode);
 		if (!src) return;
-		plays += 1;
+		const play = ++plays;
+		const page = generation;
 		delete messages[episode.id];
 		pressed = episode.id;
 		mine = { id: episode.id, src };
@@ -380,9 +381,17 @@
 			}
 		} catch (error) {
 			const name = (error as DOMException | undefined)?.name;
-			// A pause() or a new source interrupted the play: not an error. And
-			// if the audio's error event got here first, it has been dealt with.
-			if (name === 'AbortError' || mine?.id !== episode.id) return;
+			// A pause() or a new source interrupted the play: not an error. If
+			// the audio's error event got here first, it has been dealt with. A
+			// press or a new first page since makes the answer stale.
+			if (
+				name === 'AbortError' ||
+				mine?.id !== episode.id ||
+				play !== plays ||
+				page !== generation
+			) {
+				return;
+			}
 			mine = null;
 			playback = { id: null, state: 'idle', time: 0, duration: 0 };
 			if (name === 'NotAllowedError') {
@@ -402,9 +411,12 @@
 	 */
 	async function failed(id: string, moveFocus: boolean) {
 		const play = plays;
+		const page = generation;
+		const applies = controller.failure(host, id);
 		const result = await apiGet(episodeEndpoint(query.api, id));
-		// A row started since (this one again, or another) makes it stale.
-		if (play !== plays) return;
+		// Stale if, since: a row was pressed, the list loaded a new first
+		// page, or the episode started anywhere on the page.
+		if (play !== plays || page !== generation || !applies()) return;
 		await showMessage(id, result.status === 'unavailable' ? 'suspended' : 'error', moveFocus);
 	}
 

@@ -172,6 +172,29 @@ describe('the shared audio, for the mini-player (EMB-4)', () => {
 		expect(controller.sharedState()!.message).toBeNull();
 	});
 
+	it("a failure's recheck applies only until the episode plays anywhere or the owner changes", async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(button, 'a');
+		expect(applies()).toBe(true);
+		// Another episode starting on some other audio changes nothing.
+		const player = fakeAudio();
+		controller.attach(player, player, { id: 'other', title: 'Other' });
+		player.dispatchEvent(new Event('playing'));
+		expect(applies()).toBe(true);
+		// The same episode starting on a player's own audio makes it stale.
+		const copy = fakeAudio();
+		controller.attach(copy, copy, { id: 'a', title: 'A' });
+		copy.dispatchEvent(new Event('playing'));
+		expect(applies()).toBe(false);
+		// So does another element taking the shared audio, even for the same episode.
+		const again = controller.failure(button, 'a');
+		await controller.playShared({}, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		expect(again()).toBe(false);
+	});
+
 	it('drops a late report about an earlier episode from the same owner', async () => {
 		const { controller, shared } = sharedController();
 		const list = {};
