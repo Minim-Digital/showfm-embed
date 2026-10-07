@@ -382,6 +382,45 @@ describe('URLs from the API', () => {
 	});
 });
 
+describe('actions that need a rejected URL', () => {
+	it('a row that cannot play offers Try again but no "Listen on show.fm" without a safe link', async () => {
+		playOutcome = 'error';
+		api.episodes = [episodeItem({ index: 1, title: 'Bad link' })];
+		api.episodes[0].links.listen = 'javascript:alert(1)';
+		const { root, view } = await mountList();
+		view.getByRole('button', { name: /^Play: Bad link/ }).click();
+		await settle();
+		expect(row(root, 0)).toHaveTextContent('This episode can’t be played right now.');
+		expect(view.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+		// Not even as a dead link.
+		expect(view.queryByText('Listen on show.fm')).toBeNull();
+	});
+
+	it('the list error offers Try again but no "Listen on show.fm" without a safe link', async () => {
+		// The podcast loads with a rejected link, then a later query fails.
+		let fail = false;
+		vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+			const url = new URL(String(input));
+			if (!url.pathname.endsWith('/episodes')) {
+				return respond(200, {
+					data: { ...podcastPayload(), links: { listen: 'data:text/html,x' } }
+				});
+			}
+			return fail ? respond(500, {}) : respond(200, listPage(sampleEpisodes().slice(0, 3)));
+		});
+		const { root, view, host } = await mountList();
+		fail = true;
+		host.setAttribute('count', '5');
+		await settle();
+		expect(root.querySelector('.message-card')).toHaveTextContent(
+			'Episodes can’t be loaded right now.'
+		);
+		expect(view.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+		// Not even as a dead link.
+		expect(view.queryByText('Listen on show.fm')).toBeNull();
+	});
+});
+
 describe('filters', () => {
 	it('season and hide become the API filters, count the page size', async () => {
 		await mountList({ season: '2', hide: 'trailer,bonus', count: '5' });

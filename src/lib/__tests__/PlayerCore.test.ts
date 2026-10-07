@@ -456,10 +456,31 @@ describe('URLs from the API', () => {
 		for (const url of urlsIn(container)) expect(url).toMatch(/^https?:\/\//);
 		expect(screen.getByText('Episode One').closest('a')).not.toHaveAttribute('href');
 		expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+		// Share needs the listen page, so it is not offered; Download needs only the audio.
+		expect(screen.queryByRole('button', { name: 'Share episode' })).toBeNull();
+		expect(container.querySelector('[part="share"]')).toBeNull();
+		expect(screen.getByRole('link', { name: 'Download episode' })).toBeInTheDocument();
+	});
+
+	it('bad audio alone: no Download, and Share still offers the listen page', () => {
+		const { container } = render(PlayerCore, {
+			props: {
+				episode: makeEpisode({
+					audio: { url: 'javascript:alert(1)', content_type: 'audio/mpeg', duration_seconds: 1 }
+				})
+			}
+		});
+		expect(container.querySelector('[part="download"]')).toBeNull();
+		expect(screen.getByRole('link', { name: /listen on show\.fm/i })).toHaveAttribute(
+			'href',
+			'https://listen.podcasterplus.com/test-signal/e/episode-one'
+		);
 	});
 
 	it('valid https URLs still render', () => {
 		const { container } = render(PlayerCore, { props: { episode: makeEpisode() } });
+		expect(screen.getByRole('button', { name: 'Share episode' })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Download episode' })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: 'Episode One' })).toHaveAttribute(
 			'href',
 			'https://listen.podcasterplus.com/test-signal/e/episode-one'

@@ -745,47 +745,50 @@
 							</svg>
 						</a>
 					{/if}
-					<button
-						type="button"
-						class="icon-btn action-btn"
-						onclick={share}
-						aria-label={s.share}
-						part="share"
-					>
-						{#if shared}
-							<svg
-								width="18"
-								height="18"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M20 6 9 17l-5-5"></path>
-							</svg>
-						{:else}
-							<svg
-								width="18"
-								height="18"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<circle cx="18" cy="5" r="2.6"></circle>
-								<circle cx="6" cy="12" r="2.6"></circle>
-								<circle cx="18" cy="19" r="2.6"></circle>
-								<path d="m8.3 13.4 7.4 4.2"></path>
-								<path d="m15.7 6.4-7.4 4.2"></path>
-							</svg>
-						{/if}
-					</button>
+					<!-- Share needs the listen page; with no safe URL there is nothing to share. -->
+					{#if listenUrl}
+						<button
+							type="button"
+							class="icon-btn action-btn"
+							onclick={share}
+							aria-label={s.share}
+							part="share"
+						>
+							{#if shared}
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M20 6 9 17l-5-5"></path>
+								</svg>
+							{:else}
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.75"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<circle cx="18" cy="5" r="2.6"></circle>
+									<circle cx="6" cy="12" r="2.6"></circle>
+									<circle cx="18" cy="19" r="2.6"></circle>
+									<path d="m8.3 13.4 7.4 4.2"></path>
+									<path d="m15.7 6.4-7.4 4.2"></path>
+								</svg>
+							{/if}
+						</button>
+					{/if}
 				</div>
 			</div>
 
