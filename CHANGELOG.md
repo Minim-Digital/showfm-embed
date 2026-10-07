@@ -1,5 +1,13 @@
 # @showfm/embed
 
+## 1.2.0
+
+### Minor Changes
+
+- [#6](https://github.com/Minim-Digital/showfm-embed/pull/6) [`265e807`](https://github.com/Minim-Digital/showfm-embed/commit/265e8073f98d8530f7b484e9e5c665811f56d8d3) Thanks [@danmaby](https://github.com/danmaby)! - Add `<showfm-episodes>`, a podcast's episodes as a list or grid, each one playable. It has Card and Minimal variants (`variant`), list, grid and compact layouts with an `auto` rule, `count` with "Load more", `season` and `hide` filters, `descriptions`, `heading-level`, `credit`, `load="click"`, `theme`, `accent` and `lang`, and keeps `--showfm-height` as its minimum height. On the CDN its code is a lazy chunk (`cdn/chunks/`) that `v1.js` adds only when a list is on the page; the npm root bundles it. JSX typings and the Custom Elements Manifest include it.
+
+  The player and the list now drop any URL from the API that is not absolute `http` or `https` before it can become a link, an image or the audio source.
+
 ## 1.1.0
 
 ### Minor Changes
