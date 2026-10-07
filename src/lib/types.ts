@@ -7,6 +7,10 @@ export interface PlayerEpisodeData {
 	id: string;
 	title: string;
 	published_at: string;
+	/** Plain-text description. Optional: the player does not show it. */
+	description?: string | null;
+	season_number?: number | null;
+	episode_number?: number | null;
 	audio: {
 		url: string | null;
 		content_type: string | null;
@@ -14,8 +18,11 @@ export interface PlayerEpisodeData {
 	};
 	artwork: { url: string | null };
 	links: { listen: string };
+	/** The published WebVTT transcript, when the episode has one. */
+	transcript?: { url: string; type?: string } | null;
 	podcast: {
 		title: string;
+		links?: { listen?: string };
 		brand_color: string | null;
 		/**
 		 * The show's player-color setting (Distribution settings). Optional:

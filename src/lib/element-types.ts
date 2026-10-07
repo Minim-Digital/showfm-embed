@@ -4,6 +4,8 @@
  * The JSX typings in src/jsx/ build on these.
  */
 
+import type { StringKey } from './strings.js';
+
 /** Attributes of <showfm-player> (and its alias <podcasterplus-player>). */
 export interface ShowfmPlayerAttributes {
 	/** Episode UUID. Plays that one episode and wins over `podcast`. */
@@ -20,6 +22,14 @@ export interface ShowfmPlayerAttributes {
 	wave?: 'true' | 'false' | boolean;
 	/** API origin override, for development and testing only. */
 	api?: string;
+	/** Wraps the title in a heading of this level. Absent emits no heading. */
+	'heading-level'?: '2' | '3' | '4' | '5' | '6' | 2 | 3 | 4 | 5 | 6;
+	/** "Powered by show.fm": `auto` (the default) follows the show's plan. Once per page. */
+	credit?: 'auto' | 'on' | 'off';
+	/** `click`: draw a facade and request nothing until it is pressed. */
+	load?: 'click';
+	/** The element's language for its strings. Absent follows `<html lang>`. */
+	lang?: string;
 }
 
 /** A <showfm-player> element. Each attribute is also a property. */
@@ -31,6 +41,11 @@ export interface ShowfmPlayerElement extends HTMLElement {
 	accent: string;
 	wave: string | boolean;
 	api: string;
+	headingLevel: string | number;
+	credit: 'auto' | 'on' | 'off' | string;
+	load: string;
+	/** Overrides for visible strings, by key (see the README). */
+	strings: Partial<Record<StringKey, string>> | undefined;
 }
 
 declare global {

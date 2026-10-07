@@ -1,0 +1,54 @@
+{
+	"description": "Unsafe URLs are left out. Text stays as it is: escape it when serialising (serializeJsonLd).",
+	"function": "episodeJsonLd",
+	"args": [
+		{
+			"id": "11111111-2222-4333-8444-555555555555",
+			"title": "\"><script>alert(1)</script> & 'quoted' <b>bold</b>",
+			"published_at": "2026-07-01T10:00:00.000Z",
+			"description": "</script><script>alert(2)</script>",
+			"season_number": 2,
+			"episode_number": 4,
+			"audio": {
+				"url": "https://m.cdn.media/a.mp3?x=\"1\"&y=<2>",
+				"content_type": "audio/mpeg",
+				"duration_seconds": 60
+			},
+			"artwork": {
+				"url": "data:image/png;base64,AAAA"
+			},
+			"links": {
+				"listen": "javascript:alert(3)"
+			},
+			"podcast": {
+				"title": "Show & <Tell>",
+				"links": {
+					"listen": "https://show.fm/show-and-tell?a=1&b=2"
+				}
+			}
+		}
+	],
+	"expected": {
+		"@context": "https://schema.org",
+		"@type": "PodcastEpisode",
+		"name": "\"><script>alert(1)</script> & 'quoted' <b>bold</b>",
+		"datePublished": "2026-07-01T10:00:00.000Z",
+		"description": "</script><script>alert(2)</script>",
+		"duration": "PT1M",
+		"episodeNumber": 4,
+		"partOfSeason": {
+			"@type": "PodcastSeason",
+			"seasonNumber": 2
+		},
+		"partOfSeries": {
+			"@type": "PodcastSeries",
+			"name": "Show & <Tell>",
+			"url": "https://show.fm/show-and-tell?a=1&b=2"
+		},
+		"associatedMedia": {
+			"@type": "MediaObject",
+			"contentUrl": "https://m.cdn.media/a.mp3?x=\"1\"&y=<2>",
+			"encodingFormat": "audio/mpeg"
+		}
+	}
+}

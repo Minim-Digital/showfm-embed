@@ -1,0 +1,32 @@
+{
+	"description": "Hostile text is escaped and a non-http(s) link is dropped, leaving the escaped title.",
+	"function": "renderEpisodeHTML",
+	"args": [
+		{
+			"id": "11111111-2222-4333-8444-555555555555",
+			"title": "\"><script>alert(1)</script> & 'quoted' <b>bold</b>",
+			"published_at": "2026-07-01T10:00:00.000Z",
+			"description": "</script><script>alert(2)</script>",
+			"season_number": 2,
+			"episode_number": 4,
+			"audio": {
+				"url": "https://m.cdn.media/a.mp3?x=\"1\"&y=<2>",
+				"content_type": "audio/mpeg",
+				"duration_seconds": 60
+			},
+			"artwork": {
+				"url": "data:image/png;base64,AAAA"
+			},
+			"links": {
+				"listen": "javascript:alert(3)"
+			},
+			"podcast": {
+				"title": "Show & <Tell>",
+				"links": {
+					"listen": "https://show.fm/show-and-tell?a=1&b=2"
+				}
+			}
+		}
+	],
+	"expected": "&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt; &amp; &#39;quoted&#39; &lt;b&gt;bold&lt;/b&gt;<audio controls preload=\"none\" src=\"https://m.cdn.media/a.mp3?x=&quot;1&quot;&amp;y=&lt;2&gt;\"></audio>"
+}

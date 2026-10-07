@@ -29,7 +29,8 @@
 		"dist",
 		"!dist/**/__tests__",
 		"!dist/**/*.test.*",
-		"custom-elements.json"
+		"custom-elements.json",
+		"fixtures/fallback"
 	],
 	"sideEffects": [
 		"./dist/index.js",
@@ -64,6 +65,9 @@
 			"default": "./dist/jsx/solid.js"
 		},
 		"./cdn/v1.js": "./dist/cdn/v1.js",
+		"./cdn/click-loader.js": "./dist/cdn/click-loader.js",
+		"./cdn/v1-fallback.css": "./dist/cdn/v1-fallback.css",
+		"./fixtures/fallback/*": "./fixtures/fallback/*",
 		"./custom-elements.json": "./custom-elements.json",
 		"./package.json": "./package.json"
 	},
@@ -81,7 +85,7 @@
 		"cem:check": "node scripts/cem.mjs --check",
 		"size": "size-limit",
 		"publint": "publint --strict",
-		"attw": "attw --pack . --profile esm-only --exclude-entrypoints ./svelte ./cdn/v1.js ./custom-elements.json ./package.json",
+		"attw": "attw --pack . --profile esm-only --exclude-entrypoints ./svelte ./cdn/v1.js ./cdn/click-loader.js ./cdn/v1-fallback.css ./fixtures/fallback/* ./custom-elements.json ./package.json",
 		"jsx:check": "tsc -p fixtures/jsx/react/tsconfig.json && tsc -p fixtures/jsx/preact/tsconfig.json && tsc -p fixtures/jsx/solid/tsconfig.json",
 		"changeset": "changeset",
 		"release": "node scripts/publish.mjs"
@@ -99,6 +103,7 @@
 		"@changesets/changelog-github": "^0.5.2",
 		"@changesets/cli": "^2.31.1",
 		"@eslint/js": "^9.39.5",
+		"@fontsource/geist-sans": "^5.3.0",
 		"@playwright/test": "^1.63.0",
 		"@size-limit/file": "^12.1.0",
 		"@sveltejs/package": "^2.5.8",
@@ -121,6 +126,7 @@
 		"solid-js": "^1.9.16",
 		"svelte": "^5.56.8",
 		"svelte-check": "^4.7.6",
+		"terser": "^5.51.2",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.71.1",
 		"vite": "^7.3.6",

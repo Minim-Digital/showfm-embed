@@ -23,3 +23,16 @@ export const latest = <podcasterplus-player podcast="test-signal" />;
 
 // @ts-expect-error size is 'standard' or 'compact'
 export const wrongSize = <showfm-player size="huge" />;
+
+export const consent = (
+	<showfm-player
+		episode="11111111-2222-4333-8444-555555555555"
+		heading-level="3"
+		credit="off"
+		load="click"
+		lang="de"
+	/>
+);
+
+// @ts-expect-error credit is 'auto', 'on' or 'off'
+export const wrongCredit = <showfm-player credit="maybe" />;

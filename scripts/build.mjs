@@ -3,6 +3,8 @@
  *
  *   dist/svelte/    Svelte 5 source and pure modules (svelte-package)
  *   dist/cdn/v1.js  classic script that registers the elements (vite.cdn.config.ts)
+ *   dist/cdn/click-loader.js  the inline load="click" loader (vite.loader.config.ts)
+ *   dist/cdn/v1-fallback.css  optional styles for elements before they upgrade
  *   dist/server.js  the pure modules, no side effects (vite.server.config.ts)
  *   dist/index.js   the package root: dist/server.js plus the registration
  *   dist/jsx/       React, Preact and Solid JSX typings
@@ -10,6 +12,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { transformWithEsbuild } from 'vite';
 
 /** @param {string} command @param {string[]} args */
 const run = (command, args) => execFileSync(command, args, { stdio: 'inherit' });
@@ -24,6 +27,15 @@ rmSync('dist/svelte/__tests__', { recursive: true, force: true });
 // The classic script (empties dist/cdn only) and the pure server entry.
 run('vite', ['build', '--config', 'vite.cdn.config.ts']);
 run('vite', ['build', '--config', 'vite.server.config.ts', '--logLevel', 'warn']);
+run('vite', ['build', '--config', 'vite.loader.config.ts', '--logLevel', 'warn']);
+
+// The fallback stylesheet, minified.
+const fallbackCss = await transformWithEsbuild(
+	readFileSync('src/cdn/v1-fallback.css', 'utf-8'),
+	'v1-fallback.css',
+	{ loader: 'css', minify: true, target: ['chrome87', 'edge88', 'firefox78', 'safari14'] }
+);
+writeFileSync('dist/cdn/v1-fallback.css', fallbackCss.code);
 
 // The package root. Svelte's compiled element code calls
 // customElements.define and extends HTMLElement as soon as it runs, so it

@@ -1,0 +1,22 @@
+{
+	"description": "Only the fields an episode has: no audio, no numbers, no series.",
+	"function": "episodeJsonLd",
+	"args": [
+		{
+			"title": "Bare",
+			"links": {
+				"listen": "https://show.fm/x/e/bare"
+			},
+			"audio": {
+				"url": null,
+				"duration_seconds": null
+			}
+		}
+	],
+	"expected": {
+		"@context": "https://schema.org",
+		"@type": "PodcastEpisode",
+		"name": "Bare",
+		"url": "https://show.fm/x/e/bare"
+	}
+}

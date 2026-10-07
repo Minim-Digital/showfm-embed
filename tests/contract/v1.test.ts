@@ -4,7 +4,8 @@
  * edit, so everything here must keep holding for as long as v1 is served:
  *
  * - both tag names register (<podcasterplus-player> is the pre-rebrand name);
- * - the seven attributes are observed and behave as they always have;
+ * - the seven v1 attributes are observed and behave as they always have
+ *   (1.1 adds heading-level, credit, load and strings beside them);
  * - the loading skeleton reserves the unbranded heights (252 and 83);
  * - the light-DOM fallback link projects through the shadow-DOM slot.
  *
@@ -16,6 +17,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { episodePayload } from '../fixtures/episode';
 
 const ATTRIBUTES = ['episode', 'podcast', 'theme', 'size', 'accent', 'wave', 'api'];
+const ADDED_IN_1_1 = ['heading-level', 'credit', 'load', 'strings'];
 const EPISODE_ID = '11111111-2222-4333-8444-555555555555';
 
 type PlayerConstructor = CustomElementConstructor & { observedAttributes?: string[] };
@@ -83,10 +85,12 @@ describe('registration', () => {
 	});
 
 	it.each(['showfm-player', 'podcasterplus-player'])(
-		'%s observes exactly the v1 attributes',
+		'%s observes every v1 attribute, plus the ones 1.1 adds',
 		(tag) => {
 			const constructor = customElements.get(tag) as PlayerConstructor;
-			expect([...(constructor.observedAttributes ?? [])].sort()).toEqual([...ATTRIBUTES].sort());
+			expect([...(constructor.observedAttributes ?? [])].sort()).toEqual(
+				[...ATTRIBUTES, ...ADDED_IN_1_1].sort()
+			);
 		}
 	);
 });
@@ -223,7 +227,8 @@ describe('light-DOM fallback', () => {
 	it.each(['showfm-player', 'podcasterplus-player'])(
 		'%s projects the snippet link through the slot when loading fails',
 		async (tag) => {
-			stubFetch(() => Promise.resolve(new Response('', { status: 404 })));
+			// A 404 collapses instead (below), so this is a server error.
+			stubFetch(() => Promise.resolve(new Response('', { status: 500 })));
 			const element = mount(
 				tag,
 				{ episode: EPISODE_ID },
@@ -237,4 +242,112 @@ describe('light-DOM fallback', () => {
 			expect((assigned[0] as HTMLAnchorElement).textContent).toBe('Listen on show.fm');
 		}
 	);
+});
+
+describe('not public (plan Q1 and section 6)', () => {
+	const notFound = () =>
+		Promise.resolve(
+			new Response(
+				JSON.stringify({ error: { code: 'not_found', message: 'Episode not found.' } }),
+				{
+					status: 404
+				}
+			)
+		);
+	const SNIPPET = '<a href="https://show.fm/test-signal/e/episode-one">Listen on show.fm</a>';
+
+	it('a 404 collapses the element: nothing renders and no fallback projects', async () => {
+		stubFetch(notFound);
+		const element = mount('showfm-player', { episode: EPISODE_ID }, SNIPPET);
+		element.setAttribute('style', 'display:block;min-height:291px');
+		await settle();
+		expect(element.hasAttribute('data-showfm-collapsed')).toBe(true);
+		expect(element.shadowRoot!.querySelector('slot, div, p')).toBeNull();
+		// :host([data-showfm-collapsed]) { display: none !important } outranks
+		// the snippet's inline display and so releases its reserved height.
+		const css = [...element.shadowRoot!.querySelectorAll('style')]
+			.map((x) => x.textContent)
+			.join('');
+		expect(css).toMatch(/:host\(\[data-showfm-collapsed\]\)\s*\{\s*display:\s*none\s*!important/);
+	});
+
+	it('renders byte-identical DOM for a scheduled episode and a random UUID', async () => {
+		stubFetch(notFound);
+		const scheduled = mount(
+			'showfm-player',
+			{ episode: '33333333-4444-4555-8666-777777777777' },
+			SNIPPET
+		);
+		const random = mount('showfm-player', { episode: crypto.randomUUID() }, SNIPPET);
+		await settle();
+		const snapshot = (element: HTMLElement) => {
+			const clone = element.cloneNode(true) as HTMLElement;
+			clone.removeAttribute('episode');
+			return { host: clone.outerHTML, shadow: element.shadowRoot!.innerHTML };
+		};
+		expect(snapshot(scheduled)).toEqual(snapshot(random));
+	});
+
+	it('a 403 (suspended show) shows the message card without actions', async () => {
+		stubFetch(() =>
+			Promise.resolve(
+				new Response(JSON.stringify({ error: { code: 'unavailable', message: 'x' } }), {
+					status: 403
+				})
+			)
+		);
+		const element = mount('showfm-player', { episode: EPISODE_ID }, SNIPPET);
+		await settle();
+		const root = element.shadowRoot!;
+		expect(root.querySelector('[part="error"]')?.textContent?.trim()).toBe(
+			'This show isn’t available right now.'
+		);
+		expect(root.querySelector('a, button, slot')).toBeNull();
+		expect(element.hasAttribute('data-showfm-collapsed')).toBe(false);
+	});
+});
+
+describe('"Powered by show.fm" once per page', () => {
+	it('only the first embed on the page shows the credit', async () => {
+		stubFetch(okResponse(episodePayload({ branded: true })));
+		const first = mount('showfm-player', { episode: EPISODE_ID });
+		const second = mount('podcasterplus-player', { episode: EPISODE_ID });
+		await settle();
+		expect(first.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+		expect(second.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
+	});
+
+	it('credit="off" on the first passes it to the next embed', async () => {
+		stubFetch(okResponse(episodePayload({ branded: true })));
+		const first = mount('showfm-player', { episode: EPISODE_ID, credit: 'off' });
+		const second = mount('showfm-player', { episode: EPISODE_ID });
+		await settle();
+		expect(first.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
+		expect(second.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+	});
+
+	it('passes to the next embed when the first is removed', async () => {
+		stubFetch(okResponse(episodePayload({ branded: true })));
+		const first = mount('showfm-player', { episode: EPISODE_ID });
+		const second = mount('showfm-player', { episode: EPISODE_ID });
+		await settle();
+		first.remove();
+		await settle();
+		expect(second.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+	});
+});
+
+describe('load="click"', () => {
+	it('requests nothing until the facade is pressed', async () => {
+		const fetchSpy = stubFetch(okResponse(episodePayload()));
+		const element = mount('showfm-player', { episode: EPISODE_ID, load: 'click' });
+		await settle();
+		expect(fetchSpy).not.toHaveBeenCalled();
+		const facade = element.shadowRoot!.querySelector('button')!;
+		expect(facade.getAttribute('aria-label')).toBe('Play podcast episode');
+		facade.click();
+		await settle();
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(element.shadowRoot!.querySelector('[part="container"]')).not.toBeNull();
+	});
 });

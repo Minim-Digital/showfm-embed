@@ -1,0 +1,35 @@
+{
+	"description": "Audio on another host: the control points at the external URL (design page 9).",
+	"function": "renderEpisodeHTML",
+	"args": [
+		{
+			"id": "11111111-2222-4333-8444-555555555555",
+			"title": "Episode One: The Signal",
+			"published_at": "2026-07-01T10:00:00.000Z",
+			"description": "We talk about signals, noise and the space between.",
+			"season_number": 2,
+			"episode_number": 4,
+			"audio": {
+				"url": "https://cdn.example-host.com/feeds/ep1.mp3?token=abc",
+				"content_type": "audio/mpeg",
+				"duration_seconds": 1843
+			},
+			"artwork": {
+				"url": "https://m.cdn.media/podcasts/test-signal/cover.jpg"
+			},
+			"links": {
+				"listen": "https://show.fm/test-signal/e/episode-one"
+			},
+			"podcast": {
+				"title": "Test Signal",
+				"links": {
+					"listen": "https://show.fm/test-signal"
+				},
+				"branding": {
+					"show_powered_by": true
+				}
+			}
+		}
+	],
+	"expected": "<a href=\"https://show.fm/test-signal/e/episode-one\">Episode One: The Signal</a><audio controls preload=\"none\" src=\"https://cdn.example-host.com/feeds/ep1.mp3?token=abc\"></audio>"
+}

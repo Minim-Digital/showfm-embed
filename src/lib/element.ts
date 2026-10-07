@@ -18,3 +18,10 @@ const element = (ShowfmPlayer as unknown as { element?: typeof HTMLElement }).el
 if (element && !customElements.get('podcasterplus-player')) {
 	customElements.define('podcasterplus-player', class extends element {});
 }
+
+// showfm.load() upgrades every load="click" facade at once, for consent
+// tools. The inline click loader defines it first when it is on the page
+// (it also has to add this script); otherwise this one only tells the
+// elements already here.
+const showfm = ((window as unknown as { showfm?: { load?: () => void } }).showfm ??= {});
+showfm.load ??= () => document.dispatchEvent(new Event('showfm:load'));

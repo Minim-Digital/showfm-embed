@@ -1,0 +1,14 @@
+{
+	"description": "No episodes: the show title, linked to its listen page.",
+	"function": "renderEpisodeListHTML",
+	"args": [
+		{
+			"title": "Test Signal",
+			"links": {
+				"listen": "https://show.fm/test-signal"
+			}
+		},
+		[]
+	],
+	"expected": "<a href=\"https://show.fm/test-signal\">Test Signal</a>"
+}
