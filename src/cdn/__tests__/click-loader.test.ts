@@ -34,6 +34,9 @@ beforeEach(() => {
 		</showfm-player>
 		<showfm-player id="two" episode="${EPISODE}" load="click" size="compact" theme="dark"></showfm-player>
 		<showfm-episodes id="list" podcast="x" load="click"></showfm-episodes>
+		<p>Hear it: <showfm-play id="button" episode="${EPISODE}" load="click" accent="#0ea5e9">
+			<a href="https://show.fm/x/e/one">Episode One</a><audio controls preload="none"></audio>
+		</showfm-play></p>
 		<showfm-player id="eager" episode="${EPISODE}"></showfm-player>`;
 });
 
@@ -51,7 +54,7 @@ describe('before the press', () => {
 		await runLoader();
 		expect(fetchSpy).not.toHaveBeenCalled();
 		expect(scripts()).toHaveLength(0);
-		for (const id of ['one', 'two', 'list']) {
+		for (const id of ['one', 'two', 'list', 'button']) {
 			expect(document.getElementById(id)!.querySelector('[data-showfm-facade-ui]')).not.toBeNull();
 		}
 		expect(document.getElementById('eager')!.children).toHaveLength(0);
@@ -73,10 +76,30 @@ describe('before the press', () => {
 		const list = document.getElementById('list')!;
 		expect(facadeButton(list).getAttribute('aria-label')).toBe('Load episodes');
 		// The fallback children are hidden while the facade shows, and a
-		// list's stay hidden after v1.js defines it, until its chunk mounts.
+		// list's or play button's stay hidden after v1.js defines it (a stub),
+		// until its chunk mounts.
 		expect(document.head.querySelector('style')!.textContent).toContain(
-			'[data-showfm-facade]:is(showfm-episodes,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
+			'[data-showfm-facade]:is(showfm-episodes,showfm-play,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
 		);
+	});
+
+	it("draws a play button's facade as its button alone, in a 40px line (design page 6)", async () => {
+		await runLoader();
+		const element = document.getElementById('button')!;
+		const box = element.querySelector('[data-showfm-facade-ui]') as HTMLElement;
+		expect(box.hasAttribute('data-p')).toBe(true);
+		// The compact facade's 34px button.
+		expect(box.hasAttribute('data-c')).toBe(true);
+		expect(box.style.getPropertyValue('--h')).toBe('40px');
+		expect(box.style.getPropertyValue('--a')).toBe('#0ea5e9');
+		expect(facadeButton(element).getAttribute('aria-label')).toBe('Play podcast episode');
+		const css = document.head.querySelector('style')!.textContent!;
+		expect(css).toContain('[data-showfm-facade-ui][data-p]{display:inline-flex;width:auto;');
+		expect(css).toContain('[data-showfm-facade-ui][data-p] :is(span,i){display:none}');
+		// Pressed, it loads and plays, as the player's does.
+		facadeButton(element).click();
+		expect(element.getAttribute('data-showfm-activated')).toBe('play');
+		expect(scripts()).toHaveLength(1);
 	});
 
 	it('translates from lang and takes window.showfmStrings', async () => {
@@ -207,7 +230,7 @@ describe('showfm.load()', () => {
 		document.addEventListener('showfm:load', heard);
 		(window as ShowfmWindow).showfm!.load!();
 		expect(scripts()).toHaveLength(1);
-		for (const id of ['one', 'two', 'list']) {
+		for (const id of ['one', 'two', 'list', 'button']) {
 			expect(document.getElementById(id)!.getAttribute('data-showfm-activated')).toBe('load');
 		}
 		expect(heard).toHaveBeenCalledTimes(1);

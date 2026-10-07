@@ -5,7 +5,8 @@
  * Until a visitor presses a facade, nothing is requested from show.fm or
  * embed.cdn.media: this script draws a facade inside each
  * `[load="click"]` element that knows only the accent, the element type and
- * the reserved height. Pressing one adds v1.js once and marks the element,
+ * the reserved height (a play button's is its button alone, in a 40px
+ * line). Pressing one adds v1.js once and marks the element,
  * so it loads (and, for a player or play button, plays) as soon as it
  * upgrades. Other facades stay facades until they are pressed.
  * `showfm.load()` upgrades every facade at once, for consent tools.
@@ -58,9 +59,10 @@
 
 	const style = d.createElement('style');
 	style.textContent =
-		// A list never shows its light DOM, and is defined before it mounts.
-		`[${FACADE}]:is(showfm-episodes,:not(:defined))>:not([${UI}]){display:none}` +
-		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 Geist,ui-sans-serif,system-ui,sans-serif;text-align:left}` +
+		// A list or play button never shows its light DOM behind the facade,
+		// and is defined (a stub in v1.js) before its code mounts.
+		`[${FACADE}]:is(showfm-episodes,showfm-play,:not(:defined))>:not([${UI}]){display:none}` +
+		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 Geist,system-ui,sans-serif;text-align:left}` +
 		`[${UI}][data-c]{padding:12px 14px}[${UI}][data-d]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}` +
 		`@media(prefers-color-scheme:dark){[${UI}][data-a]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}}` +
 		`[${UI}] div{display:flex;align-items:center;gap:14px;min-width:0}` +
@@ -72,7 +74,9 @@
 		`[${UI}] b,[${UI}] small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
 		`[${UI}] b{font-size:16px;line-height:1.3}[${UI}][data-c] b{font-size:14px;line-height:1.25}` +
 		`[${UI}] small{font-size:13px;opacity:.75}[${UI}][data-c] small{font-size:11.5px}` +
-		`[${UI}] i{height:3px;border-radius:3px;background:currentColor;opacity:.15}`;
+		`[${UI}] i{height:3px;border-radius:3px;background:currentColor;opacity:.15}` +
+		// The play button's facade: its 34px button alone, in a 40px line.
+		`[${UI}][data-p]{display:inline-flex;width:auto;padding:0;border:0;background:none}[${UI}][data-p] :is(span,i){display:none}`;
 	d.head.append(style);
 
 	/** WCAG: white on the accent unless black has the better contrast. */
@@ -122,16 +126,18 @@
 		const table = STRINGS[lang] || STRINGS.en;
 		const text = (i: number) => w.showfmStrings?.[KEYS[i]] || table[i];
 		const list = el.localName === 'showfm-episodes';
+		const play = el.localName === 'showfm-play';
 		const accentAttr = el.getAttribute('accent') || '';
 		const accent = /^#([0-9a-f]{3}){1,2}$/i.test(accentAttr) ? accentAttr : '#7E22CE';
 		const theme = el.getAttribute('theme');
-		const compact = el.getAttribute('size') === 'compact';
+		const compact = play || el.getAttribute('size') === 'compact';
 
 		const box = d.createElement('div');
 		box.setAttribute(UI, '');
 		if (compact) box.setAttribute('data-c', '');
+		if (play) box.setAttribute('data-p', '');
 		box.setAttribute(theme === 'dark' ? 'data-d' : theme === 'light' ? 'data-l' : 'data-a', '');
-		box.style.cssText = `--a:${accent};--f:${onAccent(accent)};--h:${list ? 'var(--showfm-height,0px)' : compact ? '83px' : '252px'}`;
+		box.style.cssText = `--a:${accent};--f:${onAccent(accent)};--h:${list ? 'var(--showfm-height,0px)' : play ? '40px' : compact ? '83px' : '252px'}`;
 		box.innerHTML =
 			'<div><button type="button"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></button><span><b aria-hidden="true"></b><small></small></span></div><i aria-hidden="true"></i>';
 		const button = box.querySelector('button')!;

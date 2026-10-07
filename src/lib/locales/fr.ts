@@ -1,13 +1,18 @@
 /**
- * French strings for the player and the episode list (design page 8 where it
- * gives them).
+ * French strings for the player, the episode list, the play button and the
+ * mini-player (design page 8 where it gives them).
  * Bundled into the npm entries; the CDN script loads it on demand as
  * dist/cdn/locales/fr.js (see lazy.ts).
  */
+import { ELEMENT_FR } from '../element-strings.js';
 import type { ListFacadeStrings, ListStrings } from '../list-strings.js';
+import type { PlayBuilderStrings, PlayStrings } from '../play-strings.js';
 import type { Strings } from '../strings.js';
 
-const FR: Strings & ListStrings & ListFacadeStrings = {
+const FR: Strings & ListStrings & ListFacadeStrings & PlayStrings & PlayBuilderStrings = {
+	// The play button's labels (element-strings.ts); `minutes` and
+	// `actionName` are the list's too.
+	...ELEMENT_FR,
 	error: 'Lecture impossible pour le moment.',
 	blocked: 'Votre navigateur a bloqué la lecture.',
 	suspended: 'Émission indisponible pour le moment.',
@@ -70,7 +75,14 @@ const FR: Strings & ListStrings & ListFacadeStrings = {
 	pillResume: 'Reprendre · {remaining}',
 	loadingAudio: 'Chargement…',
 	// A narrow no-break space before the colon, as French typography wants.
-	actionName: '{verb}\u202f: {title}'
+	actionName: '{verb}\u202f: {title}',
+	// The play button and the mini-player (play-strings.ts).
+	playEpisodePlain: 'Lire l’épisode',
+	listenPlain: 'Écouter',
+	collapsePlayer: 'Réduire le lecteur',
+	expandPlayer: 'Agrandir le lecteur',
+	closePlayer: 'Fermer le lecteur et arrêter la lecture',
+	miniPlayerOff: 'Les visiteurs peuvent seulement lire et mettre en pause.'
 };
 
 export default FR;

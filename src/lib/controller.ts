@@ -23,13 +23,31 @@
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 
-/** What subscribers need to know about the episode that is playing. */
+/**
+ * What subscribers need to know about the episode that is playing. The
+ * optional fields are for the mini-player; they take the public API's
+ * names, so an element can spread an episode payload in.
+ */
 export interface ControllerEpisode {
 	id: string;
 	title: string;
 	podcastTitle?: string;
 	artworkUrl?: string | null;
+	season_number?: number | null;
+	episode_number?: number | null;
+	episode_type?: string | null;
+	audio?: { url?: string | null; duration_seconds?: number | null } | null;
+	links?: { listen?: string | null } | null;
+	/** The accent the element resolved (its attribute, else the show's colour). */
+	accent?: string | null;
+	/** The element's theme: `light`, `dark` or `auto`. */
+	theme?: string | null;
+	/** Whether the element wants the page's "Powered by" credit. */
+	credit?: boolean | null;
 }
+
+/** A message the shared audio's owner reports when its episode cannot play. */
+export type SharedMessage = 'error' | 'blocked' | 'suspended';
 
 export interface PlaybackSnapshot {
 	/** The element (or other object) whose audio is current, or null. */
@@ -46,11 +64,13 @@ export interface CreditClaim {
 	release(): void;
 }
 
-interface Entry {
+/** One attached audio and what the controller knows about it. */
+export interface AudioEntry {
 	owner: object;
 	audio: HTMLAudioElement;
 	episode: ControllerEpisode | null;
 	state: PlaybackState;
+	message?: SharedMessage | null;
 }
 
 interface Claim {
@@ -73,17 +93,28 @@ const AUDIO_EVENTS: Record<string, PlaybackState | null> = {
 };
 
 export class PageAudioController {
-	private entries = new Set<Entry>();
-	private current: Entry | null = null;
+	private entries = new Set<AudioEntry>();
+	private current: AudioEntry | null = null;
 	private listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
-	private shared: Entry | null = null;
+	private shared: AudioEntry | null = null;
 	private claims: Claim[] = [];
+	/**
+	 * How often each episode has been asked to play, or started or resumed
+	 * playing, on any audio: a failure's recheck is stale once this moves.
+	 */
+	private starts: Record<string, number> = {};
+
+	private started(id: string | undefined) {
+		if (id) this.starts[id] = (this.starts[id] ?? 0) + 1;
+	}
 
 	/** Attach an element's own audio. Returns the function that detaches it. */
 	attach(owner: object, audio: HTMLAudioElement, episode: ControllerEpisode | null = null) {
-		const entry: Entry = { owner, audio, episode, state: 'idle' };
+		const entry: AudioEntry = { owner, audio, episode, state: 'idle' };
 		const onEvent = (event: Event) => {
 			const state = AUDIO_EVENTS[event.type];
+			// `play` comes first; `playing` can wait while the audio buffers.
+			if (event.type === 'play' || event.type === 'playing') this.started(entry.episode?.id);
 			if (event.type === 'play') {
 				// One at a time: whoever starts, everyone else stops.
 				this.current = entry;
@@ -91,7 +122,9 @@ export class PageAudioController {
 			}
 			// A 'pause' arriving after 'ended' keeps 'ended'.
 			if (state && !(state === 'paused' && entry.state === 'ended')) entry.state = state;
-			if (entry === this.current) this.emit();
+			// The shared audio is news even when it is not current: a player
+			// starting pauses it, and the mini-player and buttons show that.
+			if (entry === this.current || entry === this.shared) this.emit();
 		};
 		for (const type in AUDIO_EVENTS) audio.addEventListener(type, onEvent);
 		this.entries.add(entry);
@@ -123,10 +156,54 @@ export class PageAudioController {
 	 */
 	async playShared(owner: object, episode: ControllerEpisode, src: string): Promise<void> {
 		const audio = this.sharedAudio();
-		this.shared!.owner = owner;
-		this.shared!.episode = episode;
+		Object.assign(this.shared!, { owner, episode, message: null });
+		// The request itself, before any event: it may yet buffer or fail.
+		this.started(episode.id);
 		if (audio.getAttribute('src') !== src) audio.src = src;
 		await audio.play();
+	}
+
+	/**
+	 * The shared audio's owner, episode and message, whichever element is
+	 * current: what the mini-player shows. Null until something plays there.
+	 */
+	sharedState(): Readonly<AudioEntry> | null {
+		return this.shared?.episode ? this.shared : null;
+	}
+
+	/**
+	 * For an owner about to ask the API why episode `id` failed on the shared
+	 * audio. The test it returns stays true only while the answer still
+	 * applies: the owner still holds the shared audio with that episode, and
+	 * the episode has not been asked to play, started or resumed anywhere on
+	 * the page since (on this element, another element, or a player's own
+	 * audio).
+	 */
+	failure(owner: object, id: string): () => boolean {
+		const starts = this.starts[id];
+		return () =>
+			this.starts[id] === starts && this.shared?.owner === owner && this.shared.episode?.id === id;
+	}
+
+	/**
+	 * The shared audio's owner says why episode `id` cannot play (or null
+	 * once it can), so the mini-player shows the same message. A report is
+	 * about the play that failed: it is dropped when the shared audio has
+	 * moved to another episode, or started again, since (one list owns many
+	 * episodes, and the owner asks the API why before it reports).
+	 */
+	report(owner: object, id: string, message: SharedMessage | null) {
+		const shared = this.shared;
+		if (
+			shared?.owner !== owner ||
+			shared.episode?.id !== id ||
+			shared.state === 'playing' ||
+			shared.state === 'loading'
+		) {
+			return;
+		}
+		shared.message = message;
+		this.emit();
 	}
 
 	/** Pause every attached audio, or every one except `keep`. */

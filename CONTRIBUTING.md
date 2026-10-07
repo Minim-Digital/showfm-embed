@@ -21,7 +21,7 @@ pnpm install --frozen-lockfile
 | `fixtures/fallback/` | Shared fallback markup cases, shipped for the WordPress plugin's PHP port.      |
 | `src/jsx/`           | JSX typings for React, Preact and Solid.                                        |
 | `tests/contract/`    | Tests against the built files in `dist/`.                                       |
-| `tests/browser/`     | Playwright tests in Chromium: the height contract and the episode list.         |
+| `tests/browser/`     | Playwright tests in Chromium: heights, the list, the play button, mini-player.  |
 | `fixtures/jsx/`      | Compile-only fixtures that prove the JSX typings work.                          |
 | `scripts/`           | Build, manifest, publish and security-review tooling.                           |
 
@@ -36,7 +36,7 @@ pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
 pnpm test:contract   # tests against dist/
-pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12 kB; the loader and fallback CSS within theirs
+pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12 kB, the play chunk within 10 kB; the loader and fallback CSS within theirs
 pnpm publint
 pnpm attw
 pnpm jsx:check
@@ -48,7 +48,8 @@ If you change an attribute or a `part`, run `pnpm cem` and commit `custom-elemen
 ## Rules for the player
 
 - **v1 is a contract.** `dist/cdn/v1.js` is served to pages we cannot edit. Keep both tag names, every attribute and its behaviour, the skeleton heights and the light-DOM fallback slot. A breaking change ships as a new entry (`v2.js`), not as a change to v1.
-- **Lazy chunks.** The episode list is not in `v1.js`: `vite.cdn.config.ts` splits it into `dist/cdn/chunks/episodes-[hash].js`, a classic script that `v1.js` adds next to itself and that shares `v1.js`'s Svelte runtime. The name changes with its content, so a CDN deploy must keep the chunks of earlier builds: a page can hold a cached `v1.js` that asks for an older one. The npm root bundles the chunks, so nothing is fetched there.
+- **Lazy chunks.** The episode list, the play button and the mini-player are not in `v1.js`: `vite.cdn.config.ts` splits them into `dist/cdn/chunks/episodes-[hash].js` and `dist/cdn/chunks/play-[hash].js`, classic scripts that `v1.js` adds next to itself (`src/lib/lazy-element.ts`) and that share `v1.js`'s Svelte runtime. The name changes with its content, so a CDN deploy must keep the chunks of earlier builds: a page can hold a cached `v1.js` that asks for an older one. The npm root bundles the chunks, so nothing is fetched there.
+- **Chunks share only `v1.js`.** Code that two chunks import and `v1.js` does not would need a third file, and the build fails if that happens. So the play chunk does not import the list's modules (`episode-list.ts`, `list-strings.ts`), and it uses no Svelte feature that only the list uses, such as `{#each}` (whose runtime is in the list's chunk, not `v1.js`).
 - **The height contract** (`src/lib/heights.ts`) changes only in a major version. If a change moves a rendered height, the browser test fails.
 - **Stay self-contained.** The player imports only `./` modules and Svelte. No runtime dependencies, no global CSS and no web fonts: everything lands in the public bundle.
 - **Every visible string has a key** in `src/lib/strings.ts` (English) and `src/lib/locales/` (German and French). The CDN build bundles English only and loads the others as `dist/cdn/locales/*.js` on demand, so keep new languages out of `v1.js`. A test holds each to the design's maximum length, and the browser test renders the one-line messages in Geist at 320px.

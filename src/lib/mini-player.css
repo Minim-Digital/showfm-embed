@@ -1,0 +1,492 @@
+/*
+ * The mini-player's styles (MiniPlayer.svelte, design page 3.3). It sits at
+ * the end of the body and draws everything fixed to the window, so the host
+ * and its wrapper take no room in the page. It takes the page's font.
+ * --showfm-bottom-offset lifts the bar and the pill above a cookie bar or a
+ * chat bubble.
+ *
+ * One surface, four layouts: the desktop bar (the default), the phone bar
+ * (640px and under), the pill (.pill) and the phone sheet (.sheet). Each hides the
+ * parts it does not show, so they leave the tab order too.
+ */
+:host,
+.mini {
+	display: contents;
+}
+.mini {
+	--o: var(--showfm-bottom-offset, 0px);
+	font-family: var(--showfm-font, inherit);
+	font-size: 14px;
+	line-height: 1.3;
+}
+* {
+	box-sizing: border-box;
+}
+p {
+	margin: 0;
+}
+button {
+	appearance: none;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: none;
+	color: var(--pp-muted);
+	font: inherit;
+	cursor: pointer;
+}
+button:hover {
+	background: var(--pp-ctrl-hover);
+}
+:focus-visible {
+	outline: 2px solid var(--pp-accent-text);
+	outline-offset: 2px;
+}
+svg {
+	flex: none;
+	width: 18px;
+	height: 18px;
+}
+text {
+	font-size: 8px;
+	font-weight: 700;
+}
+.vh {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+/* ── the desktop bar (the default) ──── */
+.bar {
+	position: fixed;
+	z-index: 2147483000;
+	left: 0;
+	right: 0;
+	bottom: var(--o);
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 12px 16px 12px 20px;
+	border-top: 1px solid var(--pp-border);
+	background: var(--pp-bg);
+	color: var(--pp-fg);
+	box-shadow: 0 8px 26px rgba(16, 16, 20, 0.14);
+}
+.line,
+.info,
+.time,
+[data-expand],
+[data-share] {
+	display: none;
+}
+.art {
+	flex: none;
+	width: 44px;
+	height: 44px;
+	border-radius: 8px;
+	object-fit: cover;
+}
+.tile {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--pp-tint);
+	color: var(--pp-accent-text);
+}
+.text {
+	display: flex;
+	flex: 0 1 230px;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.title,
+.sub {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.title {
+	color: var(--pp-fg-strong);
+	font-weight: 700;
+}
+.sub,
+.time,
+.times,
+.credit,
+.message {
+	color: var(--pp-muted);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.message {
+	flex: 1;
+	font-size: 14px;
+}
+.credit {
+	font-size: 11px;
+	font-weight: 500;
+	text-decoration: none;
+}
+.brand-a,
+.brand-b {
+	color: var(--pp-fg-strong);
+	font-weight: 700;
+}
+.brand-b {
+	color: var(--pp-logo);
+}
+.transport,
+.times,
+.end {
+	display: flex;
+	align-items: center;
+}
+.transport {
+	gap: 4px;
+}
+.icon {
+	width: 38px;
+	height: 38px;
+	color: var(--pp-fg);
+}
+.icon svg {
+	width: 21px;
+	height: 21px;
+}
+.play {
+	position: relative;
+	width: 44px;
+	height: 44px;
+	border-radius: 99px;
+	background: var(--pp-accent) !important;
+	color: var(--pp-accent-fg);
+	box-shadow: var(--pp-play-shadow);
+}
+.tri {
+	margin-left: 2px;
+}
+/* Buffering: an arc round the button, static under reduced motion. */
+.busy::after {
+	content: '';
+	position: absolute;
+	inset: -4px;
+	border: 2px solid transparent;
+	border-top-color: var(--pp-accent);
+	border-right-color: var(--pp-accent);
+	border-radius: 99px;
+	animation: spin 0.9s linear infinite;
+}
+.times {
+	flex: 1;
+	gap: 10px;
+	min-width: 120px;
+	font-weight: 500;
+}
+/* The waveform with the native range input over it, as in the player. */
+.scrub {
+	position: relative;
+	flex: 1;
+	min-width: 44px;
+	height: 28px;
+}
+canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+input {
+	appearance: none;
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+.scrub:has(:focus-visible) {
+	outline: 2px solid var(--pp-accent-text);
+	outline-offset: 3px;
+	border-radius: 4px;
+}
+.ctrl {
+	width: auto;
+	min-width: 42px;
+	height: 34px;
+	padding: 0 11px;
+	border: 1px solid var(--pp-ctrl-border);
+	background: var(--pp-ctrl-bg);
+	color: var(--pp-fg);
+	font-size: 13px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.end {
+	gap: 2px;
+	padding-left: 6px;
+	border-left: 1px solid var(--pp-border);
+}
+
+.line span {
+	display: block;
+	height: 100%;
+	background: var(--pp-accent);
+}
+
+/* ── the phone bar: floating, 64px, title on one line ── */
+@media (max-width: 640px) {
+	.bar {
+		left: 8px;
+		right: 8px;
+		bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--o));
+		gap: 10px;
+		overflow: hidden;
+		/* 64px: the 3px progress line, 7px, the 44px row, 8px, the border. */
+		padding: 10px 6px 8px 8px;
+		border: 1px solid var(--pp-border);
+		border-radius: 14px;
+	}
+	.bar:not(.sheet) :is(.sub, .credit, .icon, .times, .ctrl, [data-collapse], .message),
+	.bar:not(.msg, .sheet) .close {
+		display: none;
+	}
+	.bar:not(.sheet) .text {
+		flex: 1;
+	}
+	.bar:not(.sheet) .time {
+		display: block;
+	}
+	.bar:not(.sheet) [data-expand] {
+		display: inline-flex;
+	}
+	.line {
+		display: block;
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: var(--pp-wave-track);
+	}
+	.end {
+		padding: 0;
+		border: 0;
+	}
+	.end button {
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
+		color: var(--pp-fg);
+	}
+	.title {
+		font-size: 13.5px;
+	}
+}
+
+/* ── the pill: play, the time left and the way back ── */
+.bar.pill {
+	left: auto;
+	right: auto;
+	bottom: calc(20px + var(--o));
+	gap: 8px;
+	max-width: calc(100vw - 24px);
+	overflow: visible;
+	padding: 6px;
+	border: 1px solid var(--pp-border);
+	border-radius: 99px;
+}
+.pos-right .pill {
+	right: 20px;
+}
+.pos-left .pill {
+	left: 20px;
+}
+.pill :is(.art, .sub, .credit, .line, .icon, .times, .ctrl, [data-collapse], .message),
+.pill:not(.msg) .close,
+.pill.msg .title {
+	display: none !important;
+}
+.pill .text {
+	flex: none;
+	max-width: 170px;
+	padding-right: 2px;
+}
+.pill .time {
+	display: block;
+	font-size: 11.5px;
+}
+.pill.msg .info,
+.pill [data-expand] {
+	display: flex;
+}
+.info {
+	align-items: center;
+	justify-content: center;
+	background: var(--pp-ctrl-bg) !important;
+	color: var(--pp-muted);
+	box-shadow: none;
+}
+.pill .title {
+	font-size: 12.5px;
+}
+.pill .transport {
+	order: -1;
+}
+.pill .end {
+	padding: 0;
+	border: 0;
+}
+.bar.pill .end button {
+	border-radius: 99px;
+	background: var(--pp-ctrl-bg);
+	color: var(--pp-fg);
+}
+
+@media (max-width: 640px) {
+	/* The pill on a phone: play, the time left, Expand. */
+	.bar.pill {
+		bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--o));
+		gap: 6px;
+		padding: 4px;
+	}
+	.pos-right .pill {
+		right: 12px;
+	}
+	.pos-left .pill {
+		left: 12px;
+	}
+	.pill .title {
+		display: none !important;
+	}
+	.pill .time {
+		color: var(--pp-fg);
+		font-weight: 600;
+	}
+
+	/* ── the phone sheet: a modal dialog with everything ── */
+	.backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 2147483000;
+		background: rgba(3, 7, 17, 0.32);
+	}
+	.sheet {
+		z-index: 2147483001;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		flex-wrap: wrap;
+		gap: 18px 14px;
+		max-height: 90vh;
+		overflow-y: auto;
+		padding: 44px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+		border: 0;
+		border-radius: 16px 16px 0 0;
+	}
+	.sheet .line {
+		display: none;
+	}
+	.sheet .art {
+		width: 72px;
+		height: 72px;
+		border-radius: 12px;
+	}
+	.sheet .text {
+		flex: 1 1 0;
+	}
+	.sheet .title {
+		font-size: 17px;
+		white-space: normal;
+	}
+	.sheet .sub {
+		font-size: 13px;
+		white-space: normal;
+	}
+	/* The waveform above the transport, the times under it. */
+	.sheet .times {
+		order: 1;
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 7px 0;
+	}
+	.sheet .scrub {
+		order: -1;
+		flex: 1 1 100%;
+		height: 46px;
+	}
+	.sheet .transport {
+		order: 2;
+		flex: 1 1 100%;
+		justify-content: center;
+		gap: 28px;
+	}
+	.sheet .icon {
+		width: 48px;
+		height: 48px;
+		border-radius: 12px;
+	}
+	.sheet .transport svg {
+		width: 26px;
+		height: 26px;
+	}
+	.sheet .play {
+		width: 64px;
+		height: 64px;
+	}
+	.sheet .ctrl {
+		order: 3;
+		min-width: 56px;
+		height: 44px;
+		border-radius: 10px;
+		font-size: 14px;
+	}
+	.sheet .end {
+		order: 4;
+		flex: 1;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+	.sheet .end button {
+		border: 1px solid var(--pp-ctrl-border);
+		background: var(--pp-ctrl-bg);
+	}
+	.sheet [data-share] {
+		display: inline-flex;
+	}
+	.sheet .message {
+		flex: 1 1 100%;
+	}
+	.sheet [data-collapse] {
+		position: absolute;
+		top: 0;
+		right: 10px;
+		border: 0 !important;
+		background: none !important;
+		color: var(--pp-muted) !important;
+	}
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.busy::after {
+		animation: none;
+	}
+}

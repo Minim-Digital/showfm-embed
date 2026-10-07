@@ -3,10 +3,15 @@
  * with `import type {} from '@showfm/embed/jsx-solid';` in a .d.ts file.
  */
 import type { JSX } from 'solid-js';
-import type { ShowfmEpisodesAttributes, ShowfmPlayerAttributes } from '../lib/element-types.js';
+import type {
+	ShowfmEpisodesAttributes,
+	ShowfmPlayAttributes,
+	ShowfmPlayerAttributes
+} from '../lib/element-types.js';
 
 type ShowfmPlayerProps = JSX.HTMLAttributes<HTMLElement> & ShowfmPlayerAttributes;
 type ShowfmEpisodesProps = JSX.HTMLAttributes<HTMLElement> & ShowfmEpisodesAttributes;
+type ShowfmPlayProps = JSX.HTMLAttributes<HTMLElement> & ShowfmPlayAttributes;
 
 declare module 'solid-js' {
 	namespace JSX {
@@ -14,6 +19,7 @@ declare module 'solid-js' {
 			'showfm-player': ShowfmPlayerProps;
 			'podcasterplus-player': ShowfmPlayerProps;
 			'showfm-episodes': ShowfmEpisodesProps;
+			'showfm-play': ShowfmPlayProps;
 		}
 	}
 }

@@ -48,9 +48,10 @@ afterAll(async () => {
 });
 
 describe('the build', () => {
-	it('has one chunk, the episode list', () => {
-		expect(CHUNKS).toEqual([CHUNK]);
+	it('has two chunks: the episode list, and the play button with the mini-player', () => {
+		expect(CHUNKS).toHaveLength(2);
 		expect(CHUNK).toMatch(/^episodes-[\w-]+\.js$/);
+		expect(CHUNKS.find((file) => file !== CHUNK)).toMatch(/^play-[\w-]+\.js$/);
 	});
 
 	it('keeps the list out of v1.js', () => {
@@ -82,7 +83,7 @@ describe('v1.js', () => {
 		document.body.append(first, second);
 		await settle();
 		const scripts = [
-			...document.head.querySelectorAll<HTMLScriptElement>('script[src*="/chunks/"]')
+			...document.head.querySelectorAll<HTMLScriptElement>('script[src*="/chunks/episodes-"]')
 		];
 		expect(scripts.map((script) => script.src)).toEqual([
 			`https://embed.cdn.media/player/chunks/${CHUNK}`
@@ -104,7 +105,7 @@ describe('v1.js', () => {
 		document.body.append(later);
 		await settle();
 		expect(later.shadowRoot?.querySelectorAll('[data-row]')).toHaveLength(7);
-		expect(document.head.querySelectorAll('script[src*="/chunks/"]')).toHaveLength(1);
+		expect(document.head.querySelectorAll('script[src*="/chunks/episodes-"]')).toHaveLength(1);
 	});
 });
 

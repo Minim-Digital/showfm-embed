@@ -142,15 +142,13 @@
 	);
 	const dark = $derived(theme === 'dark' || (theme === 'auto' && systemDark));
 	// `0ea5e9` and `#0ea5e9` both work; anything else follows the show.
-	const palette = $derived(
-		resolvePalette(
-			(parseHex(attr('accent')) ? attr('accent') : null) ??
-				podcastData?.player_color ??
-				podcastData?.brand_color ??
-				DEFAULT_ACCENT,
-			dark ? 'dark' : 'light'
-		)
+	const accent = $derived(
+		(parseHex(attr('accent')) ? attr('accent') : null) ??
+			podcastData?.player_color ??
+			podcastData?.brand_color ??
+			DEFAULT_ACCENT
 	);
+	const palette = $derived(resolvePalette(accent, dark ? 'dark' : 'light'));
 	// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
 	const accentText = $derived(
 		accessibleAccent(palette.accent, dark ? mixHex('#ffffff', palette.bg, 0.07) : palette.tint, 4.5)
@@ -178,6 +176,8 @@
 		void reload;
 		generation += 1;
 		more = 'idle';
+		// A new first page: no row keeps a message from the last one.
+		messages = {};
 		if (!podcast) {
 			status = 'error';
 			return;
@@ -297,6 +297,8 @@
 	// paused shows as paused; once another element loads something else
 	// there, the row goes back to its resting state.
 	let mine: { id: string; src: string } | null = null;
+	// Counts presses: a failure's API recheck lands only if none came since.
+	let plays = 0;
 	let pressed: string | null = null;
 
 	function sync(snapshot: PlaybackSnapshot) {
@@ -348,25 +350,30 @@
 	async function start(episode: ListEpisode, reloadAudio = false) {
 		const src = audioSrc(episode);
 		if (!src) return;
+		const play = ++plays;
+		const page = generation;
 		delete messages[episode.id];
 		pressed = episode.id;
 		mine = { id: episode.id, src };
 		const audio = controller.sharedAudio();
 		if (reloadAudio && audio.getAttribute('src') === src) audio.removeAttribute('src');
 		try {
+			// The episode with what the page's mini-player shows of it.
 			await controller.playShared(
 				host,
 				{
-					id: episode.id,
-					title: episode.title,
+					...episode,
 					podcastTitle: podcastData?.title,
-					artworkUrl: episode.artwork?.url ?? null
+					artworkUrl: episode.artwork?.url,
+					accent,
+					theme,
+					credit: wantsCredit
 				},
 				src
 			);
 			// Playing: a later failure was not caused by a press.
 			if (pressed === episode.id) pressed = null;
-			// The shared mini-player (EMB-4) shows only when the list asks for it.
+			// The page's mini-player (play-element.ts) opens only when the list asks for it.
 			if (miniPlayer) {
 				host.dispatchEvent(
 					new CustomEvent('showfm:mini-player', { bubbles: true, composed: true })
@@ -374,9 +381,17 @@
 			}
 		} catch (error) {
 			const name = (error as DOMException | undefined)?.name;
-			// A pause() or a new source interrupted the play: not an error. And
-			// if the audio's error event got here first, it has been dealt with.
-			if (name === 'AbortError' || mine?.id !== episode.id) return;
+			// A pause() or a new source interrupted the play: not an error. If
+			// the audio's error event got here first, it has been dealt with. A
+			// press or a new first page since makes the answer stale.
+			if (
+				name === 'AbortError' ||
+				mine?.id !== episode.id ||
+				play !== plays ||
+				page !== generation
+			) {
+				return;
+			}
 			mine = null;
 			playback = { id: null, state: 'idle', time: 0, duration: 0 };
 			if (name === 'NotAllowedError') {
@@ -395,12 +410,20 @@
 	 * anything else the error.
 	 */
 	async function failed(id: string, moveFocus: boolean) {
+		const play = plays;
+		const page = generation;
+		const applies = controller.failure(host, id);
 		const result = await apiGet(episodeEndpoint(query.api, id));
+		// Stale if, since: a row was pressed, the list loaded a new first
+		// page, or the episode started anywhere on the page.
+		if (play !== plays || page !== generation || !applies()) return;
 		await showMessage(id, result.status === 'unavailable' ? 'suspended' : 'error', moveFocus);
 	}
 
 	async function showMessage(id: string, message: RowMessage, moveFocus: boolean) {
 		messages[id] = message;
+		// The mini-player shows it too, when this list's row is what it holds.
+		controller.report(host, id, message);
 		if (pressed === id) pressed = null;
 		// Focus follows only a press: the play button it was on has gone.
 		if (moveFocus) await focusIn(id, '[data-retry]', '[data-message]');

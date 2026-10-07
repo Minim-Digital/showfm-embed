@@ -1,8 +1,8 @@
 /**
- * A host page for <showfm-episodes> in Chromium: v1.js, its lazy chunks,
- * the click loader and the fallback stylesheet from dist/, a mock of the
- * public API, and a second of silent audio for the show.fm media host. Run
- * `pnpm build` first.
+ * A host page for <showfm-episodes> and <showfm-play> in Chromium: v1.js,
+ * its lazy chunks, the click loader and the fallback stylesheet from dist/,
+ * a mock of the public API, and silent audio for the show.fm media host.
+ * Run `pnpm build` first.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -117,6 +117,15 @@ export async function serveList(
 		if (status === 'fail') return route.fulfill({ status: 500, body: '' });
 		if (status === 'not-found') return json(route, 404, { error: { code: 'not_found' } });
 		if (status === 'suspended') return json(route, 403, { error: { code: 'unavailable' } });
+		// One episode (a play button or a player): by id, or the show's latest.
+		const one = url.pathname.match(/^\/v1\/episodes\/([^/]+)$/)?.[1];
+		if (one || url.pathname.endsWith('/episodes/latest')) {
+			const episode = one ? episodes.find((item) => item.id === one) : episodes[0];
+			if (!episode) return json(route, 404, { error: { code: 'not_found' } });
+			return json(route, 200, {
+				data: { ...episode, podcast: podcastPayload({ branded: api.branded ?? true }) }
+			});
+		}
 		if (!url.pathname.endsWith('/episodes')) {
 			return json(route, 200, { data: podcastPayload({ branded: api.branded ?? true }) });
 		}

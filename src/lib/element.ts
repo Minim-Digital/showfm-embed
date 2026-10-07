@@ -7,7 +7,7 @@
  * Each element registers only if its name is free. A page can already hold
  * an older copy (another CDN script, or an npm build that predates an
  * element): that copy keeps the elements it defined, and this one adds the
- * ones it lacks, such as <showfm-episodes>.
+ * ones it lacks, such as <showfm-episodes> or <showfm-play>.
  *
  * <podcasterplus-player> is the pre-rebrand element name. Embed snippets are
  * copy-pasted into pages we cannot edit, so the old tag must keep upgrading
@@ -16,6 +16,7 @@
  */
 import ShowfmPlayer from './ShowfmPlayer.svelte';
 import { defineShowfmEpisodes } from './episodes-element';
+import { defineShowfmPlay } from './play-element';
 
 // The `element` static only exists in the customElement build (and svelte-check
 // types the component without it), hence the cast and the runtime guard.
@@ -35,3 +36,4 @@ const showfm = ((window as unknown as { showfm?: { load?: () => void } }).showfm
 showfm.load ??= () => document.dispatchEvent(new Event('showfm:load'));
 
 defineShowfmEpisodes();
+defineShowfmPlay();

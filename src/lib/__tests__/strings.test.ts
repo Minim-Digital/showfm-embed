@@ -15,6 +15,7 @@ import {
 import { STRING_TABLES } from '../string-tables';
 import { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from '../element-strings';
 import { LIST_EN, LIST_STRING_MAX_LENGTHS, resolveListStrings } from '../list-strings';
+import { PLAY_BUILDER_EN, PLAY_EN, resolvePlayStrings } from '../play-strings';
 
 const LANGUAGES = ['en', 'de', 'fr'] as const;
 
@@ -114,6 +115,51 @@ describe('the episode list (design pages 2, 5, 6 and 8)', () => {
 		expect(resolveListStrings('de', { more: 'Mehr lesen' }).more).toBe('Mehr lesen');
 		// The player's keys are not the list's.
 		expect(resolveListStrings('en', { play: 'x' })).not.toHaveProperty('play');
+	});
+});
+
+describe('the play button and the mini-player (design pages 3, 5 and 8)', () => {
+	it.each(LANGUAGES)('%s: every play and mini-player key is in the table', (language) => {
+		for (const key of [...Object.keys(PLAY_EN), ...Object.keys(PLAY_BUILDER_EN)]) {
+			expect(STRING_TABLES[language], `${language}.${key}`).toHaveProperty(key);
+		}
+	});
+
+	it.each(LANGUAGES)('%s: a key the list and the button share has one text', (language) => {
+		// The tables are merged, so the English and the language's copy must agree.
+		for (const key of Object.keys(PLAY_EN).filter((key) => key in LIST_EN)) {
+			const play = resolvePlayStrings(language)[key as keyof typeof PLAY_EN];
+			const list = resolveListStrings(language)[key as keyof typeof LIST_EN];
+			expect(play, `${language}.${key}`).toBe(list);
+		}
+	});
+
+	it('uses the approved copy and the builder warning (design page 3.4)', () => {
+		expect(STRING_TABLES.en.closePlayer).toBe('Close player and stop playback');
+		expect(STRING_TABLES.en.collapsePlayer).toBe('Collapse player');
+		expect(STRING_TABLES.en.miniPlayerOff).toBe('Visitors can only play and pause.');
+		expect(STRING_TABLES.de.listen).toBe('Anhören · {duration}');
+		expect(STRING_TABLES.fr.resumeRemaining).toBe('Reprendre · {remaining} restantes');
+		// The play button's labels are the ones the element tables have shipped since 1.1.
+		for (const language of LANGUAGES) {
+			for (const [key, value] of Object.entries(ELEMENT_STRING_TABLES[language])) {
+				expect(STRING_TABLES[language][key as keyof typeof PLAY_EN], key).toBe(value);
+			}
+		}
+	});
+
+	it('resolves English, the language, the page, then the element', () => {
+		expect(resolvePlayStrings().expandPlayer).toBe('Expand player');
+		expect(resolvePlayStrings('fr').expandPlayer).toBe('Agrandir le lecteur');
+		(window as unknown as { showfmStrings: unknown }).showfmStrings = {
+			listen: 'Hear · {duration}'
+		};
+		expect(resolvePlayStrings('de').listen).toBe('Hear · {duration}');
+		expect(resolvePlayStrings('de', { listen: 'Hören · {duration}' }).listen).toBe(
+			'Hören · {duration}'
+		);
+		// Not shown to visitors, so not in the chunk's table.
+		expect(resolvePlayStrings()).not.toHaveProperty('miniPlayerOff');
 	});
 });
 

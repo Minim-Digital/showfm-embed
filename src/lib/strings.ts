@@ -132,17 +132,24 @@ export function localeTable(language: Language): Partial<Strings> | null {
 /**
  * The strings for one element: English, then the language's table (when it
  * is here), then `window.showfmStrings`, then the element's own overrides.
+ * `table` is the English table whose keys to resolve: the player's by
+ * default, or a lazy chunk's own (the list's, the play button's), so the
+ * chunks share this one function.
  */
-export function resolveStrings(language: Language = 'en', overrides?: unknown): Strings {
+export function resolveStrings<T extends object = Strings>(
+	language: Language = 'en',
+	overrides?: unknown,
+	table: T = EN as unknown as T
+): T {
 	const page =
 		typeof window !== 'undefined'
 			? (window as unknown as { showfmStrings?: unknown }).showfmStrings
 			: undefined;
 	return {
-		...EN,
-		...pickStrings(localeTable(language)),
-		...pickStrings(page),
-		...pickStrings(overrides)
+		...table,
+		...pickStrings(localeTable(language), table),
+		...pickStrings(page, table),
+		...pickStrings(overrides, table)
 	};
 }
 

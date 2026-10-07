@@ -112,6 +112,137 @@ describe('subscribers', () => {
 	});
 });
 
+describe('the shared audio, for the mini-player (EMB-4)', () => {
+	function sharedController() {
+		const controller = new PageAudioController();
+		const shared = controller.sharedAudio();
+		let paused = true;
+		Object.defineProperty(shared, 'paused', { get: () => paused });
+		shared.play = vi.fn(async () => {
+			paused = false;
+			shared.dispatchEvent(new Event('play'));
+		});
+		shared.pause = vi.fn(() => {
+			paused = true;
+			shared.dispatchEvent(new Event('pause'));
+		});
+		return { controller, shared };
+	}
+
+	it('has no state until an element plays something there', async () => {
+		const { controller } = sharedController();
+		expect(controller.sharedState()).toBeNull();
+		const owner = {};
+		await controller.playShared(owner, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		expect(controller.sharedState()).toMatchObject({
+			owner,
+			episode: { id: 'e1' },
+			state: 'playing',
+			message: null
+		});
+	});
+
+	it("is news to subscribers even when another element's audio is current", async () => {
+		const { controller, shared } = sharedController();
+		await controller.playShared({}, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		const player = fakeAudio();
+		controller.attach(player, player);
+		await player.play();
+		const seen: string[] = [];
+		controller.subscribe(() => seen.push(controller.sharedState()!.state));
+		// The player is current; the shared audio's own events still reach subscribers.
+		shared.dispatchEvent(new Event('waiting'));
+		expect(seen.at(-1)).toBe('loading');
+		expect(controller.snapshot().owner).toBe(player);
+	});
+
+	it("takes a message only from the shared audio's owner, and forgets it on the next play", async () => {
+		const { controller } = sharedController();
+		const owner = {};
+		await controller.playShared(owner, { id: 'e1', title: 'One' }, 'https://m.cdn.media/one.mp3');
+		controller.sharedAudio().dispatchEvent(new Event('error'));
+		const seen = vi.fn();
+		controller.subscribe(seen);
+		controller.report({}, 'e1', 'suspended');
+		expect(controller.sharedState()!.message).toBeNull();
+		controller.report(owner, 'e1', 'suspended');
+		expect(controller.sharedState()!.message).toBe('suspended');
+		expect(seen).toHaveBeenCalledTimes(2);
+		await controller.playShared(owner, { id: 'e2', title: 'Two' }, 'https://m.cdn.media/two.mp3');
+		expect(controller.sharedState()!.message).toBeNull();
+	});
+
+	it("a failure's recheck applies only until the episode plays anywhere or the owner changes", async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(button, 'a');
+		expect(applies()).toBe(true);
+		// Another episode starting on some other audio changes nothing.
+		const player = fakeAudio();
+		controller.attach(player, player, { id: 'other', title: 'Other' });
+		player.dispatchEvent(new Event('playing'));
+		expect(applies()).toBe(true);
+		// The same episode starting on a player's own audio makes it stale.
+		const copy = fakeAudio();
+		controller.attach(copy, copy, { id: 'a', title: 'A' });
+		copy.dispatchEvent(new Event('playing'));
+		expect(applies()).toBe(false);
+		// So does another element taking the shared audio, even for the same episode.
+		const again = controller.failure(button, 'a');
+		await controller.playShared({}, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		expect(again()).toBe(false);
+	});
+
+	it("goes stale on another audio's play event, before it is playing", async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(button, 'a');
+		// A player starts the same episode and is still buffering: play, no playing yet.
+		const player = document.createElement('audio');
+		controller.attach(player, player, { id: 'a', title: 'A' });
+		player.dispatchEvent(new Event('play'));
+		expect(applies()).toBe(false);
+	});
+
+	it('goes stale on an explicit play request through the controller, before any event', () => {
+		const { controller, shared } = sharedController();
+		const list = {};
+		void controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(list, 'a');
+		// The same owner asks again; the request has not produced an event yet.
+		shared.play = vi.fn(() => new Promise<void>(() => {}));
+		void controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		expect(applies()).toBe(false);
+	});
+
+	it('drops a late report about an earlier episode from the same owner', async () => {
+		const { controller, shared } = sharedController();
+		const list = {};
+		// Episode A fails; while the owner asks the API why, B starts in the same list.
+		await controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		await controller.playShared(list, { id: 'b', title: 'B' }, 'https://m.cdn.media/b.mp3');
+		controller.report(list, 'a', 'error');
+		expect(controller.sharedState()!.message).toBeNull();
+		expect(shared.paused).toBe(false);
+	});
+
+	it('drops a late report when the same episode has started again since it failed', async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		controller.report(button, 'a', 'suspended');
+		expect(controller.sharedState()!.message).toBeNull();
+	});
+});
+
 describe('"Powered by show.fm" once per page', () => {
 	function hosts(count: number) {
 		return Array.from({ length: count }, () =>

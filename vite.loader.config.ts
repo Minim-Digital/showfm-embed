@@ -14,6 +14,9 @@ export default defineConfig({
 			name: 'ShowfmClickLoader',
 			fileName: () => 'click-loader.js'
 		},
+		// No "use strict" prologue: the loader uses nothing it changes, and
+		// it is pasted inline, so its bytes count.
+		rollupOptions: { output: { strict: false } },
 		outDir: 'dist/cdn',
 		emptyOutDir: false,
 		target: 'es2020',

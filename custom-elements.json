@@ -608,6 +608,14 @@
 							"description": "`on`: playing a row opens the page's mini-player."
 						},
 						{
+							"name": "mini-player-position",
+							"type": {
+								"text": "'left' | 'right'"
+							},
+							"default": "'right'",
+							"description": "The corner the collapsed mini-player sits in, when this element opens it. `--showfm-bottom-offset` lifts it."
+						},
+						{
 							"name": "heading-level",
 							"type": {
 								"text": "'2' | '3' | '4' | '5' | '6'"
@@ -691,6 +699,125 @@
 							"description": "An episode's title link."
 						}
 					]
+				},
+				{
+					"kind": "class",
+					"name": "ShowfmPlay",
+					"tagName": "showfm-play",
+					"customElement": true,
+					"description": "A play button for one episode, as an icon, a labelled button or a link in a sentence. Every button on the page plays through the same page audio, and the first play opens the page's mini-player (a bar along the bottom of the window, a pill when collapsed, a sheet on phones) unless `mini-player` is `off`. Its code loads the first time one is on the page. Its fallback is a title link and a plain audio control (renderEpisodeHTML), which shows until the button mounts and without JavaScript.",
+					"attributes": [
+						{
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Plays that one episode and wins over `podcast`."
+						},
+						{
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast slug or UUID. Plays the latest released episode."
+						},
+						{
+							"name": "variant",
+							"type": {
+								"text": "'icon' | 'label' | 'link'"
+							},
+							"default": "'label'",
+							"description": "`icon` is a round button (for a table, say), `label` adds the episode length or time left, `link` is text inside a sentence."
+						},
+						{
+							"name": "size",
+							"type": {
+								"text": "'sm' | 'lg'"
+							},
+							"default": "'sm'",
+							"description": "`sm` keeps a 40px line. `lg` is 48px (label) or 56px (icon). The link takes the text around it."
+						},
+						{
+							"name": "mini-player",
+							"type": {
+								"text": "'on' | 'off'"
+							},
+							"default": "'on'",
+							"description": "`on`: the first play opens the page's mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause."
+						},
+						{
+							"name": "mini-player-position",
+							"type": {
+								"text": "'left' | 'right'"
+							},
+							"default": "'right'",
+							"description": "The corner the collapsed mini-player sits in, when this element opens it. `--showfm-bottom-offset` lifts it."
+						},
+						{
+							"name": "credit",
+							"type": {
+								"text": "'auto' | 'on' | 'off'"
+							},
+							"default": "'auto'",
+							"description": "\"Powered by show.fm\" in the mini-player. `auto` follows the show's plan. It shows once per page, so an embed above it that shows it wins."
+						},
+						{
+							"name": "load",
+							"type": {
+								"text": "'click'"
+							},
+							"description": "`click` requests nothing from show.fm, not even the button's code, until the facade the click loader draws is pressed; then it loads and plays. `showfm.load()` loads every facade at once."
+						},
+						{
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting."
+						},
+						{
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour."
+						},
+						{
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only."
+						}
+					],
+					"members": [
+						{
+							"kind": "field",
+							"name": "strings",
+							"type": {
+								"text": "Partial<Record<string, string>>"
+							},
+							"description": "Overrides for visible strings, by key, usually set as a property. `window.showfmStrings` sets them for every element."
+						}
+					],
+					"cssProperties": [
+						{
+							"name": "--showfm-bottom-offset",
+							"description": "Lifts the mini-player this button opens above a cookie bar or chat bubble. Set it here or on the page.",
+							"default": "0px"
+						}
+					],
+					"cssParts": [
+						{
+							"name": "error",
+							"description": "The message shown in place of the button (suspended, or cannot be played)."
+						},
+						{
+							"name": "play",
+							"description": "The button."
+						}
+					]
 				}
 			],
 			"exports": [
@@ -715,6 +842,14 @@
 					"name": "showfm-episodes",
 					"declaration": {
 						"name": "ShowfmEpisodes",
+						"module": "dist/index.js"
+					}
+				},
+				{
+					"kind": "custom-element-definition",
+					"name": "showfm-play",
+					"declaration": {
+						"name": "ShowfmPlay",
 						"module": "dist/index.js"
 					}
 				}

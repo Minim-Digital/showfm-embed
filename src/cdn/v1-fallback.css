@@ -5,7 +5,8 @@
  * touches an upgraded player. The list is defined as soon as v1.js runs but
  * mounts only when its lazy chunk arrives, so its rules match until then;
  * its shadow root never shows the light DOM, and the host rule is the one
- * the list keeps. A load="click" facade draws its own box.
+ * the list keeps. The play button is the same: its rules match the line
+ * its host keeps. A load="click" facade draws its own box.
  */
 :is(showfm-player, podcasterplus-player):not(:defined):not([data-showfm-facade]) {
 	box-sizing: border-box;
@@ -22,7 +23,8 @@
 	min-height: 83px;
 	padding: 12px 14px;
 }
-:is(showfm-player, podcasterplus-player, showfm-play):not(:defined) audio {
+:is(showfm-player, podcasterplus-player):not(:defined) audio,
+showfm-play > audio {
 	display: block;
 	width: 100%;
 	max-width: 100%;
@@ -43,18 +45,32 @@ showfm-episodes > ul > li {
 showfm-episodes > ul > li:first-child {
 	border-top: 0;
 }
-showfm-play:not(:defined):not([data-showfm-facade]) {
+/* The play button keeps one line at its own height, before and after it
+   upgrades, so only its width changes (design pages 5 to 7). These match the
+   button's own host styles; like the list it is defined before its code
+   arrives. Its title link stays for search engines and screen readers but is
+   visually hidden. */
+showfm-play {
 	display: inline-flex;
 	align-items: center;
-	height: 40px;
+	vertical-align: middle;
 	max-width: 100%;
+	min-height: 40px;
 }
-showfm-play:not(:defined) audio {
+showfm-play[size='lg' i] {
+	min-height: 48px;
+}
+showfm-play[size='lg' i][variant='icon' i] {
+	min-height: 56px;
+}
+showfm-play[variant='link' i] {
+	display: inline;
+	min-height: 0;
+}
+showfm-play > audio {
 	height: 40px;
 }
-/* The play button keeps one 40px line: its title link stays for search
-   engines and screen readers but is visually hidden. */
-showfm-play:not(:defined) > a {
+showfm-play > a {
 	position: absolute;
 	width: 1px;
 	height: 1px;
