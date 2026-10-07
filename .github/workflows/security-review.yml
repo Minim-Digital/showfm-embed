@@ -1,0 +1,263 @@
+name: Security Review
+
+# ⚠ A GREEN TICK HERE IS NOT ALWAYS A REAL REVIEW.
+#
+# The action caches a per-PR marker file and writes it EVEN WHEN THE RUN FAILS.
+# Any later run on the same PR then finds it and logs
+#   "ClaudeCode has already run on PR #N (found marker file), forcing disable
+#    to avoid false positives"
+# and exits green without analysing anything. So the familiar pattern of
+# "attempt 1 fails, re-run passes" is not a fix: the re-run is a vacuous pass.
+#
+# That is how a broken API key went unnoticed across several PRs: the first
+# attempt failed on the missing key, every re-run skipped the audit and went
+# green. If this job fails, fix the cause; do not re-run it and trust the tick.
+#
+# `run-every-commit: true` below now defeats the marker, so scans on a labelled
+# PR are real. It does NOT defeat it for a manual re-run of the same run id, and
+# it cannot undo history: measured 2026-08-19, only the FIRST commit of every
+# multi-commit PR merged before that date was ever analysed. Treat the security
+# verdict on those PRs as covering the opening commit and nothing else.
+#
+# VERIFY THE VERDICT, NOT JUST THE ACTION EXIT STATUS. The final local
+# postcondition now rejects missing/error/incomplete results, including upstream
+# failures the composite action reports as success. A real scan prints
+# "Running ClaudeCode AI security analysis..." as OUTPUT. Beware: the action
+# also ECHOES its own script, so that string and the marker message both appear
+# in the log as source text on runs that did nothing. Only lines without the
+# `\033[36;1m` escape prefix are real output. Diagnose with:
+#   gh run view <id> --log | grep -i "marker file\|API_KEY is not set\|Cache hit"
+#
+# To force a genuine re-scan, delete the PR's marker caches first (the action
+# restores by key PREFIX, so every one of them must go):
+#   gh api /repos/OWNER/REPO/actions/caches --paginate \
+#     -q '.actions_caches[]|select(.key|test("pr-<N>"))|.id' \
+#     | xargs -I{} gh api -X DELETE /repos/OWNER/REPO/actions/caches/{}
+
+permissions:
+  pull-requests: write
+  contents: read
+
+# Scope. This repository is small and almost all code, so every labelled PR is
+# scanned in full: there is no paths-ignore and no exclude-directories. If
+# either is ever added, keep them identical. A PR that only touches excluded
+# directories reviews zero files, so skipping it costs no coverage, and that
+# only holds while the two lists match.
+#
+# Safe to skip a run today because `main` is not protected by a required
+# security-review check. If that changes, a skipped run reports nothing and
+# would block the PR forever, so revisit this block.
+#
+# PRE-MERGE, NOT PER-COMMIT (2026-08-19). This used to run on every push to
+# every PR, which sounds thorough and was not. The action caches a per-PR marker
+# file, so ONLY THE FIRST COMMIT of a PR was ever actually analysed; every later
+# run found the marker and exited green without reading a line of the diff. On
+# two show.fm app PRs that meant the substantive commits, the ones that changed
+# CI and the deploy pipeline, were never reviewed while the tick stayed green.
+#
+# So the trigger is now the `security-review` label, and the shape is:
+#
+#   1. Work on the PR. Nothing scans, and nothing pretends to.
+#   2. Add the `security-review` label when the PR is ready to merge.
+#      That scans the FINAL state, which is the thing actually being merged.
+#   3. Any further push while the label is on rescans, so fixes made in
+#      response to findings are reviewed too.
+#
+# `run-every-commit: true` on the action below is REQUIRED for step 3. Without
+# it the marker makes every rescan after the first a vacuous green, which is the
+# exact bug this block exists to fix. It is affordable here only because the
+# trigger is narrow: it costs one scan per PR plus one per post-label fix,
+# instead of one per push.
+#
+# ⚠ THE TRADE-OFF, STATED PLAINLY: nothing scans a PR until someone labels it.
+# `main` has no branch protection and no rulesets, so this was never an enforced
+# gate anyway, and the previous "automatic" behaviour was reviewing the wrong
+# commit. Deliberate and accurate beats automatic and misleading. But if branch
+# protection is ever added, make this label a required check or the gate is
+# optional in practice.
+on:
+  pull_request:
+    types: [labeled, synchronize]
+
+# A burst of fixes should not stack scans, but the group is keyed on the EVENT
+# ACTION as well as the ref, and that part is load-bearing.
+#
+# With a single group, pushing and applying the label within a few seconds of
+# each other raced: `synchronize` and `labeled` fired together, one cancelled
+# the other, and the survivor was the `synchronize` run, which had evaluated its
+# `if` BEFORE the label existed and therefore skipped. Net result: no scan at
+# all, reported as `skipped` rather than failed. Observed in the show.fm app, 2026-08-19.
+#
+# That is the exact silent-no-coverage failure this workflow exists to prevent,
+# reintroduced by the concurrency guard itself. Keying on the action means a
+# `labeled` run can never be cancelled by a `synchronize` run. Two scans can now
+# overlap in that narrow window, which costs one extra scan and is the correct
+# side to err on.
+#
+# Within an action, cancellation still applies: three rapid pushes to a labelled
+# PR still collapse to one scan of the latest state.
+concurrency:
+  group: security-review-${{ github.ref }}-${{ github.event.action }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    # `types: [labeled]` fires for ANY label, and `synchronize` fires for every
+    # push, so gate on the label actually being present. This one condition
+    # covers both events: on `labeled` it is true only for the right label, and
+    # on `synchronize` it is true only once the PR has been marked ready.
+    if: contains(github.event.pull_request.labels.*.name, 'security-review')
+    runs-on: ubuntu-latest
+    # TWO COST BOUNDS, deliberately layered. `claudecode-timeout` below caps the
+    # Anthropic analysis; this caps EVERYTHING ELSE, including the parts of the
+    # action we do not control.
+    #
+    # On 2026-08-19 this job wedged for 17 minutes inside the action's own
+    # `sudo apt-get update && sudo apt-get install -y gh` step, which is both
+    # unpinned network I/O and redundant (gh is preinstalled on ubuntu-latest).
+    # It had to be cancelled by hand. With no timeout it would have run to
+    # GitHub's 360-minute default. Genuine scans take about 2m30s, so 20 minutes
+    # is roughly 8x headroom and caps a wedged run at about $0.16.
+    timeout-minutes: 20
+    # Apt on hosted runners can hang waiting on an interactive prompt even with
+    # `-y` (actions/runner-images#122). The pinned action has TWO package installs,
+    # for `gh` and `jq`, both already present on ubuntu-latest. Our verified
+    # local patch skips apt when each tool exists and checks --version:
+    #   action.yml:68   sudo apt-get update && sudo apt-get install -y gh
+    #   action.yml:173  sudo apt-get update && sudo apt-get install -y jq
+    # Job-scoped env reaches composite-action steps, so this applies to both.
+    # This environment setting protects the fallback install when a tool is absent.
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    # CLAUDE_CODE_OAUTH_TOKEN is a REPOSITORY secret: a long-lived subscription
+    # token from `claude setup-token` (Dan's Max plan, 2026-08-19). It bills the
+    # scan to the subscription instead of API dollars. It EXPIRES after roughly
+    # a year; when this job starts failing to authenticate, regenerate it with
+    # `claude setup-token` and update the secret under Settings > Secrets >
+    # Actions. The old CLAUDE_API_KEY secret is no longer read here (kept as a
+    # rollback until this has run clean for a while).
+    steps:
+      # APT MIRROR WORKAROUND. `azure.archive.ubuntu.com` is the mirror GitHub's
+      # hosted images point at, and it is intermittently unreachable. Apt then
+      # retries it with long socket timeouts across every index file before
+      # falling back to the public mirror, and prints NOTHING while blocked on
+      # the socket, so it presents as a silent hang rather than an error.
+      #
+      # Measured 2026-08-19 on this workflow: the step logged `Ign:` lines for
+      # azure, fell back to archive.ubuntu.com, then went silent for 18m51s and
+      # was killed by `timeout-minutes`. It cost 20 minutes of billed runner
+      # time and produced nothing. It had done the same the run before.
+      #
+      # This must run BEFORE any step that installs packages, including steps
+      # inside actions we cannot edit: apt config is global, so repointing the
+      # sources and capping retries here reaches them too.
+      #
+      # NOT a DEBIAN_FRONTEND problem. That guards interactive prompts, which is
+      # a real but different failure mode, and it does not help here.
+      - name: Neutralise the Azure apt mirror
+        run: |
+          set -euo pipefail
+
+          # FAIL CLOSED. The first version of this step hardcoded the source
+          # paths, swallowed errors with `2>/dev/null || true`, and then echoed
+          # success unconditionally. It matched nothing on the ubuntu-24.04
+          # image, so it reported "repointed" while apt carried on using the
+          # Azure mirror and the job wedged for 17 minutes anyway (show.fm
+          # app, 2026-08-19). A guard that cannot fail is not a guard.
+          #
+          # So: find whatever files actually reference the mirror, rewrite those,
+          # then VERIFY none remain and fail the step if any do.
+          files=$(grep -rlF 'azure.archive.ubuntu.com' /etc/apt/ 2>/dev/null || true)
+          if [ -n "$files" ]; then
+            echo "rewriting: $files"
+            echo "$files" | xargs sudo sed -i \
+              's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g'
+          else
+            echo "no apt source references the Azure mirror"
+          fi
+
+          if grep -rqF 'azure.archive.ubuntu.com' /etc/apt/ 2>/dev/null; then
+            echo "::error::apt still references the Azure mirror after the rewrite"
+            grep -rnF 'azure.archive.ubuntu.com' /etc/apt/ 2>/dev/null | head -20
+            exit 1
+          fi
+
+          printf 'Acquire::Retries "1";\nAcquire::http::Timeout "15";\nAcquire::https::Timeout "15";\n' \
+            | sudo tee /etc/apt/apt.conf.d/99-fail-fast >/dev/null
+
+          echo "verified: no apt source references the Azure mirror; retries capped"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Minim-Digital fork of anthropics/claude-code-security-review, pinned to
+      # the OAuth-token commit. The fork is upstream 0c6a49f (the exact commit
+      # this workflow ran before) plus one change: a `claude-code-oauth-token`
+      # input so the scan authenticates against Dan's Claude subscription.
+      # A checked-in local patch now supplies the complete event-pinned Git
+      # manifest/diff and input provenance. Prompts, OAuth, model, exclusions,
+      # comments and filtering remain upstream; the final result gate rejects
+      # swallowed failures. The marker-cache warnings above still apply.
+      #
+      # Why a fork and not anthropics/claude-code-action (which supports OAuth
+      # natively): that action restores .claude/, CLAUDE.md and .mcp.json from
+      # the base branch before reviewing, so a PR's changes to those files are
+      # never seen by the scan (verified 2026-08-19). That would be a silent
+      # coverage gap. The fork keeps the full-diff review.
+      #
+      # To sync the fork with a future upstream release: merge upstream into
+      # Minim-Digital/claude-code-security-review, keep the one credential-gate
+      # change (action.yml + github_action_audit.py validate_claude_available,
+      # both covered by test_claude_runner.py), and re-pin the sha here. Then
+      # re-review/rebase scripts/security-review/action.patch and update its
+      # exact source hash; the preparation step fails if either pin drifts.
+      # GitHub's raw PR diff endpoint rejects large PRs. Keep the pinned
+      # provider implementation, applying our checked-in setup and transport patch.
+      - name: Checkout pinned security reviewer
+        uses: actions/checkout@v4
+        with:
+          repository: Minim-Digital/claude-code-security-review
+          ref: e1092743ad11d9d918e00cb4e740e7b121205d98
+          path: .security-review-action
+          persist-credentials: false
+      - name: Verify and prepare complete PR input adapter
+        run: |
+          python3 scripts/security-review/test_independent.py .security-review-action
+          python3 scripts/security-review/prepare_action.py .security-review-action
+          # Never accept results checked into the PR or left by an earlier run.
+          rm -f -- claudecode-results.json findings.json claudecode-error.log
+      - uses: ./.security-review-action
+        with:
+          comment-pr: true
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # REQUIRED, do not remove. The action caches a per-PR marker file and
+          # honours it even when the run that wrote it failed, so without this
+          # every scan after the first on a given PR exits green having analysed
+          # nothing. See the trigger block above for how this was discovered.
+          run-every-commit: true
+          # Caps the Anthropic API work per scan. The action's default is 20
+          # minutes; observed genuine analysis is well under 2. This is the
+          # bound that limits API SPEND rather than runner minutes, and it is
+          # deliberately set below the job's `timeout-minutes` so the analysis
+          # aborts and reports rather than being killed mid-flight.
+          claudecode-timeout: 10
+          # PIN THE MODEL. The action's own default is `claude-opus-4-1-20250805`
+          # (claudecode/constants.py), which is both the most expensive tier
+          # ($15/$75 per MTok) and deprecated. Sonnet 5 is $3/$15, about 5x
+          # cheaper for the same diff.
+          #
+          # Do NOT drop this to Haiku to save more: the one real finding this
+          # action has produced (in the show.fm app) needed reasoning across
+          # three files to establish its severity.
+          #
+          # Pinning is also a resilience fix. When the unpinned default is
+          # finally retired this job starts failing, and per the warning at the
+          # top of this file the marker-file cache makes the re-run pass GREEN
+          # without auditing anything.
+          claude-model: claude-sonnet-5
+
+      - name: Require a completed security analysis
+        if: always()
+        run: python3 scripts/security-review/verify_result.py claudecode-results.json "$GITHUB_EVENT_PATH"

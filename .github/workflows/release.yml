@@ -1,0 +1,70 @@
+name: Release
+
+# npm trusted publishing is configured for THIS file name (release.yml) on
+# this repository. Renaming the file breaks publishing until the trusted
+# publisher on npmjs.com is updated to match.
+#
+# How a release happens:
+#   1. Pull requests add changesets (`pnpm changeset`).
+#   2. On each push to main, changesets/action opens or updates a
+#      "Version packages" pull request that applies them: the version bump
+#      and the CHANGELOG entry.
+#   3. Merging that pull request pushes to main with no changesets left, so
+#      the action runs `pnpm release` (scripts/publish.mjs), which publishes
+#      to npm over OIDC with provenance and tags the release.
+# No npm token is stored anywhere. Pushes with nothing new to publish are a
+# no-op, because scripts/publish.mjs skips a version that is already on npm.
+
+on:
+  push:
+    branches: [main]
+
+# Never cancel a release half way through.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # OIDC token for npm trusted publishing and provenance.
+      id-token: write
+      # Push the version branch and the release tag, create the GitHub release.
+      contents: write
+      # Open and update the "Version packages" pull request.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      # Trusted publishing needs npm 11.5.1 or later, which Node 24 ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Check the npm version supports trusted publishing
+        run: |
+          set -euo pipefail
+          version=$(npm --version)
+          echo "npm $version"
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number); if (a<11||(a===11&&(b<5||(b===5&&c<1)))) { console.error('npm 11.5.1 or later is required for trusted publishing'); process.exit(1) }" "$version"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Version pull request or publish
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm release
+          title: Version packages
+          commit: Version packages
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
