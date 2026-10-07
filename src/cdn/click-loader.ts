@@ -23,7 +23,12 @@
 	w: Window & { showfm?: { load?: () => void }; showfmStrings?: Record<string, string> }
 ) => {
 	const TAGS = 'showfm-player,podcasterplus-player,showfm-episodes,showfm-play';
-	const UI = 'data-showfm-facade-ui';
+	// Each attribute name once: this file is pasted inline, so bytes count.
+	const FACADE = 'data-showfm-facade';
+	const UI = `${FACADE}-ui`;
+	const ACTIVATED = 'data-showfm-activated';
+	const FOCUS = 'data-showfm-focus';
+	const BUSY = 'aria-busy';
 	const script = d.currentScript;
 	const src = script?.getAttribute('data-src') || 'https://embed.cdn.media/player/v1.js';
 	// [player title, player meta, list title, list meta] per language.
@@ -52,7 +57,7 @@
 
 	const style = d.createElement('style');
 	style.textContent =
-		`:is(${TAGS})[data-showfm-facade]:not(:defined)>:not([${UI}]){display:none}` +
+		`:is(${TAGS})[${FACADE}]:not(:defined)>:not([${UI}]){display:none}` +
 		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 Geist,ui-sans-serif,system-ui,sans-serif;text-align:left}` +
 		`[${UI}][data-c]{padding:12px 14px}[${UI}][data-d]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}` +
 		`@media(prefers-color-scheme:dark){[${UI}][data-a]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}}` +
@@ -70,7 +75,8 @@
 
 	/** WCAG: white on the accent unless black has the better contrast. */
 	const onAccent = (hex: string) => {
-		const n = parseInt(hex.length === 4 ? hex.replace(/\w/g, '$&$&') : hex.slice(1), 16);
+		const digits = hex.slice(1);
+		const n = parseInt(digits.length === 3 ? digits.replace(/\w/g, '$&$&') : digits, 16);
 		const lum = [n >> 16, (n >> 8) & 255, n & 255]
 			.map((c) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
 			.reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
@@ -78,23 +84,35 @@
 	};
 
 	const activate = (el: Element, mode: string, button?: Element | null) => {
-		el.setAttribute('data-showfm-activated', mode);
+		el.setAttribute(ACTIVATED, mode);
 		if (button) {
-			button.setAttribute('aria-busy', 'true');
-			if (d.activeElement === button) el.setAttribute('data-showfm-focus', '');
+			button.setAttribute(BUSY, 'true');
+			if (d.activeElement === button) el.setAttribute(FOCUS, '');
 		}
 		if (!added && !customElements.get('showfm-player')) {
 			added = true;
 			const tag = d.createElement('script');
 			tag.src = src;
 			tag.async = true;
+			// A failed load (network, CDN) must not strand the page: every
+			// pressed facade becomes pressable again, focus stays where it is,
+			// and the next press adds the script afresh.
+			tag.onerror = () => {
+				added = false;
+				tag.remove();
+				d.querySelectorAll(`[${ACTIVATED}]:not(:defined)`).forEach((pressed) => {
+					pressed.removeAttribute(ACTIVATED);
+					pressed.removeAttribute(FOCUS);
+					pressed.querySelector(`[${UI}] button`)?.removeAttribute(BUSY);
+				});
+			};
 			d.head.append(tag);
 		}
 	};
 
 	const draw = (el: Element) => {
-		if (el.hasAttribute('data-showfm-facade') || customElements.get(el.localName)) return;
-		el.setAttribute('data-showfm-facade', '');
+		if (el.hasAttribute(FACADE) || customElements.get(el.localName)) return;
+		el.setAttribute(FACADE, '');
 		const lang = (el.getAttribute('lang') || d.documentElement.lang || '')
 			.slice(0, 2)
 			.toLowerCase();
@@ -126,7 +144,7 @@
 
 	const showfm = (w.showfm ||= {});
 	showfm.load = () => {
-		d.querySelectorAll('[data-showfm-facade]:not(:defined)').forEach((el) =>
+		d.querySelectorAll(`[${FACADE}]:not(:defined)`).forEach((el) =>
 			activate(el, 'load', el.querySelector(`[${UI}] button`))
 		);
 		// Elements that upgraded already listen for this.

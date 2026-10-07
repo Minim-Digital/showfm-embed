@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Typed from the source entry; loaded from the build. The specifier is a
 // variable so type-checking does not need dist/ to exist.
@@ -43,5 +43,21 @@ describe('@showfm/embed ESM entry', () => {
 		expect(entry.resolvePalette('#7E22CE', 'dark').bg).toBe('#17151f');
 		expect(entry.downloadFilename('Episode One', 'audio/mpeg')).toBe('episode-one.mp3');
 		expect(entry.genPeaks('seed')).toHaveLength(220);
+	});
+
+	it('bundles German and French: no locale chunk is needed', async () => {
+		vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 500 })));
+		const element = document.createElement('showfm-player');
+		element.setAttribute('episode', '11111111-2222-4333-8444-555555555555');
+		element.setAttribute('lang', 'fr');
+		document.body.append(element);
+		for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+		expect(element.shadowRoot!.querySelector('.fallback p')?.textContent?.trim()).toBe(
+			'Lecture impossible pour le moment.'
+		);
+		expect(document.querySelector('script[src]')).toBeNull();
+		element.remove();
+		for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+		vi.unstubAllGlobals();
 	});
 });

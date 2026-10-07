@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { PLAYER_MIN_HEIGHTS } from '../../src/lib/heights';
+import { STRING_TABLES } from '../../src/lib/string-tables';
 import { episodePayload } from '../fixtures/episode';
 
 const PAGE_ORIGIN = 'https://host.example.test';
@@ -59,10 +60,22 @@ async function serve(
 	api: Api = 'ok',
 	{ width = 640, geist = false }: { width?: number; geist?: boolean } = {}
 ) {
+	locales.length = 0;
 	await page.route(`${PAGE_ORIGIN}/**`, (route) => {
 		const path = new URL(route.request().url()).pathname;
 		if (path === '/player/v1.js') {
 			return route.fulfill({ body: PLAYER_JS, contentType: 'text/javascript' });
+		}
+		// The locale chunks v1.js adds from next to itself for German and French.
+		const locale = /^\/player\/locales\/(de|fr)\.js$/.exec(path);
+		if (locale) {
+			locales.push(locale[1]);
+			return route.fulfill({
+				body: readFileSync(
+					fileURLToPath(new URL(`../../dist/cdn/locales/${locale[1]}.js`, import.meta.url))
+				),
+				contentType: 'text/javascript'
+			});
 		}
 		const font = /^\/fonts\/geist-(\d+)\.woff2$/.exec(path);
 		if (font) return route.fulfill({ body: GEIST(Number(font[1])), contentType: 'font/woff2' });
@@ -106,6 +119,8 @@ async function serve(
 }
 
 type Size = 'standard' | 'compact';
+/** Locale chunks requested since the last serve(). */
+const locales: string[] = [];
 const brandOf = (id: string) => (id === BRANDED_ID ? 'branded' : 'unbranded');
 
 const player = (id: string, size: Size, tag = 'showfm-player', style = '') =>
@@ -296,8 +311,11 @@ for (const lang of ['en', 'de', 'fr']) {
 		const compact = (id: string) =>
 			`<showfm-player id="${id}" lang="${lang}" episode="${BRANDED_ID}" size="compact" api="${API_ORIGIN}"></showfm-player>`;
 		await serve(page, compact('error'), 'no-audio', { width: 320, geist: true });
+		const strings = STRING_TABLES[lang as keyof typeof STRING_TABLES];
 		const error = page.locator('#error [part="error"] p');
-		await expect(error).toHaveCount(1);
+		// German and French arrive as a locale chunk: wait for the language.
+		await expect(error).toHaveText(strings.error);
+		expect(locales).toEqual(lang === 'en' ? [] : [lang]);
 		await page.evaluate(() => document.fonts.load('14px Geist'));
 		expect(await page.evaluate(() => document.fonts.check('14px Geist'))).toBe(true);
 		const lineHeight = await error.evaluate((p) => parseFloat(getComputedStyle(p).lineHeight));
@@ -315,13 +333,13 @@ for (const lang of ['en', 'de', 'fr']) {
 		});
 		await page.locator('#blocked [part="play"]').click();
 		const blocked = page.locator('#blocked [part="error"] p');
-		await expect(blocked).toHaveCount(1);
+		await expect(blocked).toHaveText(strings.blocked);
 		await page.evaluate(() => document.fonts.load('14px Geist'));
 		expect(await blocked.evaluate(fitsOneLine, lineHeight)).toBe(true);
 
 		await serve(page, compact('suspended'), 'suspended', { width: 320, geist: true });
 		const suspended = page.locator('#suspended [part="error"] p');
-		await expect(suspended).toHaveCount(1);
+		await expect(suspended).toHaveText(strings.suspended);
 		await page.evaluate(() => document.fonts.load('14px Geist'));
 		const fits = await suspended.evaluate((p) => p.scrollWidth <= p.clientWidth);
 		expect(fits).toBe(true);

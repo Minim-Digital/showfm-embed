@@ -50,7 +50,7 @@ If you change an attribute or a `part`, run `pnpm cem` and commit `custom-elemen
 - **v1 is a contract.** `dist/cdn/v1.js` is served to pages we cannot edit. Keep both tag names, every attribute and its behaviour, the skeleton heights and the light-DOM fallback slot. A breaking change ships as a new entry (`v2.js`), not as a change to v1.
 - **The height contract** (`src/lib/heights.ts`) changes only in a major version. If a change moves a rendered height, the browser test fails.
 - **Stay self-contained.** The player imports only `./` modules and Svelte. No runtime dependencies, no global CSS and no web fonts: everything lands in the public bundle.
-- **Every visible string has a key** in `src/lib/strings.ts`, in English, German and French. A test holds each to the design's maximum length, and the browser test renders the one-line messages in Geist at 320px.
+- **Every visible string has a key** in `src/lib/strings.ts` (English) and `src/lib/locales/` (German and French). The CDN build bundles English only and loads the others as `dist/cdn/locales/*.js` on demand, so keep new languages out of `v1.js`. A test holds each to the design's maximum length, and the browser test renders the one-line messages in Geist at 320px.
 - **Fallback markup is a contract with the WordPress plugin.** If `src/lib/fallback.ts` changes its output, update `fixtures/fallback/` in the same pull request; the plugin's PHP port follows it.
 - **Accessibility.** Every state stays axe-clean, and keyboard and screen-reader behaviour is tested.
 

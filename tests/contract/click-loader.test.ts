@@ -28,7 +28,12 @@ beforeAll(() => {
 	HTMLMediaElement.prototype.pause = vi.fn();
 	Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', { value: () => null });
 });
-afterAll(() => vi.unstubAllGlobals());
+afterAll(async () => {
+	// Elements left on the page would tear down after jsdom does.
+	document.body.innerHTML = '';
+	await settle();
+	vi.unstubAllGlobals();
+});
 
 describe('click-loader.js with v1.js', () => {
 	it('is small enough to paste inline', () => {

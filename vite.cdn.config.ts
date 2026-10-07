@@ -9,6 +9,7 @@
  * Versioning: compatible changes update v1.js in place; breaking player
  * changes ship as a new v2 entry.
  */
+import { fileURLToPath } from 'node:url';
 import { defineConfig, transformWithEsbuild } from 'vite';
 import { svelte, vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
@@ -30,8 +31,25 @@ const minifyStyles = {
 	}
 };
 
+/**
+ * The CDN script carries English only: strings.ts's bundled locales
+ * (locales/index.ts) become locales/lazy.ts, which loads German and French
+ * from dist/cdn/locales/ when an element needs them.
+ */
+const lazyLocales = {
+	name: 'lazy-locales',
+	enforce: 'pre' as const,
+	resolveId(source: string, importer?: string) {
+		if (/^\.\/locales\/index(\.js)?$/.test(source) && importer) {
+			return fileURLToPath(new URL('./src/lib/locales/lazy.ts', import.meta.url));
+		}
+		return null;
+	}
+};
+
 export default defineConfig({
 	plugins: [
+		lazyLocales,
 		svelte({
 			configFile: false,
 			preprocess: [vitePreprocess(), minifyStyles],

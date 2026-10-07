@@ -86,7 +86,7 @@ The package also ships a [Custom Elements Manifest](https://custom-elements-mani
 
 ### The classic script
 
-`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself.
+`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` next to it: `v1.js` loads its German and French strings from there.
 
 ## Attributes
 
@@ -167,6 +167,7 @@ The shared test cases are in the package at `@showfm/embed/fixtures/fallback/*.j
 ## Strings and languages
 
 - The player's strings follow the element's `lang`, else the page's `<html lang>`, else English. English, German and French ship. Episode titles and descriptions are never translated.
+- From npm, German and French are bundled. The CDN script carries English only: when an element's language resolves to German or French, it adds `locales/de.js` or `locales/fr.js` (under 0.6 kB gzipped) from next to itself, once per page, and the element re-renders in that language. An English page downloads nothing more.
 - Override any string for every element with `window.showfmStrings = { error: '...' }` before the script runs, or for one element with `element.strings = { play: '...' }`. The element's own overrides win. The keys are in `STRING_TABLES.en`.
 - Keep overrides short. The compact player has 1px of spare height, so error, blocked and suspended messages must fit one line (40 characters is the limit the shipped strings keep). A longer one is cut with an ellipsis rather than adding a line.
 

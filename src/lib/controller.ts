@@ -177,7 +177,8 @@ export class PageAudioController {
 
 	private electCredit() {
 		this.claims.sort((a, b) =>
-			a.host.compareDocumentPosition(b.host) & Node.DOCUMENT_POSITION_PRECEDING ? 1 : -1
+			// 2 is Node.DOCUMENT_POSITION_PRECEDING: b comes before a.
+			a.host.compareDocumentPosition(b.host) & 2 ? 1 : -1
 		);
 		// The first claimant that wants it. An earlier one still loading (null)
 		// may yet want it, so nobody gets it until that one decides: granting a

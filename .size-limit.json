@@ -6,6 +6,18 @@
 		"gzip": true
 	},
 	{
+		"name": "dist/cdn/locales/de.js (loaded only for German, gzipped)",
+		"path": "dist/cdn/locales/de.js",
+		"limit": "1.5 KB",
+		"gzip": true
+	},
+	{
+		"name": "dist/cdn/locales/fr.js (loaded only for French, gzipped)",
+		"path": "dist/cdn/locales/fr.js",
+		"limit": "1.5 KB",
+		"gzip": true
+	},
+	{
 		"name": "dist/cdn/click-loader.js (pasted inline, so measured as written)",
 		"path": "dist/cdn/click-loader.js",
 		"limit": "4.5 KB",

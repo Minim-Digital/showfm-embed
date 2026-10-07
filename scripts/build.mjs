@@ -5,6 +5,7 @@
  *   dist/cdn/v1.js  classic script that registers the elements (vite.cdn.config.ts)
  *   dist/cdn/click-loader.js  the inline load="click" loader (vite.loader.config.ts)
  *   dist/cdn/v1-fallback.css  optional styles for elements before they upgrade
+ *   dist/cdn/locales/*.js  German and French strings, loaded by v1.js on demand
  *   dist/server.js  the pure modules, no side effects (vite.server.config.ts)
  *   dist/index.js   the package root: dist/server.js plus the registration
  *   dist/jsx/       React, Preact and Solid JSX typings
@@ -37,6 +38,21 @@ const fallbackCss = await transformWithEsbuild(
 );
 writeFileSync('dist/cdn/v1-fallback.css', fallbackCss.code);
 
+// Locale chunks for v1.js, which carries English only. Each is a classic
+// script that registers its table where strings.ts looks (one registry per
+// page, under a registered symbol). The tables come from the built server
+// entry, so they are the ones the npm entries bundle.
+const { STRING_TABLES } = await import(new URL('../dist/server.js', import.meta.url).href);
+const LOCALE_KEY = "Symbol.for('showfm.locales.v1')";
+mkdirSync('dist/cdn/locales', { recursive: true });
+for (const [language, table] of Object.entries(STRING_TABLES)) {
+	if (language === 'en') continue;
+	writeFileSync(
+		`dist/cdn/locales/${language}.js`,
+		`(globalThis[${LOCALE_KEY}]||(globalThis[${LOCALE_KEY}]={})).${language}=${JSON.stringify(table)};\n`
+	);
+}
+
 // The package root. Svelte's compiled element code calls
 // customElements.define and extends HTMLElement as soon as it runs, so it
 // cannot be imported unguarded in Node or SSR. The root therefore carries
@@ -51,10 +67,14 @@ writeFileSync(
 		'// (the body of registerShowfmElements is dist/cdn/v1.js) and re-exports the',
 		'// pure modules from ./server.js. Importing it outside a browser is safe.',
 		"export * from './server.js';",
+		"import { STRING_TABLES as showfmStringTables } from './server.js';",
 		'function registerShowfmElements() {',
 		v1.trimEnd(),
 		'}',
 		"if (typeof customElements !== 'undefined' && typeof HTMLElement !== 'undefined' && !customElements.get('showfm-player')) {",
+		'\t// The classic script loads German and French on demand; here they are bundled already.',
+		`\tconst locales = (globalThis[${LOCALE_KEY}] ||= {});`,
+		'\tfor (const [language, table] of Object.entries(showfmStringTables)) if (language !== "en") locales[language] ||= table;',
 		'\tregisterShowfmElements();',
 		'}',
 		''

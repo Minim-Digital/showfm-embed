@@ -6,13 +6,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	ACTIONS_MAX_LENGTH,
 	STRING_MAX_LENGTHS,
-	STRING_TABLES,
 	formatString,
 	languageFromTag,
 	languageTagFor,
 	resolveStrings,
 	type StringKey
 } from '../strings';
+import { STRING_TABLES } from '../string-tables';
 import { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from '../element-strings';
 
 const LANGUAGES = ['en', 'de', 'fr'] as const;

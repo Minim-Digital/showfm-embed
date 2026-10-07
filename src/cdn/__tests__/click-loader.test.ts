@@ -92,6 +92,21 @@ describe('before the press', () => {
 		);
 	});
 
+	it.each([
+		['#fff', '#000'],
+		['#000', '#fff'],
+		['#abc', '#000'],
+		['#ABCDEF', '#000'],
+		['#7E22CE', '#fff'],
+		['#0ea5e9', '#000']
+	])('picks the text colour on %s by contrast, shorthand included: %s', async (accent, text) => {
+		document.getElementById('one')!.setAttribute('accent', accent);
+		await runLoader();
+		const box = document.querySelector('#one [data-showfm-facade-ui]') as HTMLElement;
+		expect(box.style.getPropertyValue('--a')).toBe(accent);
+		expect(box.style.getPropertyValue('--f')).toBe(text);
+	});
+
 	it('falls back to the default accent for a value that is not a hex colour', async () => {
 		document.getElementById('one')!.setAttribute('accent', 'red;background:url(x)');
 		await runLoader();
@@ -118,6 +133,36 @@ describe('the press', () => {
 		expect(scripts()).toHaveLength(1);
 		expect(list.getAttribute('data-showfm-activated')).toBe('load');
 		expect(document.getElementById('two')!.hasAttribute('data-showfm-activated')).toBe(false);
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it('lets the next press try again when v1.js fails to load', async () => {
+		await runLoader();
+		const one = document.getElementById('one')!;
+		const list = document.getElementById('list')!;
+		facadeButton(one).focus();
+		facadeButton(one).click();
+		facadeButton(list).click();
+		const [failed] = scripts();
+		failed.dispatchEvent(new Event('error'));
+
+		// Back to a pressable facade, focus still on the pressed button.
+		expect(scripts()).toHaveLength(0);
+		for (const element of [one, list]) {
+			expect(element.hasAttribute('data-showfm-activated')).toBe(false);
+			expect(facadeButton(element).hasAttribute('aria-busy')).toBe(false);
+		}
+		expect(one.hasAttribute('data-showfm-focus')).toBe(false);
+		expect(document.activeElement).toBe(facadeButton(one));
+
+		// The next press inserts the script again, and this time it loads.
+		facadeButton(one).click();
+		expect(scripts()).toHaveLength(1);
+		expect(scripts()[0]).not.toBe(failed);
+		expect(one.getAttribute('data-showfm-activated')).toBe('play');
+		expect(one.hasAttribute('data-showfm-focus')).toBe(true);
+		scripts()[0].dispatchEvent(new Event('load'));
+		expect(one.getAttribute('data-showfm-activated')).toBe('play');
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 

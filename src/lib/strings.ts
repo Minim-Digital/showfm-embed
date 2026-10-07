@@ -1,6 +1,10 @@
 /**
- * Every string the elements show or announce, with English, German and
- * French tables (design page 8 of the embeds design, 2026-10-07).
+ * Every string the elements show or announce (design page 8 of the embeds
+ * design, 2026-10-07). English is here; German and French are in
+ * locales/. The npm entries bundle them. The CDN script carries English
+ * only and loads a locale chunk next to itself when an element's language
+ * resolves to German or French (locales/lazy.ts), so a page in English
+ * downloads nothing more and paints as it always has.
  *
  * The language comes from the element's own `lang` attribute, else the
  * page's `<html lang>`, else English. Episode titles and descriptions are
@@ -12,8 +16,9 @@
  *
  * Pure: no DOM work at import time, so the server entry can export it.
  */
+import { BUNDLED_LOCALES } from './locales/index.js';
 
-const EN = {
+export const EN = {
 	/** The one error string, for every element and every failure (40 max). */
 	error: 'This episode can’t be played right now.',
 	/** The browser refused to start playback (40 max). */
@@ -55,74 +60,6 @@ export type Strings = typeof EN;
 export type StringKey = keyof Strings;
 export type StringOverrides = Partial<Record<StringKey, string>>;
 export type Language = 'en' | 'de' | 'fr';
-
-const DE: Strings = {
-	error: 'Diese Folge ist gerade nicht abspielbar.',
-	blocked: 'Ihr Browser blockiert die Wiedergabe.',
-	suspended: 'Diese Show ist gerade nicht verfügbar.',
-	retry: 'Erneut versuchen',
-	listenOnShowfm: 'Auf show.fm anhören',
-	loading: 'Audioplayer wird geladen',
-	playerLabel: 'Audioplayer: {title}',
-	play: 'Abspielen',
-	pause: 'Pause',
-	back15: '15 Sekunden zurück',
-	forward30: '30 Sekunden vor',
-	seek: 'Position',
-	seekValue: '{current} von {total}',
-	speed: 'Wiedergabegeschwindigkeit, aktuell {rate}×',
-	speedChanged: 'Wiedergabegeschwindigkeit {rate}×',
-	mute: 'Stummschalten',
-	unmute: 'Ton an',
-	muted: 'Stumm',
-	unmuted: 'Ton an',
-	playing: 'Wiedergabe läuft',
-	paused: 'Pausiert',
-	finished: 'Beendet',
-	download: 'Folge herunterladen',
-	share: 'Folge teilen',
-	shared: 'Geteilt',
-	linkCopied: 'Link kopiert',
-	shareFailed: 'Teilen nicht möglich',
-	poweredBy: 'Bereitgestellt von',
-	facadeTitle: 'Podcastfolge abspielen',
-	facadeMeta: 'Wird beim Abspielen von show.fm geladen'
-};
-
-const FR: Strings = {
-	error: 'Lecture impossible pour le moment.',
-	blocked: 'Votre navigateur a bloqué la lecture.',
-	suspended: 'Émission indisponible pour le moment.',
-	retry: 'Réessayer',
-	listenOnShowfm: 'Écouter sur show.fm',
-	loading: 'Chargement du lecteur audio',
-	playerLabel: 'Lecteur audio\u202f: {title}',
-	play: 'Lire',
-	pause: 'Pause',
-	back15: 'Reculer de 15 secondes',
-	forward30: 'Avancer de 30 secondes',
-	seek: 'Position',
-	seekValue: '{current} sur {total}',
-	speed: 'Vitesse de lecture, actuellement {rate}×',
-	speedChanged: 'Vitesse de lecture {rate}×',
-	mute: 'Couper le son',
-	unmute: 'Rétablir le son',
-	muted: 'Son coupé',
-	unmuted: 'Son rétabli',
-	playing: 'Lecture en cours',
-	paused: 'En pause',
-	finished: 'Terminé',
-	download: 'Télécharger l’épisode',
-	share: 'Partager l’épisode',
-	shared: 'Partagé',
-	linkCopied: 'Lien copié',
-	shareFailed: 'Partage impossible',
-	poweredBy: 'Propulsé par',
-	facadeTitle: 'Lire l’épisode du podcast',
-	facadeMeta: 'Chargé depuis show.fm à la lecture'
-};
-
-export const STRING_TABLES: Readonly<Record<Language, Strings>> = { en: EN, de: DE, fr: FR };
 
 /**
  * The longest each string may be, in characters (design page 8). The real
@@ -172,8 +109,23 @@ function pickStrings(source: unknown): StringOverrides {
 }
 
 /**
- * The strings for one element: English, then the language's table, then
- * `window.showfmStrings`, then the element's own overrides.
+ * Locale tables a CDN script registered at run time, shared by every copy
+ * of the package on the page (the locale chunks and the ESM root write here).
+ */
+export const LOCALE_REGISTRY_KEY = Symbol.for('showfm.locales.v1');
+
+/** A locale's table, bundled or registered; null when it is not here (yet). */
+export function localeTable(language: Language): Partial<Strings> | null {
+	if (language === 'en') return EN;
+	const registry = (globalThis as unknown as Record<symbol, Record<string, Partial<Strings>>>)[
+		LOCALE_REGISTRY_KEY
+	];
+	return BUNDLED_LOCALES[language] ?? registry?.[language] ?? null;
+}
+
+/**
+ * The strings for one element: English, then the language's table (when it
+ * is here), then `window.showfmStrings`, then the element's own overrides.
  */
 export function resolveStrings(language: Language = 'en', overrides?: unknown): Strings {
 	const page =
@@ -182,7 +134,7 @@ export function resolveStrings(language: Language = 'en', overrides?: unknown): 
 			: undefined;
 	return {
 		...EN,
-		...STRING_TABLES[language],
+		...pickStrings(localeTable(language)),
 		...pickStrings(page),
 		...pickStrings(overrides)
 	};

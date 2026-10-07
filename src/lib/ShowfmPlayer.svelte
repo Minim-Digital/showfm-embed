@@ -64,6 +64,7 @@
 	import { pageController, type CreditClaim } from './controller';
 	import { DEFAULT_ACCENT, onAccentColor, parseHex } from './contrast';
 	import { languageFromTag, languageTagFor, resolveStrings, type StringOverrides } from './strings';
+	import { loadLocale } from './locales/index';
 
 	let {
 		episode = '',
@@ -120,7 +121,20 @@
 	hostElement?.removeAttribute('data-showfm-focus');
 	hostElement?.querySelector(':scope > [data-showfm-facade-ui]')?.remove();
 
-	const s = $derived(resolveStrings(languageFromTag(languageTag), strings));
+	// German and French arrive as a locale chunk in the CDN build: render in
+	// English until it is here, then again in the language (bumps this).
+	let localesLoaded = $state(0);
+	const language = $derived(languageFromTag(languageTag));
+	const s = $derived((void localesLoaded, resolveStrings(language, strings)));
+	$effect(() => {
+		let current = true;
+		loadLocale(language).then((loaded) => {
+			if (loaded && current) localesLoaded += 1;
+		});
+		return () => {
+			current = false;
+		};
+	});
 	const deferred = $derived(load === 'click' && !activated);
 
 	// Attribute pins; anything else follows the show settings in the payload.
@@ -296,7 +310,7 @@
 		credit={hostElement ? creditGranted : wantsCredit}
 		headingLevel={Number.isInteger(level) ? level : null}
 		lang={languageTag}
-		{strings}
+		strings={s}
 		sourceTag="embed"
 	/>
 {:else if status === 'facade' || (status === 'loading' && activated)}

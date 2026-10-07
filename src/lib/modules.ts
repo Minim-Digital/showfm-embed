@@ -29,11 +29,11 @@ export { downloadFilename, downloadHref } from './download.js';
 export {
 	ACTIONS_MAX_LENGTH,
 	STRING_MAX_LENGTHS,
-	STRING_TABLES,
 	formatString,
 	languageFromTag,
 	resolveStrings
 } from './strings.js';
+export { STRING_TABLES } from './string-tables.js';
 export type { Language, StringKey, StringOverrides, Strings } from './strings.js';
 export { DEFAULT_RETRY_AFTER, apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api.js';
 export type { ApiRequestOptions, ApiResult, ApiStatus } from './api.js';
