@@ -62,6 +62,11 @@ const ATTRIBUTES = {
 		description:
 			'`click` draws a facade and requests nothing from show.fm until the visitor presses it. `showfm.load()` loads every facade at once.'
 	},
+	transcript: {
+		type: "'on' | 'open'",
+		description:
+			'`on` adds a Transcript button that opens the follow-along transcript under the player, which grows downwards; `open` opens it at once. Only the standard size offers it, and only when the audio and the transcript are on show.fm. Absent, there is no button.'
+	},
 	strings: {
 		type: 'Partial<Record<string, string>>',
 		description:
@@ -83,7 +88,8 @@ const PART_DESCRIPTIONS = {
 	seek: 'The seek slider.',
 	share: 'The share button.',
 	subtitle: 'The podcast title line.',
-	title: 'The episode title link.'
+	title: 'The episode title link.',
+	transcript: 'The Transcript button.'
 };
 
 /**
@@ -210,6 +216,42 @@ const LIST_PART_DESCRIPTIONS = {
 };
 
 /**
+ * <showfm-transcript>. `lang` (a global attribute) is read too but not listed.
+ * @type {Record<string, { type: string, default?: string, description: string }>}
+ */
+const TRANSCRIPT_ATTRIBUTES = {
+	episode: {
+		type: 'string',
+		description:
+			"Episode UUID. Shows that episode's transcript, and follows along whenever it plays on the page. Without it, the transcript follows what plays."
+	},
+	for: {
+		type: 'string',
+		description:
+			'The id of a `showfm-player` or `showfm-episodes` on the page: the transcript follows what it plays.'
+	},
+	height: {
+		type: 'number',
+		default: '320',
+		description:
+			'Height of the text area in pixels, 120 to 2000. The search row adds 55px, and the border 2px.'
+	},
+	'heading-level': {
+		type: "'2' | '3' | '4' | '5' | '6'",
+		description:
+			'Makes the name "Transcript" a heading of this level. Absent, no heading is emitted.'
+	},
+	theme: ATTRIBUTES.theme,
+	accent: ATTRIBUTES.accent,
+	api: ATTRIBUTES.api
+};
+
+/** @type {Record<string, string>} */
+const TRANSCRIPT_PART_DESCRIPTIONS = {
+	card: 'The transcript panel.'
+};
+
+/**
  * Attribute names from the <svelte:options customElement> props block.
  * @param {string} source
  */
@@ -293,6 +335,17 @@ export function buildManifest() {
 	playNames.splice(playNames.indexOf('mini-player') + 1, 0, MINI_PLAYER_POSITION);
 	const playParts = readParts(readFileSync('src/lib/PlayButton.svelte', 'utf-8'));
 	checkDescribed(playNames, playParts, PLAY_ATTRIBUTES, PLAY_PART_DESCRIPTIONS);
+	const transcriptNames = readListAttributes(
+		readFileSync('src/lib/transcript.svelte.ts', 'utf-8'),
+		'TRANSCRIPT_ATTRIBUTES'
+	);
+	const transcriptParts = readParts(readFileSync('src/lib/Transcript.svelte', 'utf-8'));
+	checkDescribed(
+		transcriptNames,
+		transcriptParts,
+		TRANSCRIPT_ATTRIBUTES,
+		TRANSCRIPT_PART_DESCRIPTIONS
+	);
 
 	const attributes = names.map((name) => ({
 		name,
@@ -401,6 +454,35 @@ export function buildManifest() {
 							}
 						],
 						cssParts: playParts.map((name) => ({ name, description: PLAY_PART_DESCRIPTIONS[name] }))
+					},
+					{
+						kind: 'class',
+						name: 'ShowfmTranscript',
+						tagName: 'showfm-transcript',
+						customElement: true,
+						description:
+							'The follow-along transcript: the line being spoken is highlighted (word by word when the transcript has word timings), a click on a line seeks, and the visitor can search it. It follows the episode in `episode`, the player or list named by `for`, or else whatever plays on the page. Its code loads the first time one is on the page. Its fallback is the transcript as paragraphs (renderTranscriptHTML), for search engines and visitors without JavaScript. Set --showfm-height to the height to reserve.',
+						attributes: attributesOf(transcriptNames, TRANSCRIPT_ATTRIBUTES),
+						members: [
+							{
+								kind: 'field',
+								name: 'strings',
+								type: { text: ATTRIBUTES.strings.type },
+								description: ATTRIBUTES.strings.description
+							}
+						],
+						cssProperties: [
+							{
+								name: '--showfm-height',
+								description:
+									'The height to reserve before the transcript loads; its fallback text scrolls inside it.',
+								default: '0'
+							}
+						],
+						cssParts: transcriptParts.map((name) => ({
+							name,
+							description: TRANSCRIPT_PART_DESCRIPTIONS[name]
+						}))
 					}
 				],
 				exports: [
@@ -423,6 +505,11 @@ export function buildManifest() {
 						kind: 'custom-element-definition',
 						name: 'showfm-play',
 						declaration: { name: 'ShowfmPlay', module: MODULE_PATH }
+					},
+					{
+						kind: 'custom-element-definition',
+						name: 'showfm-transcript',
+						declaration: { name: 'ShowfmTranscript', module: MODULE_PATH }
 					}
 				]
 			}

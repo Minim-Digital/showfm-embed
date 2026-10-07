@@ -54,14 +54,19 @@ export {
 	isoDuration,
 	renderEpisodeHTML,
 	renderEpisodeListHTML,
+	renderTranscriptHTML,
 	safeUrl,
 	serializeJsonLd
 } from './fallback.js';
 export type {
+	FallbackCue,
 	FallbackEpisode,
 	FallbackPodcast,
 	RenderEpisodeListOptions,
-	RenderEpisodeOptions
+	RenderEpisodeOptions,
+	RenderTranscriptOptions
 } from './fallback.js';
 export { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from './element-strings.js';
+export { TRANSCRIPT_STRING_MAX_LENGTHS } from './transcript-strings.js';
+export type { TranscriptStringKey, TranscriptStrings } from './transcript-strings.js';
 export type { ElementStringKey, ElementStrings } from './element-strings.js';

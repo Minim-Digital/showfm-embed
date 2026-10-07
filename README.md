@@ -1,6 +1,6 @@
 # @showfm/embed
 
-The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm). `<showfm-episodes>` lists a show's episodes, each one playable (see [The episode list](#the-episode-list)). `<showfm-play>` is a play button for one episode, with a mini-player for the page (see [The play button](#the-play-button)).
+The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm). `<showfm-episodes>` lists a show's episodes, each one playable (see [The episode list](#the-episode-list)). `<showfm-play>` is a play button for one episode, with a mini-player for the page (see [The play button](#the-play-button)). `<showfm-transcript>` is the follow-along transcript (see [The transcript](#the-transcript)).
 
 It is the same player that show.fm serves as `/player/v1.js` today. This package is where that player is built and released.
 
@@ -53,7 +53,7 @@ import { PLAYER_MIN_HEIGHTS, renderEpisodeHTML } from '@showfm/embed/server';
 
 Besides the height contract, both entries export:
 
-- `renderEpisodeHTML`, `renderEpisodeListHTML`, `episodeJsonLd` and `serializeJsonLd`: see [Fallback markup](#fallback-markup).
+- `renderEpisodeHTML`, `renderEpisodeListHTML`, `renderTranscriptHTML`, `episodeJsonLd` and `serializeJsonLd`: see [Fallback markup](#fallback-markup).
 - `apiGet`, the public API client the elements use. It returns a typed status (`ok`, `not-modified`, `not-found`, `unavailable`, `rate-limited` or `error`) and never throws. Pass `etag` from a server to get `not-modified` back; in a browser the HTTP cache already revalidates.
 - `parseVtt` and its helpers (`activeCueIndex`, `activeWordIndex`, `matchingCueIndexes` and others): a tolerant WebVTT parser that runs in linear time.
 - `STRING_TABLES`, `resolveStrings` and `formatString`: the elements' strings.
@@ -80,13 +80,13 @@ The root entry types `document.querySelector('showfm-player')`. For JSX, load th
 import type {} from '@showfm/embed/jsx-react'; // or jsx-preact, jsx-solid
 ```
 
-Then `<showfm-player episode="..." size="compact" />`, `<showfm-episodes podcast="..." layout="grid" />` and `<showfm-play episode="..." variant="icon" />` type-check, including the attribute values.
+Then `<showfm-player episode="..." size="compact" />`, `<showfm-episodes podcast="..." layout="grid" />`, `<showfm-play episode="..." variant="icon" />` and `<showfm-transcript for="..." />` type-check, including the attribute values.
 
 The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools.
 
 ### The classic script
 
-`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` and `@showfm/embed/cdn/chunks/` next to it: `v1.js` loads its German and French strings, the episode list's code and the play button's code from there.
+`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` and `@showfm/embed/cdn/chunks/` next to it: `v1.js` loads its German and French strings, the episode list's, the play button's and the transcript's code from there.
 
 ## Attributes
 
@@ -102,6 +102,7 @@ The package also ships a [Custom Elements Manifest](https://custom-elements-mani
 | `heading-level` | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted. |
 | `credit`        | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. `auto` follows the show's plan.                                              |
 | `load`          | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                 |
+| `transcript`    | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.         |
 | `lang`          | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                |
 
 Set `episode` or `podcast`. With neither, the player shows its fallback.
@@ -121,7 +122,15 @@ Set `episode` or `podcast`. With neither, the player shows its fallback.
 
 When an episode's audio is not on a show.fm media host (`m.cdn.media`, `media.podcasterplus.com` or staging's `m.showfm.dev`), it still plays, but there is no Download button and no transcript is offered. For testing, a page can add hosts with `window.showfmMediaHosts = ['media.example.test']`.
 
-The player's parts can be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `footer` and `error`.
+The player's parts can be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `transcript`, `footer` and `error`.
+
+### The transcript option
+
+With `transcript="on"`, the standard player has a Transcript button next to the speed button. Pressing it opens the follow-along transcript under the controls: the player grows downwards by 395px (340px of text and the search row), and "Powered by" moves under the transcript. `transcript="open"` opens it at once. It is the same transcript as [`<showfm-transcript>`](#the-transcript), following this player.
+
+- The button is offered only when the episode has a transcript and both the audio and the transcript are on a show.fm media host. The compact player has none.
+- The transcript's code loads when it is first opened, not before.
+- Embed snippets reserve the closed player's height; an open transcript adds to it. For a fixed height, use the iframe's transcript variant.
 
 ## The episode list
 
@@ -224,6 +233,59 @@ The page has one mini-player. It appears after the first play from a play button
 - From outside, style it with `showfm-mini-player::part(mini-player)`.
 - The mini-player keeps playing while the visitor scrolls, not across page loads (unless the site is a single-page app).
 
+## The transcript
+
+`<showfm-transcript>` shows an episode's transcript and follows along: the line being spoken is highlighted, word by word when the transcript has word timings, and the text scrolls with it.
+
+```html
+<showfm-player id="episode-player" episode="11111111-2222-4333-8444-555555555555"></showfm-player>
+
+<showfm-transcript
+	for="episode-player"
+	style="display:block;--showfm-height:377px;min-height:var(--showfm-height)"
+></showfm-transcript>
+```
+
+What it follows:
+
+- `for="id"`: the `showfm-player` or `showfm-episodes` with that id. With a list, it shows the transcript of the episode the list plays.
+- `episode="uuid"`: that episode's transcript. It follows along whenever that episode plays anywhere on the page, and reads as text otherwise. With `for` as well, only when that element plays it.
+- Neither: whatever plays on the page. Until something plays it says "Play an episode to follow its transcript here."
+
+What the visitor can do:
+
+- Click a line, or its timestamp, to play from there. The timestamp is the line's one button, named "Jump to 14 minutes 2 seconds, Tom", so the transcript is not hundreds of tab stops.
+- Search it, ignoring case and accents. "3 of 12" says which match is active; the arrows, Enter and Shift+Enter move between matches, and Escape or the clear button ends the search. Matches are amber; the active one is ringed.
+- Scroll away from the line being spoken, with the mouse, touch or keyboard. Following stops, and "Back to now · 14:02" (with an arrow towards it) brings it back. Searching stops following too.
+
+How it behaves:
+
+- It keeps its height in every state: the search row (55px) over a text area of `height` pixels (320 by default), inside a 1px border, 377px in all. Loading shows a skeleton, with search disabled.
+- In a box under 400px wide (a sidebar) the timestamp moves onto the speaker line and the text takes the full width.
+- Speaker names come from the transcript's voice tags and show when the speaker changes. Unlabelled speakers ("Speaker A") show no name.
+- A transcript without word timings highlights whole lines. So does one whose timings no longer match the audio (a word outside its line, or lines that run past the end of the audio), which happens when the audio is replaced after transcription.
+- Long transcripts stay light: only the lines near the one in view are in the page, plus the line being spoken and the active match. A 15,000-word transcript keeps well under 300 lines in the DOM.
+- Nothing in it is a live region except the search count, so a screen reader is not interrupted by every word. The line being spoken has `aria-current`.
+- Under reduced motion it jumps to the line instead of scrolling smoothly. Nothing animates.
+- The transcript is offered only when the audio and the WebVTT are both on a show.fm media host. Otherwise, with `episode` the element renders nothing; following, it says "There’s no transcript for this episode."
+- If the transcript cannot load it says so, with Try again; playback is not affected. A suspended show shows "This show isn’t available right now." An unknown or unpublished `episode` (404) renders nothing and gives back its reserved height.
+
+| Attribute       | Values                  | Default               | What it does                                                                           |
+| --------------- | ----------------------- | --------------------- | -------------------------------------------------------------------------------------- |
+| `episode`       | episode UUID            |                       | That episode's transcript.                                                             |
+| `for`           | element id              |                       | Follows what that player or list plays.                                                |
+| `height`        | `120` to `2000`         | `320`                 | Height of the text area in pixels.                                                     |
+| `heading-level` | `2` to `6`              | none                  | Makes the name "Transcript" a heading of that level. Without it no heading is emitted. |
+| `load`          | `click`                 |                       | Requests nothing, not even the transcript's code, until `showfm.load()` runs.          |
+| `theme`         | `auto`, `light`, `dark` | the show's setting    | Pins the theme.                                                                        |
+| `accent`        | hex colour              | the show's colour     | Pins the accent.                                                                       |
+| `api`           | URL                     | `https://api.show.fm` | API origin. For development and testing only.                                          |
+| `lang`          | language tag            | `<html lang>`         | The language of the transcript's own strings.                                          |
+
+- The transcript's code is a separate file that `v1.js` adds from `chunks/` the first time a transcript is on the page (or a player's transcript is opened). A page without one never downloads it.
+- Put the transcript as text inside the element (`renderTranscriptHTML`) so search engines and visitors without JavaScript can read it. It scrolls inside `--showfm-height` until the element upgrades.
+- The part is `card`, the panel.
+
 ## Load on click
 
 For sites that need consent before any third-party request, `load="click"` makes the element request nothing from show.fm until the visitor presses it. Paste the loader inline after the elements instead of loading `v1.js`:
@@ -255,17 +317,18 @@ For sites that need consent before any third-party request, `load="click"` makes
 
 Each element upgrades the markup inside it. That markup is what shows before the script loads, without JavaScript, and to search engines, which keep following its links.
 
-| Element           | Markup inside it                                                                        |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| `showfm-player`   | `<a href="listen URL">title</a><audio controls preload="none" src="audio URL"></audio>` |
-| `showfm-episodes` | `<ul><li><a href="listen URL">title</a></li>...</ul>`                                   |
-| `showfm-play`     | the same as the player                                                                  |
+| Element             | Markup inside it                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `showfm-player`     | `<a href="listen URL">title</a><audio controls preload="none" src="audio URL"></audio>` |
+| `showfm-episodes`   | `<ul><li><a href="listen URL">title</a></li>...</ul>`                                   |
+| `showfm-play`       | the same as the player                                                                  |
+| `showfm-transcript` | `<div><p><strong>Speaker:</strong> text</p>...</div>`                                   |
 
-`renderEpisodeHTML(episode, options)` and `renderEpisodeListHTML(podcast, episodes, options)` in `@showfm/embed/server` produce exactly this markup from public API payloads, HTML-escaped, and drop any link that is not `http` or `https`. `episodeJsonLd(episode)` returns optional schema.org `PodcastEpisode` data; put it in a `<script type="application/ld+json">` with `serializeJsonLd`, which escapes `<`.
+`renderEpisodeHTML(episode, options)` and `renderEpisodeListHTML(podcast, episodes, options)` in `@showfm/embed/server` produce exactly this markup from public API payloads, HTML-escaped, and drop any link that is not `http` or `https`. `renderTranscriptHTML(cuesOrVtt, options)` takes the WebVTT text or parsed cues: one paragraph per speaker's turn, named, and one per cue for unlabelled speakers. `episodeJsonLd(episode)` returns optional schema.org `PodcastEpisode` data; put it in a `<script type="application/ld+json">` with `serializeJsonLd`, which escapes `<`.
 
 The shared test cases are in the package at `@showfm/embed/fixtures/fallback/*.json`, so ports to other languages (the WordPress plugin's PHP) can prove they produce the same bytes.
 
-`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.6 kB gzipped) for that markup. It styles players only until they are defined, so it never touches an upgraded player. A list or a play button is defined as soon as `v1.js` runs but mounts when its code arrives, so its fallback stays styled until then; it also makes the list a block that keeps `--showfm-height`, and the play button a line of its own height.
+`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.6 kB gzipped) for that markup. It styles players only until they are defined, so it never touches an upgraded player. A list or a play button is defined as soon as `v1.js` runs but mounts when its code arrives, so its fallback stays styled until then; it also makes the list a block that keeps `--showfm-height`, and the play button a line of its own height. A transcript's fallback text scrolls inside `--showfm-height` (377px if it is not set), so the upgrade does not move the page.
 
 ## Strings and languages
 
@@ -289,7 +352,7 @@ The constants are exported as `PLAYER_MIN_HEIGHTS` and `IFRAME_HEIGHTS`. CI meas
 
 ## Privacy
 
-The player, the list, the play button and the mini-player set no cookies and use no storage. They request episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` an element requests nothing at all until the visitor presses it.
+The player, the list, the play button, the mini-player and the transcript set no cookies and use no storage. The transcript fetches the episode's WebVTT from show.fm's media host. They request episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` an element requests nothing at all until the visitor presses it.
 
 ## Origin
 

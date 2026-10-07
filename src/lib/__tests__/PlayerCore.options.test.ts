@@ -222,3 +222,82 @@ describe('play() and focusPlay()', () => {
 		expect(screen.getByRole('button', { name: 'Pause' })).toBe(document.activeElement);
 	});
 });
+
+describe('the transcript option (design page 3.1 A)', () => {
+	const VTT = 'https://m.cdn.media/one.vtt';
+	const withTranscript = (overrides: Partial<PlayerEpisodeData> = {}) =>
+		makeEpisode({ transcript: { url: VTT, type: 'text/vtt' }, ...overrides });
+	const button = () => screen.queryByRole('button', { name: 'Transcript' });
+
+	it('is off by default: no button, nothing changes', () => {
+		const { container } = render(PlayerCore, { props: { episode: withTranscript() } });
+		expect(button()).toBeNull();
+		expect(container.querySelector('showfm-transcript')).toBeNull();
+	});
+
+	it('on: a Transcript button that opens it under the controls, credit underneath', async () => {
+		const { container } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'on' }
+		});
+		expect(button()).toHaveAttribute('aria-expanded', 'false');
+		expect(container.querySelector('showfm-transcript')).toBeNull();
+		expect(await axe(container, AXE_MEDIA_OPTIONS)).toHaveNoViolations();
+		await fireEvent.click(button()!);
+		expect(button()).toHaveAttribute('aria-expanded', 'true');
+		const panel = container.querySelector('showfm-transcript')!;
+		expect(panel.getAttribute('height')).toBe('340');
+		// "Powered by" moves under the transcript.
+		expect(
+			panel.compareDocumentPosition(poweredBy()!) & Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+		await fireEvent.click(button()!);
+		expect(container.querySelector('showfm-transcript')).toBeNull();
+	});
+
+	it('open: opens at once', () => {
+		const { container } = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'open' }
+		});
+		expect(button()).toHaveAttribute('aria-expanded', 'true');
+		expect(container.querySelector('showfm-transcript')).not.toBeNull();
+	});
+
+	it('is not offered in the compact size, without a VTT, or for media off show.fm', () => {
+		const cases: [Partial<PlayerEpisodeData>, string?][] = [
+			[{}, 'compact'],
+			[{ transcript: null }],
+			[{ transcript: { url: 'https://other.example.test/one.vtt' } }],
+			[
+				{
+					audio: {
+						url: 'https://cdn.other-host.test/a.mp3',
+						content_type: null,
+						duration_seconds: 9
+					}
+				}
+			]
+		];
+		for (const [overrides, size] of cases) {
+			const view = render(PlayerCore, {
+				props: {
+					episode: withTranscript(overrides),
+					transcript: 'open',
+					size: (size ?? 'standard') as 'standard' | 'compact'
+				}
+			});
+			expect(button()).toBeNull();
+			expect(view.container.querySelector('showfm-transcript')).toBeNull();
+			view.unmount();
+		}
+	});
+
+	it('names the button in German and French', () => {
+		const de = render(PlayerCore, {
+			props: { episode: withTranscript(), transcript: 'on', lang: 'de' }
+		});
+		expect(screen.getByRole('button', { name: 'Transkript' })).toBeInTheDocument();
+		de.unmount();
+		render(PlayerCore, { props: { episode: withTranscript(), transcript: 'on', lang: 'fr' } });
+		expect(screen.getByRole('button', { name: 'Transcription' })).toBeInTheDocument();
+	});
+});

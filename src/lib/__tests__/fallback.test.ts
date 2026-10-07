@@ -25,7 +25,12 @@ const HOSTILE = `"><img src=x onerror=alert(1)> & 'it' </a><script>`;
 describe('shared fixtures', () => {
 	it('covers every renderer', () => {
 		expect(new Set(cases.map((c) => c.function))).toEqual(
-			new Set(['renderEpisodeHTML', 'renderEpisodeListHTML', 'episodeJsonLd'])
+			new Set([
+				'renderEpisodeHTML',
+				'renderEpisodeListHTML',
+				'renderTranscriptHTML',
+				'episodeJsonLd'
+			])
 		);
 	});
 
@@ -65,6 +70,34 @@ describe('renderEpisodeHTML', () => {
 		});
 		expect(html).toContain('href="https://show.fm/a&quot;onmouseover=&quot;x"');
 		expect(html).toContain('src="https://m.cdn.media/a.mp3?q=&#39;1&#39;"');
+	});
+});
+
+describe('renderTranscriptHTML', () => {
+	it('takes the WebVTT text, voice spans and inline timestamps included', () => {
+		const vtt = [
+			'WEBVTT',
+			'',
+			'00:00:00.000 --> 00:00:02.000',
+			'<v Maya>So <00:00:00.400>the <00:00:00.800>bakery</v>',
+			'',
+			'00:00:02.500 --> 00:00:04.000',
+			'<v Tom>Twelve &amp; nearly.</v>',
+			''
+		].join('\n');
+		expect(server.renderTranscriptHTML(vtt)).toBe(
+			'<div><p><strong>Maya:</strong> So the bakery</p><p><strong>Tom:</strong> Twelve &amp; nearly.</p></div>'
+		);
+	});
+
+	it('is the same markup for parsed cues', () => {
+		const cues = server.parseVtt('WEBVTT\n\n00:00.000 --> 00:01.000\n<v Tom>Hello</v>\n');
+		expect(server.renderTranscriptHTML(cues)).toBe('<div><p><strong>Tom:</strong> Hello</p></div>');
+	});
+
+	it('never lets markup through', () => {
+		const html = server.renderTranscriptHTML([{ speaker: HOSTILE, text: HOSTILE }]);
+		expect(html).not.toMatch(/<(?!\/?(div|p|strong)>)/);
 	});
 });
 

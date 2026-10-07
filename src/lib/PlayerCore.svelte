@@ -37,6 +37,7 @@
 		headingLevel = null,
 		lang = null,
 		strings = undefined,
+		transcript = null,
 		currentTime = $bindable(0)
 	}: {
 		episode: PlayerEpisodeData;
@@ -56,6 +57,14 @@
 		lang?: string | null;
 		/** Overrides for individual strings (see strings.ts). */
 		strings?: StringOverrides;
+		/**
+		 * The transcript option: `on` adds a Transcript button that opens the
+		 * follow-along transcript under the player, `open` opens it at once.
+		 * Only the standard size offers it, and only for audio and a VTT on
+		 * show.fm's media hosts (design page 9). It renders
+		 * <showfm-transcript>, so the elements must be registered.
+		 */
+		transcript?: string | null;
 		/**
 		 * Playback position in seconds, readable by a parent. Bindable so the
 		 * listen page's transcript reader can follow along and highlight the
@@ -180,6 +189,15 @@
 		audioSrc && hostedAudio ? downloadHref(audioSrc, downloadName) : null
 	);
 	const showCredit = $derived(credit ?? episode.podcast.branding.show_powered_by);
+	// Only for audio and a VTT on show.fm's media hosts (canOfferTranscript).
+	const offerTranscript = $derived(
+		(transcript === 'on' || transcript === 'open') &&
+			hostedAudio &&
+			isShowfmMediaUrl(episode.transcript?.url, mediaHosts())
+	);
+	// The visitor's toggle, once they have pressed the button.
+	let toggled = $state<boolean | null>(null);
+	const transcriptOpen = $derived(toggled ?? transcript === 'open');
 	const heading = $derived(
 		headingLevel !== null &&
 			Number.isInteger(headingLevel) &&
@@ -828,6 +846,31 @@
 					{@render skipFwdIcon(23)}
 				</button>
 				<div class="spacer"></div>
+				{#if offerTranscript}
+					<!-- A disclosure: the transcript opens under the player, which
+					     grows downwards (design page 3.1 A). -->
+					<button
+						type="button"
+						class="rate-btn tr-btn"
+						aria-expanded={transcriptOpen}
+						onclick={() => (toggled = !transcriptOpen)}
+						part="transcript"
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.9"
+							stroke-linecap="round"
+							aria-hidden="true"
+						>
+							<path d="M17 6.1H3M21 12.1H3M15.1 18H3"></path>
+						</svg>
+						{s.transcript}
+					</button>
+				{/if}
 				<button
 					type="button"
 					class="rate-btn"
@@ -848,6 +891,12 @@
 				</button>
 			</div>
 
+			{#if offerTranscript && transcriptOpen}
+				<!-- The player grows downwards and "Powered by" moves under the
+				     transcript, which follows this player's audio (it finds it
+				     through the page controller). -->
+				<showfm-transcript class="tr" height="340"></showfm-transcript>
+			{/if}
 			{@render poweredBy()}
 		</div>
 	{:else}
@@ -1296,6 +1345,39 @@
 	.brand-b {
 		color: var(--pp-logo);
 		font-weight: 700;
+	}
+
+	/* ── transcript option ────────────────────── */
+	.body-full {
+		container-type: inline-size;
+	}
+	.tr-btn {
+		gap: 6px;
+	}
+	.tr-btn[aria-expanded='true'] {
+		color: var(--pp-fg-strong);
+		background: var(--pp-tint);
+		border-color: var(--pp-accent);
+	}
+	/* Edge to edge, 18px under the controls, the footer's rule on its foot. */
+	.tr {
+		display: block;
+		margin: 3px -22px -16px;
+		border-top: 1px solid var(--pp-border);
+	}
+	/* A narrow player keeps every control on its row: the button keeps its
+	   name but shows only its icon, and the row tightens. */
+	@container (max-width: 400px) {
+		.tr-btn {
+			gap: 0;
+			font-size: 0;
+		}
+		.transport:has(.tr-btn) {
+			gap: 4px;
+		}
+		.transport:has(.tr-btn) .transport-btn {
+			width: 36px;
+		}
 	}
 
 	/* ── error / blocked card ─────────────────── */

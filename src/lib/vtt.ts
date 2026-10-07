@@ -355,7 +355,7 @@ export function formatCueTime(seconds: number): string {
  * produces the accented form, and a transcript of natural speech is full of
  * names that carry them.
  */
-function foldForSearch(value: string): string {
+export function foldForSearch(value: string): string {
 	return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 

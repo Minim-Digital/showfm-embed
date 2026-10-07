@@ -18,6 +18,8 @@ import { episodePayload } from '../fixtures/episode';
 
 const ATTRIBUTES = ['episode', 'podcast', 'theme', 'size', 'accent', 'wave', 'api'];
 const ADDED_IN_1_1 = ['heading-level', 'credit', 'load', 'strings'];
+/** The transcript option (EMB-5). */
+const ADDED_LATER = ['transcript'];
 const EPISODE_ID = '11111111-2222-4333-8444-555555555555';
 
 type PlayerConstructor = CustomElementConstructor & { observedAttributes?: string[] };
@@ -85,11 +87,11 @@ describe('registration', () => {
 	});
 
 	it.each(['showfm-player', 'podcasterplus-player'])(
-		'%s observes every v1 attribute, plus the ones 1.1 adds',
+		'%s observes every v1 attribute, plus the ones 1.1 and later add',
 		(tag) => {
 			const constructor = customElements.get(tag) as PlayerConstructor;
 			expect([...(constructor.observedAttributes ?? [])].sort()).toEqual(
-				[...ATTRIBUTES, ...ADDED_IN_1_1].sort()
+				[...ATTRIBUTES, ...ADDED_IN_1_1, ...ADDED_LATER].sort()
 			);
 		}
 	);

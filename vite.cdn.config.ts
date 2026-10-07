@@ -132,12 +132,13 @@ export default defineConfig({
 			configFile: false,
 			preprocess: [vitePreprocess(), minifyStyles],
 			compilerOptions: { customElement: true },
-			// The episode list, the play button and the mini-player are mounted
-			// into their elements by hand (episodes.svelte.ts, play.svelte.ts),
-			// so they need no custom-element wrapper; their CSS still goes into
-			// the shadow root they are mounted in.
+			// The episode list, the play button, the mini-player and the
+			// transcript are mounted into their elements by hand
+			// (episodes.svelte.ts, play.svelte.ts, transcript.svelte.ts), so they
+			// need no custom-element wrapper; their CSS still goes into the
+			// shadow root they are mounted in.
 			dynamicCompileOptions: ({ filename }) =>
-				/\/(EpisodeList|PlayButton|MiniPlayer)\.svelte$/.test(filename)
+				/\/(EpisodeList|PlayButton|MiniPlayer|Transcript)\.svelte$/.test(filename)
 					? { customElement: false, css: 'injected' }
 					: undefined
 		})
@@ -153,7 +154,8 @@ export default defineConfig({
 			// the shared code into a third file.
 			preserveEntrySignatures: 'allow-extension',
 			output: {
-				// episodes.svelte.ts → chunks/episodes-[hash].js, play.svelte.ts → chunks/play-[hash].js
+				// episodes.svelte.ts → chunks/episodes-[hash].js, play.svelte.ts →
+				// chunks/play-[hash].js, transcript.svelte.ts → chunks/transcript-[hash].js
 				chunkFileNames: (chunk) => `chunks/${chunk.name.replace(/\.svelte$/, '')}-[hash].js`,
 				exports: 'named',
 				// Short names for the bindings v1.js shares with the chunks.

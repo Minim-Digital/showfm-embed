@@ -12,6 +12,7 @@
 			headingLevel: { attribute: 'heading-level' },
 			credit: { attribute: 'credit' },
 			load: { attribute: 'load' },
+			transcript: { attribute: 'transcript' },
 			strings: { attribute: 'strings', type: 'Object' }
 		}
 	}}
@@ -35,6 +36,8 @@
 	  credit="auto|on|off" the "Powered by" footer; auto follows the payload.
 	                      Shown once per page, on the first embed that shows it
 	  load="click"        draw a facade and request nothing until pressed
+	  transcript="on|open" a Transcript button that opens the follow-along
+	                      transcript under the player (open: at once)
 	  strings (property)  overrides for any visible string (strings.ts)
 
 	States: facade (load="click", nothing requested) → loading → ready, or
@@ -76,6 +79,7 @@
 		headingLevel = '',
 		credit = 'auto',
 		load = '',
+		transcript = '',
 		strings = undefined
 	}: {
 		episode?: string;
@@ -91,6 +95,7 @@
 		headingLevel?: string | number;
 		credit?: string;
 		load?: string;
+		transcript?: string;
 		strings?: StringOverrides;
 	} = $props();
 
@@ -310,6 +315,7 @@
 		headingLevel={Number.isInteger(level) ? level : null}
 		lang={languageTag}
 		strings={s}
+		{transcript}
 		sourceTag="embed"
 	/>
 {:else if status === 'facade' || (status === 'loading' && activated)}

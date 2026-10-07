@@ -9,11 +9,15 @@
  *
  *   player and play button: a title link, then <audio controls preload="none">
  *   episode list:           <ul><li><a href>title</a></li>...</ul>
+ *   transcript:             <div><p><strong>Speaker:</strong> text</p>...</div>
  *
  * Pure string functions with no DOM, exported from `@showfm/embed/server`.
  * The WordPress plugin's PHP port must produce the same bytes: the shared
  * cases are in `fixtures/fallback/` in the package.
  */
+
+import { speakerName } from './transcript.js';
+import { parseVtt } from './vtt.js';
 
 /** The fields the fallback and JSON-LD read. A public API episode payload fits. */
 export interface FallbackEpisode {
@@ -30,6 +34,17 @@ export interface FallbackEpisode {
 	episode_number?: number | null;
 	artwork?: { url: string | null } | null;
 	podcast?: { title: string; links?: { listen?: string } } | null;
+}
+
+/** One cue of a transcript, as the transcript fallback reads it. A parsed VttCue fits. */
+export interface FallbackCue {
+	speaker?: string | null;
+	text: string;
+}
+
+export interface RenderTranscriptOptions {
+	/** Render at most this many cues. */
+	limit?: number;
 }
 
 /** The fields the list fallback reads from the podcast. */
@@ -111,6 +126,43 @@ export function renderEpisodeListHTML(
 	const shown = episodes.slice(0, Math.max(0, limit));
 	if (shown.length === 0) return link(podcast.links?.listen, podcast.title);
 	return `<ul>${shown.map((episode) => `<li>${link(episode.links?.listen, episode.title)}</li>`).join('')}</ul>`;
+}
+
+/**
+ * Fallback for `<showfm-transcript>`: the transcript as plain paragraphs, so
+ * search engines and visitors without JavaScript can read it (design page
+ * 3.1, "Search engines"). Consecutive cues of the same named speaker make
+ * one paragraph, which starts with the name. Unlabelled speakers ("Speaker
+ * A") get no name, and each of their cues is a paragraph. Pass the parsed
+ * cues, or the WebVTT text (parsed with `parseVtt`). Empty with no text.
+ */
+export function renderTranscriptHTML(
+	transcript: string | readonly FallbackCue[],
+	options: RenderTranscriptOptions = {}
+): string {
+	const cues = typeof transcript === 'string' ? parseVtt(transcript) : transcript;
+	const shown = cues.slice(0, Math.max(0, options.limit ?? cues.length));
+	const paragraphs: string[] = [];
+	let previous: string | null = null;
+	for (const cue of shown) {
+		const text = escapeHtml(
+			String(cue.text ?? '')
+				.replace(/\s+/g, ' ')
+				.trim()
+		);
+		if (!text) continue;
+		const speaker = speakerName(cue.speaker);
+		if (speaker && speaker === previous) {
+			paragraphs[paragraphs.length - 1] =
+				paragraphs[paragraphs.length - 1].slice(0, -4) + ` ${text}</p>`;
+		} else {
+			paragraphs.push(
+				`<p>${speaker ? `<strong>${escapeHtml(speaker)}:</strong> ` : ''}${text}</p>`
+			);
+		}
+		previous = speaker;
+	}
+	return paragraphs.length ? `<div>${paragraphs.join('')}</div>` : '';
 }
 
 /** Seconds as an ISO 8601 duration: 1843 → `PT30M43S`. */

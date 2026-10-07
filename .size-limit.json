@@ -18,6 +18,12 @@
 		"gzip": true
 	},
 	{
+		"name": "dist/cdn/chunks/transcript-*.js (the transcript, loaded by v1.js when a <showfm-transcript> appears, gzipped)",
+		"path": "dist/cdn/chunks/transcript-*.js",
+		"limit": "15 KB",
+		"gzip": true
+	},
+	{
 		"name": "dist/cdn/locales/de.js (loaded only for German, gzipped)",
 		"path": "dist/cdn/locales/de.js",
 		"limit": "1.5 KB",

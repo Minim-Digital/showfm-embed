@@ -48,10 +48,12 @@ afterAll(async () => {
 });
 
 describe('the build', () => {
-	it('has two chunks: the episode list, and the play button with the mini-player', () => {
-		expect(CHUNKS).toHaveLength(2);
+	it('has three chunks: the episode list, the play button with the mini-player, the transcript', () => {
+		expect(CHUNKS).toHaveLength(3);
 		expect(CHUNK).toMatch(/^episodes-[\w-]+\.js$/);
-		expect(CHUNKS.find((file) => file !== CHUNK)).toMatch(/^play-[\w-]+\.js$/);
+		const others = CHUNKS.filter((file) => file !== CHUNK).sort();
+		expect(others[0]).toMatch(/^play-[\w-]+\.js$/);
+		expect(others[1]).toMatch(/^transcript-[\w-]+\.js$/);
 	});
 
 	it('keeps the list out of v1.js', () => {

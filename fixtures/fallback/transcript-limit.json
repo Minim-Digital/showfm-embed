@@ -1,0 +1,24 @@
+{
+	"description": "`limit` renders at most that many cues.",
+	"function": "renderTranscriptHTML",
+	"args": [
+		[
+			{
+				"speaker": "Maya",
+				"text": "One."
+			},
+			{
+				"speaker": "Tom",
+				"text": "Two."
+			},
+			{
+				"speaker": "Maya",
+				"text": "Three."
+			}
+		],
+		{
+			"limit": 2
+		}
+	],
+	"expected": "<div><p><strong>Maya:</strong> One.</p><p><strong>Tom:</strong> Two.</p></div>"
+}
