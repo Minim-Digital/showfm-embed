@@ -25,10 +25,17 @@ const TRANSCRIPT_ATTRIBUTES = [
 ] as const;
 
 // The host: a block that can reserve --showfm-height before it upgrades. A
-// 404, or an episode with no transcript, collapses it.
+// 404, or an episode with no transcript, collapses it. In the mini-player
+// (class="panel") it is a panel above the bar's right end, or the last part
+// of the phone sheet; its place is here so the mini-player's chunk stays small.
 const HOST_CSS =
 	':host{display:block;min-height:var(--showfm-height,0)}' +
-	':host([data-showfm-collapsed]){display:none!important;min-height:0}';
+	':host([data-showfm-collapsed]){display:none!important;min-height:0}' +
+	':host(.panel){position:fixed;right:16px;bottom:calc(80px + var(--o,0px));' +
+	'width:min(420px,calc(100vw - 32px));overflow:hidden;border:1px solid var(--pp-border);' +
+	'border-radius:14px;box-shadow:0 8px 26px rgba(16,16,20,.14)}' +
+	':host(.in-sheet){position:static;order:5;flex:1 1 100%;width:auto;box-shadow:none}' +
+	'@media (max-width:640px){:host(.panel:not(.in-sheet)){display:none}}';
 
 function readAttributes(host: HTMLElement): Record<string, string | null> {
 	const attrs: Record<string, string | null> = {};

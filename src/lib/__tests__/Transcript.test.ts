@@ -392,6 +392,30 @@ describe('states', () => {
 		expect($(host, '.msg')!.textContent).toContain('This show isn’t available right now.');
 	});
 
+	it('suspended mid-listen: the text goes with the audio', async () => {
+		const controller = pageController();
+		const owner = document.createElement('div');
+		owner.id = 'list';
+		document.body.append(owner);
+		const audio = controller.sharedAudio();
+		Object.defineProperty(audio, 'play', { configurable: true, value: async () => {} });
+		const episode = transcriptEpisode();
+		await controller.playShared(
+			owner,
+			{ ...episode, title: episode.title },
+			'https://m.cdn.media/x.mp3'
+		);
+		const host = await transcript({ for: 'list' });
+		expect(lines(host).length).toBeGreaterThan(5);
+		controller.report(owner, episode.id, 'suspended');
+		await settle();
+		expect(lines(host)).toHaveLength(0);
+		expect($(host, '[role="status"]')!.textContent).toContain(
+			'This show isn’t available right now.'
+		);
+		expect(search(host).disabled).toBe(true);
+	});
+
 	it('episode="…" collapses on a 404, without a transcript, and for external audio', async () => {
 		mock.episode = 404;
 		const gone = await transcript({ episode: TRANSCRIPT_EPISODE_ID });

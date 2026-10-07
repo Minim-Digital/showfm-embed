@@ -66,8 +66,9 @@
 	const controller = pageController();
 	// The element never changes for a mounted transcript.
 	const host = untrack(() => hostProp);
-	// Inside a show.fm element's shadow root (the player's transcript option),
-	// that element is the one to follow, and its colours are inherited.
+	// Inside a show.fm element's shadow root (the player's or the
+	// mini-player's transcript option), that element is the one to follow,
+	// and its colours are inherited.
 	const rootNode = host.getRootNode();
 	const embedHost =
 		rootNode instanceof ShadowRoot && /^(SHOWFM|PODCASTERPLUS)-/.test(rootNode.host.tagName)
@@ -100,6 +101,8 @@
 	// ── what to follow ─────────────────────────────────────────────────
 	/** The audio being followed, or null (then the text reads without seeking). */
 	let source = $state.raw<AudioEntry | null>(null);
+	/** The followed audio's owner said the show is suspended (mid-listen, design page 5). */
+	let suspendedNow = $state(false);
 	/** The episode shown. It stays when its audio moves on, until another plays. */
 	let shown = $state.raw<{ id: string; known: ControllerEpisode | null } | null>(null);
 
@@ -117,11 +120,15 @@
 					entry.episode &&
 					(!episodeAttr || entry.episode.id === episodeAttr) &&
 					(owner
-						? entry.owner === owner || (entry.audio.getRootNode() as ShadowRoot).host === owner
+						? entry.owner === owner ||
+							(entry.audio.getRootNode() as ShadowRoot).host === owner ||
+							// The mini-player shows the page's shared audio, whoever started it.
+							(owner.localName === 'showfm-mini-player' && entry === controller.sharedState())
 						: // Following the page: only what is current.
 							episodeAttr || (entry.owner === snapshot.owner && entry.episode === snapshot.episode))
 			) ?? null;
 		if (next !== source) source = next;
+		suspendedNow = next?.message === 'suspended';
 		const id = next?.episode?.id ?? episodeAttr ?? shown?.id ?? null;
 		if (id && id !== shown?.id) shown = { id, known: next?.episode ?? null };
 		else if (!id && shown) shown = null;
@@ -165,7 +172,8 @@
 		};
 	});
 
-	const status = $derived(loaded.status);
+	// Suspended mid-listen: the text goes with the audio.
+	const status = $derived(suspendedNow ? 'suspended' : loaded.status);
 	const ready = $derived(status === 'ready');
 	// With `episode`, a 404 and "no transcript" collapse the element: a
 	// scheduled episode looks like any unknown one.

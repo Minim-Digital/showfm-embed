@@ -225,6 +225,7 @@ The page has one mini-player. It appears after the first play from a play button
 - **Desktop:** a bar along the bottom of the window with the artwork, the title, the show and episode number, back 15 seconds, play, forward 30 seconds, the waveform to seek, the speed, Collapse and Close.
 - **Collapsed:** a pill in the bottom right corner (or left, with `mini-player-position="left"`) with play, the title and the time left, and Expand. Collapse keeps playing.
 - **Phones (640px and under):** a floating 64px bar with the title on one line, play and Expand. Expand opens a sheet with everything, the full title and Share. The sheet is a modal dialog: Tab stays inside it and Escape closes it.
+- **Transcript:** for an episode whose audio and transcript are on show.fm, a Transcript button next to the speed opens the follow-along transcript (see [The transcript](#the-transcript)) in a panel above the bar's right end, following the shared audio. On a phone it is in the sheet, under the controls. Without a transcript the waveform takes the button's width.
 - **Close** stops playback and hides the mini-player until the next play. Focus goes back to the button that opened it.
 - **Suspended mid-listen:** playback stops, the title and artwork stay, the message takes the controls' place and only Close remains.
 - **"Powered by show.fm"** shows in the mini-player when no embed above it on the page shows it, so a page with only play buttons still carries it once.

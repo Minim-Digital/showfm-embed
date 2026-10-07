@@ -306,3 +306,42 @@ test('German: the strings fit the search row at 340px', async ({ page }) => {
 	).toBe(54);
 	expect(await spills(host)).toEqual({ out: [], pageScrolls: false });
 });
+
+test('the mini-player opens the transcript above its bar, and in the phone sheet', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1100, height: 900 });
+	const button = `<showfm-play episode="${TRANSCRIPT_EPISODE_ID}" api="${API_ORIGIN}"></showfm-play>`;
+	await serveTranscript(page, button, { width: 600 });
+	await page.getByRole('button', { name: /^Play: Sourdough/ }).click();
+	const toggle = page.locator('showfm-mini-player').getByRole('button', { name: 'Transcript' });
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	const panel = page.locator('showfm-mini-player showfm-transcript');
+	await expect(panel.locator('.line').first()).toBeVisible();
+	const [bar, box] = await Promise.all([
+		page.locator('showfm-mini-player section').boundingBox(),
+		panel.boundingBox()
+	]);
+	// Above the bar, at its right end, inside the window.
+	expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y);
+	expect(box!.x + box!.width).toBeLessThanOrEqual(1100);
+	expect(box!.width).toBe(420);
+	// The spoken line follows the shared audio.
+	await expect(panel.locator('.line[aria-current="true"]')).toHaveCount(1);
+
+	await page.setViewportSize({ width: 390, height: 800 });
+	await page.locator('showfm-mini-player').getByRole('button', { name: 'Expand player' }).click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet).toBeVisible();
+	const inSheet = await panel.evaluate((element) => element.className);
+	expect(inSheet).toBe('panel in-sheet');
+	// The sheet's own spacing stays on the sheet: the panel is the transcript's height.
+	expect((await panel.boundingBox())!.height).toBe(55 + 300 + 2);
+	const [sheetBox, sheetPanel] = await Promise.all([sheet.boundingBox(), panel.boundingBox()]);
+	expect(sheetPanel!.x).toBeGreaterThanOrEqual(sheetBox!.x);
+	expect(sheetPanel!.x + sheetPanel!.width).toBeLessThanOrEqual(
+		sheetBox!.x + sheetBox!.width + 0.5
+	);
+	expect(sheetBox!.height).toBeLessThanOrEqual(800 * 0.9 + 0.5);
+});
