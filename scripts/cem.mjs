@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const OUTPUT = 'custom-elements.json';
 const MODULE_PATH = 'dist/index.js';
 
-/** @type {Record<string, { type: string, default?: string, description: string }>} */
+/** @type {Record<string, { type: string, default?: string, field?: string, description: string }>} */
 const ATTRIBUTES = {
 	episode: {
 		type: 'string',
@@ -44,6 +44,28 @@ const ATTRIBUTES = {
 		type: 'string',
 		default: "'https://api.show.fm'",
 		description: 'API origin override, for development and testing only.'
+	},
+	'heading-level': {
+		type: "'2' | '3' | '4' | '5' | '6'",
+		field: 'headingLevel',
+		description:
+			'Wraps the episode title in a heading of this level. Absent, the title is a link and no heading is emitted.'
+	},
+	credit: {
+		type: "'auto' | 'on' | 'off'",
+		default: "'auto'",
+		description:
+			'The "Powered by show.fm" footer. `auto` follows the show\'s plan. It shows once per page, on the first embed that shows it.'
+	},
+	load: {
+		type: "'click'",
+		description:
+			'`click` draws a facade and requests nothing from show.fm until the visitor presses it. `showfm.load()` loads every facade at once.'
+	},
+	strings: {
+		type: 'Partial<Record<string, string>>',
+		description:
+			'Overrides for visible strings, by key, usually set as a property. `window.showfmStrings` sets them for every element.'
 	}
 };
 
@@ -103,11 +125,11 @@ export function buildManifest() {
 		type: { text: ATTRIBUTES[name].type },
 		...(ATTRIBUTES[name].default ? { default: ATTRIBUTES[name].default } : {}),
 		description: ATTRIBUTES[name].description,
-		fieldName: name
+		fieldName: ATTRIBUTES[name].field ?? name
 	}));
 	const members = names.map((name) => ({
 		kind: 'field',
-		name,
+		name: ATTRIBUTES[name].field ?? name,
 		type: { text: ATTRIBUTES[name].type },
 		...(ATTRIBUTES[name].default ? { default: ATTRIBUTES[name].default } : {}),
 		description: ATTRIBUTES[name].description,
@@ -120,7 +142,7 @@ export function buildManifest() {
 			{
 				name: '',
 				description:
-					'Fallback content, such as a "Listen on show.fm" link. It shows when the episode cannot be loaded.'
+					'Fallback content: a title link and a plain audio control (renderEpisodeHTML). It shows before the element upgrades, without JavaScript, and when the episode cannot be played. A 404 hides it with the element.'
 			}
 		],
 		cssParts: parts.map((name) => ({ name, description: PART_DESCRIPTIONS[name] }))

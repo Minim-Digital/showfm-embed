@@ -5,7 +5,13 @@
  */
 export type { PlayerEpisodeData, PlayerSize, PlayerTheme } from './types.js';
 export { PLAYER_MIN_HEIGHTS, IFRAME_HEIGHTS } from './heights.js';
-export { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts.js';
+export {
+	MARKETING_APEX_URL,
+	PLAYER_DEFAULT_API_URL,
+	SHOWFM_MEDIA_HOSTS,
+	canOfferTranscript,
+	isShowfmMediaUrl
+} from './hosts.js';
 export {
 	DEFAULT_ACCENT,
 	accessibleAccent,
@@ -20,3 +26,42 @@ export type { PlayerPalette, ResolvedTheme } from './palette.js';
 export { drawWave, genPeaks } from './waveform.js';
 export type { WaveDrawOptions } from './waveform.js';
 export { downloadFilename, downloadHref } from './download.js';
+export {
+	ACTIONS_MAX_LENGTH,
+	STRING_MAX_LENGTHS,
+	formatString,
+	languageFromTag,
+	resolveStrings
+} from './strings.js';
+export { STRING_TABLES } from './string-tables.js';
+export type { Language, StringKey, StringOverrides, Strings } from './strings.js';
+export { DEFAULT_RETRY_AFTER, apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api.js';
+export type { ApiRequestOptions, ApiResult, ApiStatus } from './api.js';
+export {
+	activeCueIndex,
+	activeWordIndex,
+	countWords,
+	distinctSpeakers,
+	formatCueTime,
+	matchingCueIndexes,
+	parseTimestamp,
+	parseVtt
+} from './vtt.js';
+export type { ParseVttOptions, VttCue, VttWord } from './vtt.js';
+export {
+	episodeJsonLd,
+	escapeHtml,
+	isoDuration,
+	renderEpisodeHTML,
+	renderEpisodeListHTML,
+	safeUrl,
+	serializeJsonLd
+} from './fallback.js';
+export type {
+	FallbackEpisode,
+	FallbackPodcast,
+	RenderEpisodeListOptions,
+	RenderEpisodeOptions
+} from './fallback.js';
+export { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from './element-strings.js';
+export type { ElementStringKey, ElementStrings } from './element-strings.js';

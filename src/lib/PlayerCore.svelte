@@ -21,7 +21,9 @@
 	import { resolvePalette, paletteVars } from './palette';
 	import { genPeaks, drawWave } from './waveform';
 	import { downloadFilename, downloadHref } from './download';
-	import { MARKETING_APEX_URL } from './hosts';
+	import { MARKETING_APEX_URL, isShowfmMediaUrl, mediaHosts } from './hosts';
+	import { formatString, languageFromTag, resolveStrings, type StringOverrides } from './strings';
+	import { pageController } from './controller';
 
 	let {
 		episode,
@@ -30,6 +32,10 @@
 		accent = null,
 		sourceTag = 'embed',
 		wave = true,
+		credit = null,
+		headingLevel = null,
+		lang = null,
+		strings = undefined,
 		currentTime = $bindable(0)
 	}: {
 		episode: PlayerEpisodeData;
@@ -38,6 +44,17 @@
 		accent?: string | null;
 		sourceTag?: string;
 		wave?: boolean;
+		/**
+		 * Shows or hides the "Powered by show.fm" footer. Null follows the
+		 * payload's branding.show_powered_by, as the player always has.
+		 */
+		credit?: boolean | null;
+		/** Wraps the title link in an <h2> to <h6>. Null (the default) emits no heading. */
+		headingLevel?: number | null;
+		/** Language tag for strings and dates, such as `de-DE`. Null is English. */
+		lang?: string | null;
+		/** Overrides for individual strings (see strings.ts). */
+		strings?: StringOverrides;
 		/**
 		 * Playback position in seconds, readable by a parent. Bindable so the
 		 * listen page's transcript reader can follow along and highlight the
@@ -61,7 +78,22 @@
 		scrubbing = false;
 	}
 
+	/**
+	 * Start playback, as pressing Play does. Used by the element when a
+	 * `load="click"` facade was pressed, so one press loads and plays.
+	 */
+	export function play() {
+		if (!isPlaying) void togglePlay();
+	}
+
+	/** Move focus to the play button (after a facade swaps for the player). */
+	export function focusPlay() {
+		(playButtonEl ?? retryButtonEl)?.focus();
+	}
+
 	const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
+	const s = $derived(resolveStrings(languageFromTag(lang), strings));
+	const language = $derived(languageFromTag(lang));
 
 	let audioEl = $state<HTMLAudioElement | null>(null);
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
@@ -85,12 +117,10 @@
 	let swapFocus = false;
 	let isPlaying = $state(false);
 	let isBuffering = $state(false);
-	const DEFAULT_ERROR_MESSAGE = 'This episode can’t be played right now.';
 	let hasError = $state(false);
-	let errorMessage = $state(DEFAULT_ERROR_MESSAGE);
 	// Blocked ≠ broken, and the two states are mutually exclusive: hasError
 	// unmounts the <audio> element (media is unusable, retry restarts from 0),
-	// while blockedMessage keeps it mounted — the browser refused one play
+	// while `blocked` keeps it mounted — the browser refused one play
 	// attempt, and the listener's position and buffer must survive it. Both
 	// render through the SAME card, which is the only height-safe surface
 	// here: the embed heights (300/110) are baked into host pages at
@@ -98,8 +128,7 @@
 	// overflows them and clips its own recovery link. Keep this copy short
 	// enough to stay on one line at the compact width — the card measures
 	// 109px against a 110px compact iframe, so a second line clips.
-	const BLOCKED_ERROR_MESSAGE = 'Your browser blocked audio playback.';
-	let blockedMessage = $state<string | null>(null);
+	let blocked = $state(false);
 	let metadataDuration = $state<number | null>(null);
 	let rateIndex = $state(0);
 	let muted = $state(false);
@@ -137,12 +166,32 @@
 		return `${url}${separator}src=${encodeURIComponent(sourceTag)}`;
 	});
 	const downloadName = $derived(downloadFilename(episode.title, episode.audio.content_type));
-	const downloadUrl = $derived(audioSrc ? downloadHref(audioSrc, downloadName) : null);
+	// Download only works on show.fm's media hosts (the ?dl= attachment
+	// parameter is media-delivery's), so external audio offers none (design
+	// page 9). It still streams.
+	const hostedAudio = $derived(isShowfmMediaUrl(episode.audio.url, mediaHosts()));
+	const downloadUrl = $derived(
+		audioSrc && hostedAudio ? downloadHref(audioSrc, downloadName) : null
+	);
+	const showCredit = $derived(credit ?? episode.podcast.branding.show_powered_by);
+	const heading = $derived(
+		headingLevel !== null &&
+			Number.isInteger(headingLevel) &&
+			headingLevel >= 2 &&
+			headingLevel <= 6
+			? `h${headingLevel}`
+			: null
+	);
 	const publishedDate = $derived.by(() => {
 		const parsed = new Date(episode.published_at);
-		return Number.isNaN(parsed.getTime())
-			? ''
-			: parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+		if (Number.isNaN(parsed.getTime())) return '';
+		const options = { year: 'numeric', month: 'short', day: 'numeric' } as const;
+		try {
+			return parsed.toLocaleDateString(lang || undefined, options);
+		} catch {
+			// A page's lang can be any text; an invalid tag throws RangeError.
+			return parsed.toLocaleDateString(undefined, options);
+		}
 	});
 	const metaLine = $derived([episode.podcast.title, publishedDate].filter(Boolean).join('  ·  '));
 
@@ -198,6 +247,20 @@
 		audioEl.playbackRate = RATES[rateIndex];
 	});
 
+	// One plays at a time on the page: the controller pauses this audio when
+	// another element starts, and tells subscribers what is playing. The
+	// element is re-attached whenever retryPlayback remounts it.
+	$effect(() => {
+		const audio = audioEl;
+		if (!audio) return;
+		return pageController().attach(audio, audio, {
+			id: episode.id,
+			title: episode.title,
+			podcastTitle: episode.podcast.title,
+			artworkUrl: episode.artwork.url
+		});
+	});
+
 	// Moves focus onto whichever control replaced the pressed one. Runs on every
 	// swap (the bindings are what change), but only acts when a user press set
 	// the flag — and consumes it either way, so a press that DIDN'T swap can
@@ -230,16 +293,28 @@
 		return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`;
 	}
 
+	/** "2 hours", "2 Stunden", "2 heures": the unit names come from Intl. */
+	function spokenUnit(value: number, unit: 'hour' | 'minute' | 'second'): string {
+		try {
+			return new Intl.NumberFormat(language, {
+				style: 'unit',
+				unit,
+				unitDisplay: 'long'
+			}).format(value);
+		} catch {
+			return `${value} ${unit}${value === 1 ? '' : 's'}`;
+		}
+	}
+
 	function spokenTime(totalSeconds: number): string {
-		if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '0 seconds';
+		if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return spokenUnit(0, 'second');
 		const hours = Math.floor(totalSeconds / 3600);
 		const minutes = Math.floor(totalSeconds / 60) % 60;
 		const seconds = Math.floor(totalSeconds % 60);
 		const parts: string[] = [];
-		if (hours) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
-		if (minutes) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
-		if (seconds || parts.length === 0)
-			parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+		if (hours) parts.push(spokenUnit(hours, 'hour'));
+		if (minutes) parts.push(spokenUnit(minutes, 'minute'));
+		if (seconds || parts.length === 0) parts.push(spokenUnit(seconds, 'second'));
 		return parts.join(' ');
 	}
 
@@ -282,14 +357,15 @@
 				// Arm only when the card is about to REPLACE the pressed Play.
 				// Already on the card (a retry that got blocked again) means
 				// nothing swaps and focus is already on Try again.
-				if (blockedMessage === null) swapFocus = true;
-				blockedMessage = BLOCKED_ERROR_MESSAGE;
-				announcement = 'Your browser blocked audio playback';
+				if (!blocked) swapFocus = true;
+				blocked = true;
+				// The card already shows the sentence; the live region speaks it
+				// without the full stop, as it always has.
+				announcement = s.blocked.replace(/\.$/, '');
 				return;
 			}
 			swapFocus = true;
-			blockedMessage = null;
-			errorMessage = DEFAULT_ERROR_MESSAGE;
+			blocked = false;
 			hasError = true;
 		}
 	}
@@ -302,7 +378,7 @@
 		// with the card, so focus follows to the Play it is replaced by.
 		swapFocus = true;
 		hasError = false;
-		blockedMessage = null;
+		blocked = false;
 		isPlaying = false;
 		isBuffering = false;
 		currentTime = 0;
@@ -317,12 +393,12 @@
 
 	function cycleRate() {
 		rateIndex = (rateIndex + 1) % RATES.length;
-		announcement = `Playback speed ${RATES[rateIndex]}×`;
+		announcement = formatString(s.speedChanged, { rate: RATES[rateIndex] });
 	}
 
 	function toggleMute() {
 		muted = !muted;
-		announcement = muted ? 'Muted' : 'Unmuted';
+		announcement = muted ? s.muted : s.unmuted;
 	}
 
 	function onSeekInput(event: Event) {
@@ -341,11 +417,11 @@
 		try {
 			await navigator.clipboard.writeText(url);
 			shared = true;
-			announcement = 'Link copied';
+			announcement = s.linkCopied;
 			if (sharedResetTimer) clearTimeout(sharedResetTimer);
 			sharedResetTimer = setTimeout(() => (shared = false), 2000);
 		} catch {
-			announcement = 'Unable to share';
+			announcement = s.shareFailed;
 		}
 	}
 
@@ -357,7 +433,7 @@
 		if (typeof nav.share === 'function') {
 			try {
 				await nav.share({ title: episode.title, text: episode.podcast.title, url });
-				announcement = 'Shared';
+				announcement = s.shared;
 				return;
 			} catch (err) {
 				// AbortError = the visitor dismissed the sheet — done. Anything
@@ -507,10 +583,25 @@
 			disabled={duration <= 0}
 			oninput={onSeekInput}
 			onchange={onSeekChange}
-			aria-label="Seek"
-			aria-valuetext="{spokenTime(sliderValue)} of {spokenTime(duration)}"
+			aria-label={s.seek}
+			aria-valuetext={formatString(s.seekValue, {
+				current: spokenTime(sliderValue),
+				total: spokenTime(duration)
+			})}
 		/>
 	</div>
+{/snippet}
+
+{#snippet titleLink(className: string)}
+	<a
+		class={className}
+		href={episode.links.listen}
+		target="_blank"
+		rel="noopener noreferrer"
+		part="title"
+	>
+		{episode.title}
+	</a>
 {/snippet}
 
 {#snippet messageCard(message: string, onRetry: (() => unknown) | null)}
@@ -518,19 +609,21 @@
 	     player body rather than adding to it, so it stays inside the embed
 	     heights host pages baked in at copy-paste time. Measured 109px in
 	     every variant (vs 300 standard / 110 compact iframes). -->
-	<div class="body body-error" part="error">
+	<div class="body body-error" class:body-error-compact={isCompact} part="error">
 		<p>{message}</p>
 		{#if onRetry}
 			<button bind:this={retryButtonEl} type="button" class="error-retry" onclick={onRetry}>
-				Try again
+				{s.retry}
 			</button>
 		{/if}
-		<a href={episode.links.listen} target="_blank" rel="noopener noreferrer"> Listen on show.fm </a>
+		<a href={episode.links.listen} target="_blank" rel="noopener noreferrer">
+			{s.listenOnShowfm}
+		</a>
 	</div>
 {/snippet}
 
 {#snippet poweredBy()}
-	{#if episode.podcast.branding.show_powered_by}
+	{#if showCredit}
 		<div class="footer" class:footer-full={!isCompact} part="footer">
 			<a
 				class="powered-by"
@@ -538,7 +631,7 @@
 				target="_blank"
 				rel="noopener noreferrer"
 			>
-				Powered by <span class="brand-a">show</span><span class="brand-b">.fm</span>
+				{s.poweredBy} <span class="brand-a">show</span><span class="brand-b">.fm</span>
 			</a>
 		</div>
 	{/if}
@@ -548,7 +641,7 @@
 	class="player"
 	style={cssVars}
 	role="group"
-	aria-label="Audio player: {episode.title}"
+	aria-label={formatString(s.playerLabel, { title: episode.title })}
 	part="container"
 >
 	<!-- Mounted independently of which body renders: the blocked card must NOT
@@ -567,17 +660,17 @@
 				// Armed HERE, next to the line that causes the swap, rather
 				// than before play(): a plain success from the normal player
 				// only relabels Play→Pause, swaps nothing, and must not arm.
-				if (blockedMessage !== null) swapFocus = true;
-				blockedMessage = null;
-				announcement = 'Playing';
+				if (blocked) swapFocus = true;
+				blocked = false;
+				announcement = s.playing;
 			}}
 			onpause={() => {
 				isPlaying = false;
-				announcement = 'Paused';
+				announcement = s.paused;
 			}}
 			onended={() => {
 				isPlaying = false;
-				announcement = 'Finished';
+				announcement = s.finished;
 			}}
 			ontimeupdate={() => {
 				if (audioEl && !scrubbing) currentTime = audioEl.currentTime;
@@ -593,8 +686,7 @@
 				// no press behind it — moving focus here would yank it from
 				// wherever the visitor actually is on the host page.
 				swapFocus = false;
-				blockedMessage = null;
-				errorMessage = DEFAULT_ERROR_MESSAGE;
+				blocked = false;
 				hasError = true;
 				isPlaying = false;
 			}}
@@ -605,25 +697,23 @@
 	     element outranks a refused play attempt (the two states are already
 	     kept mutually exclusive in script, this makes it structural). -->
 	{#if !audioSrc || hasError}
-		{@render messageCard(errorMessage, audioSrc ? retryPlayback : null)}
-	{:else if blockedMessage}
+		{@render messageCard(s.error, audioSrc ? retryPlayback : null)}
+	{:else if blocked}
 		<!-- Try again re-attempts play() on the still-mounted element rather
 		     than remounting, so a lifted block resumes at the same position. -->
-		{@render messageCard(blockedMessage, togglePlay)}
+		{@render messageCard(s.blocked, togglePlay)}
 	{:else if !isCompact}
 		<div class="body body-full">
 			<div class="identity">
 				{@render artworkTile(64, 12)}
 				<div class="titles">
-					<a
-						class="title"
-						href={episode.links.listen}
-						target="_blank"
-						rel="noopener noreferrer"
-						part="title"
-					>
-						{episode.title}
-					</a>
+					{#if heading}
+						<svelte:element this={heading} class="heading">
+							{@render titleLink('title')}
+						</svelte:element>
+					{:else}
+						{@render titleLink('title')}
+					{/if}
 					<span class="meta" part="subtitle">{metaLine}</span>
 				</div>
 				<div class="actions">
@@ -632,7 +722,7 @@
 							class="icon-btn action-btn"
 							href={downloadUrl}
 							download={downloadName}
-							aria-label="Download episode"
+							aria-label={s.download}
 							part="download"
 						>
 							<svg
@@ -656,7 +746,7 @@
 						type="button"
 						class="icon-btn action-btn"
 						onclick={share}
-						aria-label="Share episode"
+						aria-label={s.share}
 						part="share"
 					>
 						{#if shared}
@@ -708,7 +798,7 @@
 					type="button"
 					class="icon-btn transport-btn"
 					onclick={() => skip(-15)}
-					aria-label="Back 15 seconds"
+					aria-label={s.back15}
 				>
 					{@render skipBackIcon(23)}
 				</button>
@@ -718,7 +808,7 @@
 					class="play-btn play-full"
 					class:buffering={isBuffering}
 					onclick={togglePlay}
-					aria-label={isPlaying ? 'Pause' : 'Play'}
+					aria-label={isPlaying ? s.pause : s.play}
 					part="play"
 				>
 					{@render playPauseIcon(22)}
@@ -727,7 +817,7 @@
 					type="button"
 					class="icon-btn transport-btn"
 					onclick={() => skip(30)}
-					aria-label="Forward 30 seconds"
+					aria-label={s.forward30}
 				>
 					{@render skipFwdIcon(23)}
 				</button>
@@ -736,7 +826,7 @@
 					type="button"
 					class="rate-btn"
 					onclick={cycleRate}
-					aria-label="Playback speed, currently {playbackRate}×"
+					aria-label={formatString(s.speed, { rate: playbackRate })}
 					part="rate"
 				>
 					{playbackRate === 1 ? '1' : playbackRate}×
@@ -745,7 +835,7 @@
 					type="button"
 					class="icon-btn transport-btn"
 					onclick={toggleMute}
-					aria-label={muted ? 'Unmute' : 'Mute'}
+					aria-label={muted ? s.unmute : s.mute}
 					part="mute"
 				>
 					{@render muteIcon(20)}
@@ -760,15 +850,13 @@
 				{@render artworkTile(46, 10)}
 				<div class="compact-col">
 					<div class="compact-head">
-						<a
-							class="title title-compact"
-							href={episode.links.listen}
-							target="_blank"
-							rel="noopener noreferrer"
-							part="title"
-						>
-							{episode.title}
-						</a>
+						{#if heading}
+							<svelte:element this={heading} class="heading heading-compact">
+								{@render titleLink('title title-compact')}
+							</svelte:element>
+						{:else}
+							{@render titleLink('title title-compact')}
+						{/if}
 						<span class="time-inline" aria-hidden="true"
 							>{formatTime(sliderValue)} / {formatTime(duration)}</span
 						>
@@ -778,7 +866,7 @@
 							type="button"
 							class="icon-btn compact-btn"
 							onclick={() => skip(-15)}
-							aria-label="Back 15 seconds"
+							aria-label={s.back15}
 						>
 							{@render skipBackIcon(18)}
 						</button>
@@ -788,7 +876,7 @@
 							class="play-btn play-compact"
 							class:buffering={isBuffering}
 							onclick={togglePlay}
-							aria-label={isPlaying ? 'Pause' : 'Play'}
+							aria-label={isPlaying ? s.pause : s.play}
 							part="play"
 						>
 							{@render playPauseIcon(16)}
@@ -797,7 +885,7 @@
 							type="button"
 							class="icon-btn compact-btn"
 							onclick={() => skip(30)}
-							aria-label="Forward 30 seconds"
+							aria-label={s.forward30}
 						>
 							{@render skipFwdIcon(18)}
 						</button>
@@ -806,7 +894,7 @@
 							type="button"
 							class="rate-btn rate-compact"
 							onclick={cycleRate}
-							aria-label="Playback speed, currently {playbackRate}×"
+							aria-label={formatString(s.speed, { rate: playbackRate })}
 							part="rate"
 						>
 							{playbackRate === 1 ? '1' : playbackRate}×
@@ -815,7 +903,7 @@
 							type="button"
 							class="icon-btn compact-btn"
 							onclick={toggleMute}
-							aria-label={muted ? 'Unmute' : 'Mute'}
+							aria-label={muted ? s.unmute : s.mute}
 							part="mute"
 						>
 							{@render muteIcon(17)}
@@ -912,6 +1000,22 @@
 	}
 	.title:hover {
 		text-decoration: underline;
+	}
+	/* heading-level wraps the title link. The heading adds no box of its own
+	   to the layout, so every contract height stays as it is. */
+	.heading {
+		display: flex;
+		min-width: 0;
+		margin: 0;
+		font: inherit;
+		letter-spacing: inherit;
+	}
+	.heading > .title {
+		flex: 1;
+		min-width: 0;
+	}
+	.heading-compact {
+		flex: 1;
 	}
 	.meta {
 		font-weight: 400;
@@ -1198,6 +1302,13 @@
 	.body-error p {
 		margin: 0;
 		color: var(--pp-muted);
+	}
+	/* The compact iframe has 1px to spare: a second line would clip, so a
+	   message too long for one line (an override) ends in an ellipsis. */
+	.body-error-compact p {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.body-error a,
 	.error-retry {
