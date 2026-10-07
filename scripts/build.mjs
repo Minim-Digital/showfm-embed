@@ -3,6 +3,7 @@
  *
  *   dist/svelte/    Svelte 5 source and pure modules (svelte-package)
  *   dist/cdn/v1.js  classic script that registers the elements (vite.cdn.config.ts)
+ *   dist/cdn/chunks/*.js  lazy chunks v1.js loads next to itself (the episode list)
  *   dist/cdn/click-loader.js  the inline load="click" loader (vite.loader.config.ts)
  *   dist/cdn/v1-fallback.css  optional styles for elements before they upgrade
  *   dist/cdn/locales/*.js  German and French strings, loaded by v1.js on demand
@@ -60,6 +61,13 @@ for (const [language, table] of Object.entries(STRING_TABLES)) {
 // only where custom elements exist. One build of the elements is used
 // everywhere, and a browser import still registers before it returns.
 const v1 = readFileSync('dist/cdn/v1.js', 'utf-8');
+// The lazy chunks register factories that v1.js runs on demand. The root
+// cannot fetch them next to itself, so it carries them, registered before
+// the elements: a list then mounts without a request.
+const chunks = readdirSync('dist/cdn/chunks')
+	.filter((file) => file.endsWith('.js'))
+	.sort()
+	.map((file) => readFileSync(`dist/cdn/chunks/${file}`, 'utf-8').trimEnd());
 writeFileSync(
 	'dist/index.js',
 	[
@@ -75,6 +83,8 @@ writeFileSync(
 		'\t// The classic script loads German and French on demand; here they are bundled already.',
 		`\tconst locales = (globalThis[${LOCALE_KEY}] ||= {});`,
 		'\tfor (const [language, table] of Object.entries(showfmStringTables)) if (language !== "en") locales[language] ||= table;',
+		'\t// The lazy chunks, registered for v1.js to run instead of fetching them.',
+		...chunks,
 		'\tregisterShowfmElements();',
 		'}',
 		''

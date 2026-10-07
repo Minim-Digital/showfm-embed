@@ -1,8 +1,11 @@
 /*
  * Optional styles for the show.fm elements before they upgrade, and for
  * visitors without JavaScript: dist/cdn/v1-fallback.css (design page 7).
- * Every rule matches only :not(:defined) elements, so nothing here touches
- * an upgraded element. A load="click" facade draws its own box.
+ * The player rules match only :not(:defined) elements, so nothing here
+ * touches an upgraded player. The list is defined as soon as v1.js runs but
+ * mounts only when its lazy chunk arrives, so its rules match until then;
+ * its shadow root never shows the light DOM, and the host rule is the one
+ * the list keeps. A load="click" facade draws its own box.
  */
 :is(showfm-player, podcasterplus-player):not(:defined):not([data-showfm-facade]) {
 	box-sizing: border-box;
@@ -24,20 +27,20 @@
 	width: 100%;
 	max-width: 100%;
 }
-showfm-episodes:not(:defined) {
+showfm-episodes {
 	display: block;
 	min-height: var(--showfm-height, 0);
 }
-showfm-episodes:not(:defined) ul {
+showfm-episodes > ul {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
-showfm-episodes:not(:defined) li {
+showfm-episodes > ul > li {
 	padding: 12px 0;
 	border-top: 1px solid rgba(128, 128, 128, 0.3);
 }
-showfm-episodes:not(:defined) li:first-child {
+showfm-episodes > ul > li:first-child {
 	border-top: 0;
 }
 showfm-play:not(:defined):not([data-showfm-facade]) {

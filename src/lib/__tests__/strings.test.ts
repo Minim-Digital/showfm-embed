@@ -14,6 +14,7 @@ import {
 } from '../strings';
 import { STRING_TABLES } from '../string-tables';
 import { ELEMENT_STRING_MAX_LENGTHS, ELEMENT_STRING_TABLES } from '../element-strings';
+import { LIST_EN, LIST_STRING_MAX_LENGTHS, resolveListStrings } from '../list-strings';
 
 const LANGUAGES = ['en', 'de', 'fr'] as const;
 
@@ -79,6 +80,40 @@ describe('maximum lengths (design page 8)', () => {
 			});
 			expect(value.length, `${language}.${key}: ${value}`).toBeLessThanOrEqual(max!);
 		}
+	});
+});
+
+describe('the episode list (design pages 2, 5, 6 and 8)', () => {
+	it.each(LANGUAGES)('%s: every list key is in the table', (language) => {
+		for (const key of Object.keys(LIST_EN)) {
+			expect(STRING_TABLES[language], `${language}.${key}`).toHaveProperty(key);
+		}
+	});
+
+	it.each(LANGUAGES)('%s: the list strings fit their maximum lengths', (language) => {
+		for (const [key, max] of Object.entries(LIST_STRING_MAX_LENGTHS)) {
+			const value = STRING_TABLES[language][key as keyof typeof LIST_EN];
+			expect(value.length, `${language}.${key}: ${value}`).toBeLessThanOrEqual(max!);
+		}
+	});
+
+	it('uses the approved copy where the design gives it', () => {
+		expect(STRING_TABLES.de.seasonEpisode).toBe('St. {season} · Folge {episode}');
+		expect(STRING_TABLES.fr.seasonEpisode).toBe('S{season} · Ép. {episode}');
+		expect(STRING_TABLES.de.nowPlaying).toBe('Läuft gerade');
+		expect(STRING_TABLES.fr.nowPlaying).toBe('En cours de lecture');
+		expect(STRING_TABLES.fr.loadMore).toBe('Charger plus d’épisodes');
+		expect(STRING_TABLES.fr.actionName).toBe('{verb}\u202f: {title}');
+	});
+
+	it('resolves English, the language, the page, then the element', () => {
+		expect(resolveListStrings().loadMore).toBe('Load more episodes');
+		expect(resolveListStrings('de').loadMore).toBe('Weitere Folgen laden');
+		(window as unknown as { showfmStrings: unknown }).showfmStrings = { more: 'Read more' };
+		expect(resolveListStrings('de').more).toBe('Read more');
+		expect(resolveListStrings('de', { more: 'Mehr lesen' }).more).toBe('Mehr lesen');
+		// The player's keys are not the list's.
+		expect(resolveListStrings('en', { play: 'x' })).not.toHaveProperty('play');
 	});
 });
 

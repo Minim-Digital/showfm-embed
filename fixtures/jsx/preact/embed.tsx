@@ -1,7 +1,8 @@
 /**
  * Compile-only fixture: proves the published preact typings make
- * <showfm-player> a typed JSX element. CI runs `pnpm jsx:check` after the
- * build, so the package resolves through its own exports map.
+ * <showfm-player> and <showfm-episodes> typed JSX elements. CI runs
+ * `pnpm jsx:check` after the build, so the package resolves through its own
+ * exports map.
  */
 import type {} from '@showfm/embed/jsx-preact';
 import { PLAYER_MIN_HEIGHTS } from '@showfm/embed';
@@ -36,3 +37,27 @@ export const consent = (
 
 // @ts-expect-error credit is 'auto', 'on' or 'off'
 export const wrongCredit = <showfm-player credit="maybe" />;
+
+export const episodes = (
+	<showfm-episodes
+		podcast="test-signal"
+		variant="minimal"
+		layout="grid"
+		count={20}
+		season="2"
+		hide="trailer,bonus"
+		descriptions="off"
+		mini-player="on"
+		heading-level="3"
+		load="click"
+	>
+		<ul>
+			<li>
+				<a href="https://show.fm/">Episode one</a>
+			</li>
+		</ul>
+	</showfm-episodes>
+);
+
+// @ts-expect-error layout is 'auto', 'list', 'grid' or 'compact'
+export const wrongLayout = <showfm-episodes podcast="test-signal" layout="tiles" />;

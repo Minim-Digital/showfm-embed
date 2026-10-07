@@ -5,7 +5,8 @@
  * for each status live here. The statuses match the app's API and the
  * WordPress plugin's client:
  *
- *   ok            2xx with a `{ data }` body
+ *   ok            2xx with a `{ data }` body; a list's keyset cursor for the
+ *                 next page is `nextCursor` (null on the last page)
  *   not-modified  304: the copy the caller holds (by ETag) is current
  *   not-found     404: scheduled, unpublished, deleted and unknown all look
  *                 the same, which is what stops schedules leaking
@@ -19,7 +20,7 @@
  */
 
 export type ApiResult<T> =
-	| { status: 'ok'; data: T; etag: string | null }
+	| { status: 'ok'; data: T; etag: string | null; nextCursor: string | null }
 	| { status: 'not-modified'; etag: string | null }
 	| { status: 'not-found' }
 	| { status: 'unavailable' }
@@ -79,11 +80,19 @@ export async function apiGet<T>(
 	}
 	if (!response.ok) return { status: 'error', httpStatus: response.status };
 	try {
-		const body = (await response.json()) as { data?: T };
+		const body = (await response.json()) as {
+			data?: T;
+			pagination?: { next_cursor?: string | null };
+		};
 		if (!body || typeof body !== 'object' || !('data' in body)) {
 			return { status: 'error', httpStatus: response.status };
 		}
-		return { status: 'ok', data: body.data as T, etag };
+		return {
+			status: 'ok',
+			data: body.data as T,
+			etag,
+			nextCursor: body.pagination?.next_cursor ?? null
+		};
 	} catch {
 		return { status: 'error', httpStatus: response.status };
 	}

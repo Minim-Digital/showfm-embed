@@ -11,6 +11,7 @@
  * constructor may only be passed to customElements.define once.
  */
 import ShowfmPlayer from './ShowfmPlayer.svelte';
+import { defineShowfmEpisodes } from './episodes-element';
 
 // The `element` static only exists in the customElement build (and svelte-check
 // types the component without it), hence the cast and the runtime guard.
@@ -25,3 +26,5 @@ if (element && !customElements.get('podcasterplus-player')) {
 // elements already here.
 const showfm = ((window as unknown as { showfm?: { load?: () => void } }).showfm ??= {});
 showfm.load ??= () => document.dispatchEvent(new Event('showfm:load'));
+
+defineShowfmEpisodes();
