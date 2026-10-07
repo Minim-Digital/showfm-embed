@@ -50,7 +50,7 @@ async function spills(host: Locator) {
 
 const inner = (page: Page, selector: string) =>
 	page.locator('showfm-player').evaluate((host, sel) => {
-		const transcript = host.shadowRoot!.querySelector('showfm-transcript')!;
+		const transcript = host.shadowRoot!.querySelector('.tr')!;
 		return transcript.shadowRoot!.querySelectorAll(sel).length;
 	}, selector);
 
@@ -357,7 +357,7 @@ test("inside the player, the spoken line's timestamp reaches 4.5:1 on its tint",
 	const ratio = await page.waitForFunction(() => {
 		const transcript = document
 			.querySelector('showfm-player')!
-			.shadowRoot!.querySelector('showfm-transcript')!.shadowRoot!;
+			.shadowRoot!.querySelector('.tr')!.shadowRoot!;
 		const line = transcript.querySelector<HTMLElement>('.line.now');
 		if (!line) return null;
 		const rgb = (value: string) => value.match(/[\d.]+/g)!.map(Number);

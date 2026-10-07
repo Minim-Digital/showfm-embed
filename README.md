@@ -129,7 +129,8 @@ The player's parts can be styled with `::part()`: `container`, `artwork`, `title
 With `transcript="on"`, the standard player has a Transcript button next to the speed button. Pressing it opens the follow-along transcript under the controls: the player grows downwards by 395px (340px of text and the search row), and "Powered by" moves under the transcript. `transcript="open"` opens it at once. It is the same transcript as [`<showfm-transcript>`](#the-transcript), following this player.
 
 - The button is offered only when the episode has a transcript and both the audio and the transcript are on a show.fm media host. The compact player has none.
-- The transcript's code loads when it is first opened, not before.
+- The transcript's code loads when it is first opened, not before. The player mounts it itself, so it works from `@showfm/embed/svelte` too (`<PlayerCore transcript="on" />`), where no elements are registered; there the code is a dynamic import.
+- The transcript follows the element it is in, and takes its colours from it.
 - Embed snippets reserve the closed player's height; an open transcript adds to it. For a fixed height, use the iframe's transcript variant.
 
 ## The episode list
@@ -249,9 +250,10 @@ The page has one mini-player. It appears after the first play from a play button
 
 What it follows:
 
-- `for="id"`: the `showfm-player` or `showfm-episodes` with that id. With a list, it shows the transcript of the episode the list plays.
+- `for="id"`: the `showfm-player` or `showfm-episodes` with that id. With a list, it shows the transcript of the episode the list plays, in the accent and theme the list pinned.
 - `episode="uuid"`: that episode's transcript. It follows along whenever that episode plays anywhere on the page, and reads as text otherwise. With `for` as well, only when that element plays it.
 - Neither: whatever plays on the page. Until something plays it says "Play an episode to follow its transcript here."
+- Changing `episode` or `for` starts afresh: a removed `episode`, or a `for` naming an element that has not played yet, shows nothing from before.
 
 What the visitor can do:
 

@@ -36,6 +36,7 @@
 	import { TRANSCRIPT_EN } from './transcript-strings';
 	import { activeCueIndex, activeWordIndex } from './vtt';
 	import { loadTranscript, type LoadedTranscript } from './transcript-data';
+	import type { TranscriptEmbed } from './transcript.svelte';
 	import {
 		buildLines,
 		clock,
@@ -53,11 +54,14 @@
 	let {
 		host: hostProp,
 		attrs,
-		strings = undefined
+		strings = undefined,
+		embed: embedProp = undefined
 	}: {
 		host: HTMLElement;
 		attrs: Record<string, string | null>;
 		strings?: unknown;
+		/** Set by the player that mounts the transcript inside itself (transcript.svelte.ts). */
+		embed?: TranscriptEmbed;
 	} = $props();
 
 	/** The scroll area's top padding: line `i` starts at PAD + offsets[i]. */
@@ -75,6 +79,10 @@
 		rootNode instanceof ShadowRoot && /^(SHOWFM|PODCASTERPLUS)-/.test(rootNode.host.tagName)
 			? (rootNode.host as HTMLElement)
 			: null;
+	// Mounted by the player itself: it says which audio and episode, and the
+	// transcript takes its colours from the player, as inside an element.
+	const embed = untrack(() => embedProp) ?? null;
+	const inside = !!(embed || embedHost);
 
 	const attr = (name: string) => attrs[name]?.trim() || null;
 	const episodeAttr = $derived(attr('episode'));
@@ -119,6 +127,14 @@
 	let heard = 0;
 
 	function pick() {
+		if (embed) {
+			const audio = embed.audio();
+			const next = (audio && controller.audios().find((entry) => entry.audio === audio)) || null;
+			if (next !== source) source = next;
+			suspendedNow = next?.message === 'suspended';
+			if (shown?.id !== embed.episode.id) shown = { id: embed.episode.id, known: embed.episode };
+			return;
+		}
 		const owner = target();
 		const snapshot = controller.snapshot();
 		const audios = controller.audios();
@@ -161,6 +177,13 @@
 	$effect(() => {
 		void forId;
 		void episodeAttr;
+		// A new selector starts afresh: the episode the old one showed stays
+		// only while the selector that found it does (a removed `episode`, or
+		// a `for` naming an element that has not played, shows nothing old).
+		untrack(() => {
+			source = null;
+			shown = null;
+		});
 		return controller.subscribe(() => untrack(pick));
 	});
 
@@ -193,7 +216,7 @@
 		// The API origin is live too: a new one is a new load.
 		const origin = api;
 		loaded = { status: 'loading' };
-		loadTranscript(episode.id, episode.known, origin, !embedHost).then((result) => {
+		loadTranscript(episode.id, episode.known, origin, !inside).then((result) => {
 			if (load !== generation) return;
 			if (!result.vttFailed) {
 				loaded = result;
@@ -241,7 +264,7 @@
 	let inherited = $state<string | undefined>(undefined);
 	$effect(() => {
 		void systemDark;
-		if (!embedHost) return;
+		if (!inside) return;
 		const frame = requestAnimationFrame(() => {
 			const style = getComputedStyle(host);
 			const accent = style.getPropertyValue('--pp-accent').trim();
@@ -255,19 +278,20 @@
 		return () => cancelAnimationFrame(frame);
 	});
 	const cssVars = $derived.by(() => {
-		if (embedHost) return inherited;
+		if (inside) return inherited;
 		const podcast = loaded.episode?.podcast;
+		// Its own attributes first, then what the element it follows pinned
+		// (the controller carries that element's accent and theme), then the
+		// show's settings.
+		const known = shown?.known;
 		const theme =
-			[attr('theme'), podcast?.player_theme].find(
+			[attr('theme'), known?.theme, podcast?.player_theme].find(
 				(value) => value === 'light' || value === 'dark' || value === 'auto'
 			) ?? 'auto';
 		const dark = theme === 'dark' || (theme === 'auto' && systemDark);
-		const accent = attr('accent');
+		const accent = [attr('accent'), known?.accent].find((value) => value && parseHex(value));
 		const palette = resolvePalette(
-			(accent && parseHex(accent) ? accent : null) ??
-				podcast?.player_color ??
-				podcast?.brand_color ??
-				DEFAULT_ACCENT,
+			accent ?? podcast?.player_color ?? podcast?.brand_color ?? DEFAULT_ACCENT,
 			dark ? 'dark' : 'light'
 		);
 		// Text in the accent reaches 4.5:1 on the tint, the darkest surface it sits on.
@@ -670,7 +694,7 @@
 
 <div
 	class="tr"
-	class:card={!embedHost}
+	class:card={!inside}
 	class:narrow
 	role="region"
 	aria-label={s.transcript}

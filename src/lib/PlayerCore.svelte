@@ -25,6 +25,7 @@
 	import { formatString, languageFromTag, resolveStrings, type StringOverrides } from './strings';
 	import { pageController } from './controller';
 	import { safeUrl } from './fallback';
+	import { loadChunk } from './lazy-element';
 
 	let {
 		episode,
@@ -61,8 +62,9 @@
 		 * The transcript option: `on` adds a Transcript button that opens the
 		 * follow-along transcript under the player, `open` opens it at once.
 		 * Only the standard size offers it, and only for audio and a VTT on
-		 * show.fm's media hosts (design page 9). It renders
-		 * <showfm-transcript>, so the elements must be registered.
+		 * show.fm's media hosts (design page 9). The transcript's code loads
+		 * when it is first opened (a lazy chunk in v1.js, a dynamic import
+		 * elsewhere), so it works from `@showfm/embed/svelte` too.
 		 */
 		transcript?: string | null;
 		/**
@@ -198,6 +200,27 @@
 	// The visitor's toggle, once they have pressed the button.
 	let toggled = $state<boolean | null>(null);
 	const transcriptOpen = $derived(toggled ?? transcript === 'open');
+	let transcriptEl = $state<HTMLElement | null>(null);
+
+	// The transcript mounts into its own element under the controls, in a
+	// shadow root of its own, following this player's audio and episode.
+	$effect(() => {
+		const target = transcriptEl;
+		const current = episode;
+		if (!target) return;
+		let live = true;
+		let connection: ((connected: boolean) => void) | undefined;
+		loadChunk<typeof import('./transcript.svelte.js')>(import('./transcript.svelte.js')).then(
+			(chunk) => {
+				if (live)
+					connection = chunk.mountTranscript(target, { audio: () => audioEl, episode: current });
+			}
+		);
+		return () => {
+			live = false;
+			connection?.(false);
+		};
+	});
 	const heading = $derived(
 		headingLevel !== null &&
 			Number.isInteger(headingLevel) &&
@@ -893,9 +916,8 @@
 
 			{#if offerTranscript && transcriptOpen}
 				<!-- The player grows downwards and "Powered by" moves under the
-				     transcript, which follows this player's audio (it finds it
-				     through the page controller). -->
-				<showfm-transcript class="tr" height="340"></showfm-transcript>
+				     transcript (mounted by the effect above). -->
+				<div class="tr" {lang} bind:this={transcriptEl}></div>
 			{/if}
 			{@render poweredBy()}
 		</div>
@@ -1361,7 +1383,6 @@
 	}
 	/* Edge to edge, 18px under the controls, the footer's rule on its foot. */
 	.tr {
-		display: block;
 		margin: 3px -22px -16px;
 		border-top: 1px solid var(--pp-border);
 	}

@@ -659,6 +659,60 @@ describe('every attribute is live', () => {
 	});
 });
 
+describe('a new selector starts afresh', () => {
+	it('removing episode clears it, and the transcript follows the page again', async () => {
+		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });
+		expect(lines(host).length).toBeGreaterThan(5);
+		host.removeAttribute('episode');
+		await settle();
+		expect(lines(host)).toHaveLength(0);
+		expect($(host, '.msg')!.textContent).toBe('Play an episode to follow its transcript here.');
+	});
+
+	it('for naming an element that has not played clears the old episode', async () => {
+		const { at } = playerAudio();
+		const empty = document.createElement('div');
+		empty.id = 'quiet-list';
+		document.body.append(empty);
+		const host = await transcript({ for: 'player' });
+		at(4);
+		await settle();
+		expect(lines(host).length).toBeGreaterThan(5);
+		host.setAttribute('for', 'quiet-list');
+		await settle();
+		expect(lines(host)).toHaveLength(0);
+		expect($(host, '.msg')!.textContent).toBe('Play an episode to follow its transcript here.');
+	});
+});
+
+describe('colours of what it follows', () => {
+	it('takes the accent and theme the followed element pinned, over the show’s', async () => {
+		const controller = pageController();
+		const list = document.createElement('div');
+		list.id = 'list';
+		document.body.append(list);
+		Object.defineProperty(controller.sharedAudio(), 'play', {
+			configurable: true,
+			value: async () => {}
+		});
+		const episode = transcriptEpisode();
+		await controller.playShared(
+			list,
+			{ ...episode, accent: '#0ea5e9', theme: 'dark' },
+			'https://m.cdn.media/x.mp3'
+		);
+		const host = await transcript({ for: 'list' });
+		const style = $(host, '.tr')!.getAttribute('style')!;
+		expect(style).toContain('--pp-bg: #17151f');
+		// The list's accent, not the show's brand colour (#7E22CE).
+		expect(style).toContain('--pp-accent: #0ea5e9');
+		// The element's own attribute still wins.
+		host.setAttribute('theme', 'light');
+		await settle();
+		expect($(host, '.tr')!.getAttribute('style')).toContain('--pp-bg: #FFFFFF');
+	});
+});
+
 describe('strings and headings', () => {
 	it('German from the page’s lang', async () => {
 		document.documentElement.setAttribute('lang', 'de-DE');

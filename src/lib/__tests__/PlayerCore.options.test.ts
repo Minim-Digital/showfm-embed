@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { axe } from 'jest-axe';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import PlayerCore from '../PlayerCore.svelte';
 import type { PlayerEpisodeData } from '../types';
@@ -225,14 +225,19 @@ describe('play() and focusPlay()', () => {
 
 describe('the transcript option (design page 3.1 A)', () => {
 	const VTT = 'https://m.cdn.media/one.vtt';
+	const VTT_BODY =
+		'WEBVTT\n\n00:00.000 --> 00:05.000\n<v Maya>Hello there.</v>\n\n00:05.000 --> 00:09.000\n<v Tom>Hi.</v>\n';
 	const withTranscript = (overrides: Partial<PlayerEpisodeData> = {}) =>
 		makeEpisode({ transcript: { url: VTT, type: 'text/vtt' }, ...overrides });
 	const button = () => screen.queryByRole('button', { name: 'Transcript' });
+	// Nothing in these tests reaches the network: the VTT is answered here.
+	beforeEach(() => vi.stubGlobal('fetch', async () => new Response(VTT_BODY)));
+	afterEach(() => vi.unstubAllGlobals());
 
 	it('is off by default: no button, nothing changes', () => {
 		const { container } = render(PlayerCore, { props: { episode: withTranscript() } });
 		expect(button()).toBeNull();
-		expect(container.querySelector('showfm-transcript')).toBeNull();
+		expect(container.querySelector('.tr')).toBeNull();
 	});
 
 	it('on: a Transcript button that opens it under the controls, credit underneath', async () => {
@@ -240,18 +245,38 @@ describe('the transcript option (design page 3.1 A)', () => {
 			props: { episode: withTranscript(), transcript: 'on' }
 		});
 		expect(button()).toHaveAttribute('aria-expanded', 'false');
-		expect(container.querySelector('showfm-transcript')).toBeNull();
+		expect(container.querySelector('.tr')).toBeNull();
 		expect(await axe(container, AXE_MEDIA_OPTIONS)).toHaveNoViolations();
+		const vtt = vi.fn(async (_input: RequestInfo | URL) => new Response(VTT_BODY));
+		vi.stubGlobal('fetch', vtt);
 		await fireEvent.click(button()!);
 		expect(button()).toHaveAttribute('aria-expanded', 'true');
-		const panel = container.querySelector('showfm-transcript')!;
-		expect(panel.getAttribute('height')).toBe('340');
+		const panel = container.querySelector('.tr')!;
+		// The transcript itself, mounted in the player: no custom element,
+		// no API request (the player has the episode), 340px of text.
+		await vi.waitFor(() => expect(panel.shadowRoot?.querySelectorAll('.line')).toHaveLength(2), {
+			timeout: 10_000
+		});
+		expect(vtt.mock.calls.map(([url]) => String(url))).toEqual([VTT]);
+		expect(panel.shadowRoot!.querySelector<HTMLElement>('.scroll')!.style.height).toBe('340px');
+		expect(customElements.get('showfm-transcript')).toBeUndefined();
+		// It follows this player's audio.
+		const audio = container.querySelector('audio')!;
+		await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+		Object.defineProperty(audio, 'currentTime', { configurable: true, value: 6 });
+		audio.dispatchEvent(new Event('timeupdate'));
+		await vi.waitFor(() =>
+			expect(
+				panel.shadowRoot!.querySelector<HTMLElement>('.line[aria-current="true"]')?.dataset.i
+			).toBe('1')
+		);
+		vi.unstubAllGlobals();
 		// "Powered by" moves under the transcript.
 		expect(
 			panel.compareDocumentPosition(poweredBy()!) & Node.DOCUMENT_POSITION_FOLLOWING
 		).toBeTruthy();
 		await fireEvent.click(button()!);
-		expect(container.querySelector('showfm-transcript')).toBeNull();
+		expect(container.querySelector('.tr')).toBeNull();
 	});
 
 	it('open: opens at once', () => {
@@ -259,7 +284,7 @@ describe('the transcript option (design page 3.1 A)', () => {
 			props: { episode: withTranscript(), transcript: 'open' }
 		});
 		expect(button()).toHaveAttribute('aria-expanded', 'true');
-		expect(container.querySelector('showfm-transcript')).not.toBeNull();
+		expect(container.querySelector('.tr')).not.toBeNull();
 	});
 
 	it('is not offered in the compact size, without a VTT, or for media off show.fm', () => {
@@ -286,7 +311,7 @@ describe('the transcript option (design page 3.1 A)', () => {
 				}
 			});
 			expect(button()).toBeNull();
-			expect(view.container.querySelector('showfm-transcript')).toBeNull();
+			expect(view.container.querySelector('.tr')).toBeNull();
 			view.unmount();
 		}
 	});

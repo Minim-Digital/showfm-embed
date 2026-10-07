@@ -33,12 +33,12 @@ const pending: Record<string, Promise<Chunk>> = {};
  * this adds the chunk as a script next to v1.js (once, with the page's
  * nonce), then runs the factory it registers. The npm root has registered
  * the factories already, so nothing is fetched there. Anywhere else the
- * import is a real one.
+ * import is a real one. The player loads the transcript's chunk this way too.
  */
-function loadChunk(chunk: string | Promise<unknown>): Promise<Chunk> {
-	if (typeof chunk !== 'string') return chunk as Promise<Chunk>;
+export function loadChunk<T = Chunk>(chunk: string | Promise<unknown>): Promise<T> {
+	if (typeof chunk !== 'string') return chunk as Promise<T>;
 	const key = chunk.replace(/^\.\//, '');
-	return (pending[key] ??= new Promise((resolve, reject) => {
+	return (pending[key] ??= new Promise<Chunk>((resolve, reject) => {
 		const registry = ((globalThis as unknown as Record<symbol, Record<string, unknown>>)[
 			REGISTRY
 		] ??= {}) as Record<string, (shared: () => object, exports: object) => void>;
@@ -63,7 +63,7 @@ function loadChunk(chunk: string | Promise<unknown>): Promise<Chunk> {
 			fail();
 		};
 		document.head.append(tag);
-	}));
+	})) as Promise<T>;
 }
 
 export const ACTIVATED = 'data-showfm-activated';

@@ -158,7 +158,7 @@ export async function playerTranscriptReady(page: Page) {
 		() =>
 			!!document
 				.querySelector('showfm-player')
-				?.shadowRoot?.querySelector('showfm-transcript')
+				?.shadowRoot?.querySelector('.tr')
 				?.shadowRoot?.querySelector('.line')
 	);
 }
