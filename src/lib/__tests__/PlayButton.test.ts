@@ -388,6 +388,22 @@ describe('one generation per load and per play: nothing stale lands', () => {
 		expect(pageController().sharedState()!.message).toBeNull();
 	});
 
+	it("a late recheck lands nowhere once a player's own audio starts the episode, still buffering", async () => {
+		const held = heldFetch();
+		const { root, button } = await mountButton();
+		held[0].answer(200, payload());
+		await settle();
+		media.outcome = 'error';
+		await press(button());
+		// A <showfm-player> for the same episode starts: play, but no playing yet.
+		const own = document.createElement('audio');
+		pageController().attach(own, own, { id: EPISODE_ID, title: 'Episode One' });
+		own.dispatchEvent(new Event('play'));
+		held[1].answer(403);
+		await settle();
+		expect(message(root)).toBeNull();
+	});
+
 	it('a late recheck lands nowhere once the same episode has started again', async () => {
 		const held = heldFetch();
 		const { root, button } = await mountButton();

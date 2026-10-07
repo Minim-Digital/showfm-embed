@@ -195,6 +195,31 @@ describe('the shared audio, for the mini-player (EMB-4)', () => {
 		expect(again()).toBe(false);
 	});
 
+	it("goes stale on another audio's play event, before it is playing", async () => {
+		const { controller, shared } = sharedController();
+		const button = {};
+		await controller.playShared(button, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(button, 'a');
+		// A player starts the same episode and is still buffering: play, no playing yet.
+		const player = document.createElement('audio');
+		controller.attach(player, player, { id: 'a', title: 'A' });
+		player.dispatchEvent(new Event('play'));
+		expect(applies()).toBe(false);
+	});
+
+	it('goes stale on an explicit play request through the controller, before any event', () => {
+		const { controller, shared } = sharedController();
+		const list = {};
+		void controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		shared.dispatchEvent(new Event('error'));
+		const applies = controller.failure(list, 'a');
+		// The same owner asks again; the request has not produced an event yet.
+		shared.play = vi.fn(() => new Promise<void>(() => {}));
+		void controller.playShared(list, { id: 'a', title: 'A' }, 'https://m.cdn.media/a.mp3');
+		expect(applies()).toBe(false);
+	});
+
 	it('drops a late report about an earlier episode from the same owner', async () => {
 		const { controller, shared } = sharedController();
 		const list = {};

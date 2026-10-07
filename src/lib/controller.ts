@@ -98,16 +98,23 @@ export class PageAudioController {
 	private listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
 	private shared: AudioEntry | null = null;
 	private claims: Claim[] = [];
-	/** How often each episode has started or resumed playing, on any audio. */
+	/**
+	 * How often each episode has been asked to play, or started or resumed
+	 * playing, on any audio: a failure's recheck is stale once this moves.
+	 */
 	private starts: Record<string, number> = {};
+
+	private started(id: string | undefined) {
+		if (id) this.starts[id] = (this.starts[id] ?? 0) + 1;
+	}
 
 	/** Attach an element's own audio. Returns the function that detaches it. */
 	attach(owner: object, audio: HTMLAudioElement, episode: ControllerEpisode | null = null) {
 		const entry: AudioEntry = { owner, audio, episode, state: 'idle' };
 		const onEvent = (event: Event) => {
 			const state = AUDIO_EVENTS[event.type];
-			const id = entry.episode?.id;
-			if (event.type === 'playing' && id) this.starts[id] = (this.starts[id] ?? 0) + 1;
+			// `play` comes first; `playing` can wait while the audio buffers.
+			if (event.type === 'play' || event.type === 'playing') this.started(entry.episode?.id);
 			if (event.type === 'play') {
 				// One at a time: whoever starts, everyone else stops.
 				this.current = entry;
@@ -150,6 +157,8 @@ export class PageAudioController {
 	async playShared(owner: object, episode: ControllerEpisode, src: string): Promise<void> {
 		const audio = this.sharedAudio();
 		Object.assign(this.shared!, { owner, episode, message: null });
+		// The request itself, before any event: it may yet buffer or fail.
+		this.started(episode.id);
 		if (audio.getAttribute('src') !== src) audio.src = src;
 		await audio.play();
 	}
@@ -166,8 +175,9 @@ export class PageAudioController {
 	 * For an owner about to ask the API why episode `id` failed on the shared
 	 * audio. The test it returns stays true only while the answer still
 	 * applies: the owner still holds the shared audio with that episode, and
-	 * the episode has not started or resumed anywhere on the page since (on
-	 * this element, another element, or a player's own audio).
+	 * the episode has not been asked to play, started or resumed anywhere on
+	 * the page since (on this element, another element, or a player's own
+	 * audio).
 	 */
 	failure(owner: object, id: string): () => boolean {
 		const starts = this.starts[id];
