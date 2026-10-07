@@ -1,0 +1,8 @@
+[
+	{
+		"name": "dist/cdn/v1.js (the classic script, gzipped)",
+		"path": "dist/cdn/v1.js",
+		"limit": "30 KB",
+		"gzip": true
+	}
+]

@@ -1,0 +1,423 @@
+{
+	"schemaVersion": "2.1.0",
+	"readme": "README.md",
+	"modules": [
+		{
+			"kind": "javascript-module",
+			"path": "dist/index.js",
+			"declarations": [
+				{
+					"kind": "class",
+					"name": "ShowfmPlayer",
+					"tagName": "showfm-player",
+					"customElement": true,
+					"description": "The show.fm podcast player. Set `episode` to play one episode, or `podcast` to play the latest one.",
+					"attributes": [
+						{
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Plays that one episode and wins over `podcast`.",
+							"fieldName": "episode"
+						},
+						{
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast slug or UUID. Plays the latest released episode.",
+							"fieldName": "podcast"
+						},
+						{
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting.",
+							"fieldName": "theme"
+						},
+						{
+							"name": "size",
+							"type": {
+								"text": "'standard' | 'compact'"
+							},
+							"default": "'standard'",
+							"description": "Player size. The height contract depends on it.",
+							"fieldName": "size"
+						},
+						{
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour.",
+							"fieldName": "accent"
+						},
+						{
+							"name": "wave",
+							"type": {
+								"text": "'true' | 'false'"
+							},
+							"description": "Pins the waveform on or off. Absent follows the show's waveform setting.",
+							"fieldName": "wave"
+						},
+						{
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only.",
+							"fieldName": "api"
+						}
+					],
+					"members": [
+						{
+							"kind": "field",
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Plays that one episode and wins over `podcast`.",
+							"attribute": "episode"
+						},
+						{
+							"kind": "field",
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast slug or UUID. Plays the latest released episode.",
+							"attribute": "podcast"
+						},
+						{
+							"kind": "field",
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting.",
+							"attribute": "theme"
+						},
+						{
+							"kind": "field",
+							"name": "size",
+							"type": {
+								"text": "'standard' | 'compact'"
+							},
+							"default": "'standard'",
+							"description": "Player size. The height contract depends on it.",
+							"attribute": "size"
+						},
+						{
+							"kind": "field",
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour.",
+							"attribute": "accent"
+						},
+						{
+							"kind": "field",
+							"name": "wave",
+							"type": {
+								"text": "'true' | 'false'"
+							},
+							"description": "Pins the waveform on or off. Absent follows the show's waveform setting.",
+							"attribute": "wave"
+						},
+						{
+							"kind": "field",
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only.",
+							"attribute": "api"
+						}
+					],
+					"slots": [
+						{
+							"name": "",
+							"description": "Fallback content, such as a \"Listen on show.fm\" link. It shows when the episode cannot be loaded."
+						}
+					],
+					"cssParts": [
+						{
+							"name": "artwork",
+							"description": "The episode artwork."
+						},
+						{
+							"name": "container",
+							"description": "The player card."
+						},
+						{
+							"name": "controls",
+							"description": "The transport controls row."
+						},
+						{
+							"name": "download",
+							"description": "The download link."
+						},
+						{
+							"name": "error",
+							"description": "The card shown when the episode cannot be played."
+						},
+						{
+							"name": "footer",
+							"description": "The \"Powered by\" row."
+						},
+						{
+							"name": "mute",
+							"description": "The mute button."
+						},
+						{
+							"name": "play",
+							"description": "The play and pause button."
+						},
+						{
+							"name": "rate",
+							"description": "The playback rate button."
+						},
+						{
+							"name": "seek",
+							"description": "The seek slider."
+						},
+						{
+							"name": "share",
+							"description": "The share button."
+						},
+						{
+							"name": "subtitle",
+							"description": "The podcast title line."
+						},
+						{
+							"name": "title",
+							"description": "The episode title link."
+						}
+					]
+				},
+				{
+					"kind": "class",
+					"name": "PodcasterPlusPlayer",
+					"tagName": "podcasterplus-player",
+					"customElement": true,
+					"description": "The pre-rebrand name of `showfm-player`. It stays registered so embeds already on the web keep working.",
+					"deprecated": "Use `showfm-player`.",
+					"superclass": {
+						"name": "ShowfmPlayer",
+						"module": "dist/index.js"
+					},
+					"attributes": [
+						{
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Plays that one episode and wins over `podcast`.",
+							"fieldName": "episode"
+						},
+						{
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast slug or UUID. Plays the latest released episode.",
+							"fieldName": "podcast"
+						},
+						{
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting.",
+							"fieldName": "theme"
+						},
+						{
+							"name": "size",
+							"type": {
+								"text": "'standard' | 'compact'"
+							},
+							"default": "'standard'",
+							"description": "Player size. The height contract depends on it.",
+							"fieldName": "size"
+						},
+						{
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour.",
+							"fieldName": "accent"
+						},
+						{
+							"name": "wave",
+							"type": {
+								"text": "'true' | 'false'"
+							},
+							"description": "Pins the waveform on or off. Absent follows the show's waveform setting.",
+							"fieldName": "wave"
+						},
+						{
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only.",
+							"fieldName": "api"
+						}
+					],
+					"members": [
+						{
+							"kind": "field",
+							"name": "episode",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode UUID. Plays that one episode and wins over `podcast`.",
+							"attribute": "episode"
+						},
+						{
+							"kind": "field",
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast slug or UUID. Plays the latest released episode.",
+							"attribute": "podcast"
+						},
+						{
+							"kind": "field",
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting.",
+							"attribute": "theme"
+						},
+						{
+							"kind": "field",
+							"name": "size",
+							"type": {
+								"text": "'standard' | 'compact'"
+							},
+							"default": "'standard'",
+							"description": "Player size. The height contract depends on it.",
+							"attribute": "size"
+						},
+						{
+							"kind": "field",
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour.",
+							"attribute": "accent"
+						},
+						{
+							"kind": "field",
+							"name": "wave",
+							"type": {
+								"text": "'true' | 'false'"
+							},
+							"description": "Pins the waveform on or off. Absent follows the show's waveform setting.",
+							"attribute": "wave"
+						},
+						{
+							"kind": "field",
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only.",
+							"attribute": "api"
+						}
+					],
+					"slots": [
+						{
+							"name": "",
+							"description": "Fallback content, such as a \"Listen on show.fm\" link. It shows when the episode cannot be loaded."
+						}
+					],
+					"cssParts": [
+						{
+							"name": "artwork",
+							"description": "The episode artwork."
+						},
+						{
+							"name": "container",
+							"description": "The player card."
+						},
+						{
+							"name": "controls",
+							"description": "The transport controls row."
+						},
+						{
+							"name": "download",
+							"description": "The download link."
+						},
+						{
+							"name": "error",
+							"description": "The card shown when the episode cannot be played."
+						},
+						{
+							"name": "footer",
+							"description": "The \"Powered by\" row."
+						},
+						{
+							"name": "mute",
+							"description": "The mute button."
+						},
+						{
+							"name": "play",
+							"description": "The play and pause button."
+						},
+						{
+							"name": "rate",
+							"description": "The playback rate button."
+						},
+						{
+							"name": "seek",
+							"description": "The seek slider."
+						},
+						{
+							"name": "share",
+							"description": "The share button."
+						},
+						{
+							"name": "subtitle",
+							"description": "The podcast title line."
+						},
+						{
+							"name": "title",
+							"description": "The episode title link."
+						}
+					]
+				}
+			],
+			"exports": [
+				{
+					"kind": "custom-element-definition",
+					"name": "showfm-player",
+					"declaration": {
+						"name": "ShowfmPlayer",
+						"module": "dist/index.js"
+					}
+				},
+				{
+					"kind": "custom-element-definition",
+					"name": "podcasterplus-player",
+					"declaration": {
+						"name": "PodcasterPlusPlayer",
+						"module": "dist/index.js"
+					}
+				}
+			]
+		}
+	]
+}
