@@ -1,10 +1,11 @@
 /**
  * The ESM entry (`@showfm/embed`, dist/index.js): importing it registers the
- * same two elements as v1.js and exposes the pure modules and constants.
+ * same elements as v1.js (with the episode list carried inline) and exposes the pure modules and constants.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { listPage, podcastPayload, sampleEpisodes } from '../fixtures/episodes';
 
 // Typed from the source entry; loaded from the build. The specifier is a
 // variable so type-checking does not need dist/ to exist.
@@ -55,6 +56,32 @@ describe('@showfm/embed ESM entry', () => {
 		expect(element.shadowRoot!.querySelector('.fallback p')?.textContent?.trim()).toBe(
 			'Lecture impossible pour le moment.'
 		);
+		expect(document.querySelector('script[src]')).toBeNull();
+		element.remove();
+		for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+		vi.unstubAllGlobals();
+	});
+
+	it('mounts <showfm-episodes> from the chunk it carries, with no script added', async () => {
+		vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
+			const episodes = String(input).includes('/episodes');
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(
+						episodes ? listPage(sampleEpisodes()) : { data: podcastPayload({ branded: false }) }
+					)
+				)
+			);
+		});
+		const element = document.createElement('showfm-episodes');
+		element.setAttribute('podcast', 'the-long-table');
+		element.setAttribute('lang', 'de');
+		document.body.append(element);
+		await vi.waitFor(() =>
+			expect(element.shadowRoot?.querySelectorAll('[data-row]')).toHaveLength(7)
+		);
+		// German is bundled here too.
+		expect(element.shadowRoot!.textContent).toContain('St. 2 · Folge 4');
 		expect(document.querySelector('script[src]')).toBeNull();
 		element.remove();
 		for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));

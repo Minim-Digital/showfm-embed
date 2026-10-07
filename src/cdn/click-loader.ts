@@ -58,7 +58,8 @@
 
 	const style = d.createElement('style');
 	style.textContent =
-		`:is(${TAGS})[${FACADE}]:not(:defined)>:not([${UI}]){display:none}` +
+		// A list never shows its light DOM, and is defined before it mounts.
+		`[${FACADE}]:is(showfm-episodes,:not(:defined))>:not([${UI}]){display:none}` +
 		`[${UI}]{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:10px;width:100%;min-height:var(--h);padding:20px 22px;border:1px solid #e7e5ec;border-radius:14px;background:#fff;color:#2b2833;font:14px/1.4 Geist,ui-sans-serif,system-ui,sans-serif;text-align:left}` +
 		`[${UI}][data-c]{padding:12px 14px}[${UI}][data-d]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}` +
 		`@media(prefers-color-scheme:dark){[${UI}][data-a]{background:#17151f;border-color:#ffffff1a;color:#ecebf0}}` +

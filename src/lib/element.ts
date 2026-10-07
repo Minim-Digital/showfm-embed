@@ -2,8 +2,12 @@
  * Standalone entry for the embeddable player bundle.
  *
  * Built by `pnpm build` (vite.cdn.config.ts, customElement: true) into
- * dist/cdn/v1.js, and into the ESM entry (vite.esm.config.ts). Importing the
- * component registers <showfm-player> via the tag in its <svelte:options>.
+ * dist/cdn/v1.js, which the package root also runs (scripts/build.mjs).
+ *
+ * Each element registers only if its name is free. A page can already hold
+ * an older copy (another CDN script, or an npm build that predates an
+ * element): that copy keeps the elements it defined, and this one adds the
+ * ones it lacks, such as <showfm-episodes>.
  *
  * <podcasterplus-player> is the pre-rebrand element name. Embed snippets are
  * copy-pasted into pages we cannot edit, so the old tag must keep upgrading
@@ -11,10 +15,14 @@
  * constructor may only be passed to customElements.define once.
  */
 import ShowfmPlayer from './ShowfmPlayer.svelte';
+import { defineShowfmEpisodes } from './episodes-element';
 
 // The `element` static only exists in the customElement build (and svelte-check
 // types the component without it), hence the cast and the runtime guard.
 const element = (ShowfmPlayer as unknown as { element?: typeof HTMLElement }).element;
+if (element && !customElements.get('showfm-player')) {
+	customElements.define('showfm-player', element);
+}
 if (element && !customElements.get('podcasterplus-player')) {
 	customElements.define('podcasterplus-player', class extends element {});
 }
@@ -25,3 +33,5 @@ if (element && !customElements.get('podcasterplus-player')) {
 // elements already here.
 const showfm = ((window as unknown as { showfm?: { load?: () => void } }).showfm ??= {});
 showfm.load ??= () => document.dispatchEvent(new Event('showfm:load'));
+
+defineShowfmEpisodes();

@@ -24,6 +24,7 @@
 	import { MARKETING_APEX_URL, isShowfmMediaUrl, mediaHosts } from './hosts';
 	import { formatString, languageFromTag, resolveStrings, type StringOverrides } from './strings';
 	import { pageController } from './controller';
+	import { safeUrl } from './fallback';
 
 	let {
 		episode,
@@ -159,8 +160,13 @@
 	);
 	const cssVars = $derived(paletteVars(palette));
 	const peaks = $derived(genPeaks(`${episode.id}${episode.title}`));
+	// Every URL from the API passes the http(s) allow-list before it reaches
+	// an href or src: no javascript:, data:, relative or protocol-relative
+	// values. A link that fails is dropped; the rest of the player still works.
+	const listenUrl = $derived(safeUrl(episode.links.listen));
+	const artworkUrl = $derived(safeUrl(episode.artwork.url));
 	const audioSrc = $derived.by(() => {
-		const url = episode.audio.url;
+		const url = safeUrl(episode.audio.url);
 		if (!url) return null;
 		const separator = url.includes('?') ? '&' : '?';
 		return `${url}${separator}src=${encodeURIComponent(sourceTag)}`;
@@ -257,7 +263,7 @@
 			id: episode.id,
 			title: episode.title,
 			podcastTitle: episode.podcast.title,
-			artworkUrl: episode.artwork.url
+			artworkUrl
 		});
 	});
 
@@ -324,7 +330,7 @@
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: episode.title,
 				artist: episode.podcast.title,
-				artwork: episode.artwork.url ? [{ src: episode.artwork.url, sizes: '512x512' }] : []
+				artwork: artworkUrl ? [{ src: artworkUrl, sizes: '512x512' }] : []
 			});
 		} catch {
 			// Media Session is progressive enhancement only
@@ -426,7 +432,8 @@
 	}
 
 	async function share() {
-		const url = episode.links.listen;
+		const url = listenUrl;
+		if (!url) return;
 		const nav = navigator as Navigator & {
 			share?: (data: { title: string; text: string; url: string }) => Promise<void>;
 		};
@@ -447,11 +454,11 @@
 </script>
 
 {#snippet artworkTile(px: number, radius: number)}
-	{#if episode.artwork.url}
+	{#if artworkUrl}
 		<img
 			class="artwork"
 			style="width:{px}px;height:{px}px;border-radius:{radius}px"
-			src={episode.artwork.url}
+			src={artworkUrl}
 			alt=""
 			loading="lazy"
 			part="artwork"
@@ -593,13 +600,7 @@
 {/snippet}
 
 {#snippet titleLink(className: string)}
-	<a
-		class={className}
-		href={episode.links.listen}
-		target="_blank"
-		rel="noopener noreferrer"
-		part="title"
-	>
+	<a class={className} href={listenUrl} target="_blank" rel="noopener noreferrer" part="title">
 		{episode.title}
 	</a>
 {/snippet}
@@ -616,9 +617,11 @@
 				{s.retry}
 			</button>
 		{/if}
-		<a href={episode.links.listen} target="_blank" rel="noopener noreferrer">
-			{s.listenOnShowfm}
-		</a>
+		{#if listenUrl}
+			<a href={listenUrl} target="_blank" rel="noopener noreferrer">
+				{s.listenOnShowfm}
+			</a>
+		{/if}
 	</div>
 {/snippet}
 
@@ -742,47 +745,50 @@
 							</svg>
 						</a>
 					{/if}
-					<button
-						type="button"
-						class="icon-btn action-btn"
-						onclick={share}
-						aria-label={s.share}
-						part="share"
-					>
-						{#if shared}
-							<svg
-								width="18"
-								height="18"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M20 6 9 17l-5-5"></path>
-							</svg>
-						{:else}
-							<svg
-								width="18"
-								height="18"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<circle cx="18" cy="5" r="2.6"></circle>
-								<circle cx="6" cy="12" r="2.6"></circle>
-								<circle cx="18" cy="19" r="2.6"></circle>
-								<path d="m8.3 13.4 7.4 4.2"></path>
-								<path d="m15.7 6.4-7.4 4.2"></path>
-							</svg>
-						{/if}
-					</button>
+					<!-- Share needs the listen page; with no safe URL there is nothing to share. -->
+					{#if listenUrl}
+						<button
+							type="button"
+							class="icon-btn action-btn"
+							onclick={share}
+							aria-label={s.share}
+							part="share"
+						>
+							{#if shared}
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M20 6 9 17l-5-5"></path>
+								</svg>
+							{:else}
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.75"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<circle cx="18" cy="5" r="2.6"></circle>
+									<circle cx="6" cy="12" r="2.6"></circle>
+									<circle cx="18" cy="19" r="2.6"></circle>
+									<path d="m8.3 13.4 7.4 4.2"></path>
+									<path d="m15.7 6.4-7.4 4.2"></path>
+								</svg>
+							{/if}
+						</button>
+					{/if}
 				</div>
 			</div>
 

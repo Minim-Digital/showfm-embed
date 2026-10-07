@@ -11,10 +11,19 @@ describe('apiGet', () => {
 		expect(await apiGet('https://api.test/v1/episodes/x', { fetch })).toEqual({
 			status: 'ok',
 			data: { id: 'x' },
-			etag: '"abc"'
+			etag: '"abc"',
+			nextCursor: null
 		});
 		// Nothing to add: one argument, exactly as the v1 player always called it.
 		expect(fetch).toHaveBeenCalledWith('https://api.test/v1/episodes/x');
+	});
+
+	it("ok: a list's keyset cursor comes back as nextCursor", async () => {
+		const fetch = respond(
+			JSON.stringify({ data: [{ id: 'x' }], pagination: { next_cursor: 'MjAyNi0wMQ' } })
+		);
+		const result = await apiGet('https://api.test/v1/podcasts/p/episodes', { fetch });
+		expect(result).toMatchObject({ status: 'ok', data: [{ id: 'x' }], nextCursor: 'MjAyNi0wMQ' });
 	});
 
 	it('not-modified: sends If-None-Match only when given an ETag', async () => {

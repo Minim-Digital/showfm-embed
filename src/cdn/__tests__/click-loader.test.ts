@@ -72,9 +72,10 @@ describe('before the press', () => {
 		expect(two.hasAttribute('data-d')).toBe(true);
 		const list = document.getElementById('list')!;
 		expect(facadeButton(list).getAttribute('aria-label')).toBe('Load episodes');
-		// The fallback children are hidden while the facade shows.
+		// The fallback children are hidden while the facade shows, and a
+		// list's stay hidden after v1.js defines it, until its chunk mounts.
 		expect(document.head.querySelector('style')!.textContent).toContain(
-			'[data-showfm-facade]:not(:defined)>:not([data-showfm-facade-ui]){display:none}'
+			'[data-showfm-facade]:is(showfm-episodes,:not(:defined))>:not([data-showfm-facade-ui]){display:none}'
 		);
 	});
 

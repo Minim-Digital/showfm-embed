@@ -95,14 +95,20 @@ export function languageTagFor(element: Element | null | undefined): string | nu
 	return document.documentElement.getAttribute('lang') || null;
 }
 
-/** Keeps only known keys with string values, so a stray object cannot break rendering. */
-function pickStrings(source: unknown): StringOverrides {
-	const picked: StringOverrides = {};
+/**
+ * Keeps only the keys `table` has (the player's by default) with string
+ * values, so a stray object cannot break rendering.
+ */
+export function pickStrings<T extends object = Strings>(
+	source: unknown,
+	table: T = EN as unknown as T
+): Partial<T> {
+	const picked: Partial<T> = {};
 	if (!source || typeof source !== 'object') return picked;
-	for (const key of Object.keys(EN) as StringKey[]) {
+	for (const key of Object.keys(table) as (keyof T & string)[]) {
 		const value = (source as Record<string, unknown>)[key];
 		if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(source, key)) {
-			picked[key] = value;
+			picked[key] = value as T[keyof T & string];
 		}
 	}
 	return picked;

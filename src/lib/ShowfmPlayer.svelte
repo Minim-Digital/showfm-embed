@@ -1,6 +1,5 @@
 <svelte:options
 	customElement={{
-		tag: 'showfm-player',
 		shadow: 'open',
 		props: {
 			episode: { attribute: 'episode' },

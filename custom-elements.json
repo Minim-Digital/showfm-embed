@@ -538,6 +538,159 @@
 							"description": "The episode title link."
 						}
 					]
+				},
+				{
+					"kind": "class",
+					"name": "ShowfmEpisodes",
+					"tagName": "showfm-episodes",
+					"customElement": true,
+					"description": "A podcast's episodes as a list or grid, each one playable. The list's code loads the first time one is on the page. Its fallback is a list of title links (renderEpisodeListHTML), which shows until the list mounts and without JavaScript. Set --showfm-height to the height to reserve; the list keeps it as its minimum and grows downwards only.",
+					"attributes": [
+						{
+							"name": "podcast",
+							"type": {
+								"text": "string"
+							},
+							"description": "Podcast UUID (preferred, it survives a slug change) or slug."
+						},
+						{
+							"name": "variant",
+							"type": {
+								"text": "'card' | 'minimal'"
+							},
+							"default": "'card'",
+							"description": "Card shows artwork and descriptions; Minimal is a quieter text list."
+						},
+						{
+							"name": "layout",
+							"type": {
+								"text": "'auto' | 'list' | 'grid' | 'compact'"
+							},
+							"default": "'auto'",
+							"description": "`auto` is a grid from 900px wide (for Card, when at least half the episodes have their own artwork), else a list. A grid under 480px wide shows as a list."
+						},
+						{
+							"name": "count",
+							"type": {
+								"text": "number"
+							},
+							"default": "10",
+							"description": "Episodes per page, 1 to 50. \"Load more\" fetches the next page."
+						},
+						{
+							"name": "season",
+							"type": {
+								"text": "number"
+							},
+							"description": "Only this season."
+						},
+						{
+							"name": "hide",
+							"type": {
+								"text": "string"
+							},
+							"description": "Episode types to leave out: `trailer`, `bonus` or `trailer,bonus`."
+						},
+						{
+							"name": "descriptions",
+							"type": {
+								"text": "'on' | 'off'"
+							},
+							"default": "'on'",
+							"description": "Episode descriptions, two lines with \"More\" in the list layout."
+						},
+						{
+							"name": "mini-player",
+							"type": {
+								"text": "'on' | 'off'"
+							},
+							"default": "'off'",
+							"description": "`on`: playing a row opens the page's mini-player."
+						},
+						{
+							"name": "heading-level",
+							"type": {
+								"text": "'2' | '3' | '4' | '5' | '6'"
+							},
+							"description": "Wraps the episode title in a heading of this level. Absent, the title is a link and no heading is emitted."
+						},
+						{
+							"name": "credit",
+							"type": {
+								"text": "'auto' | 'on' | 'off'"
+							},
+							"default": "'auto'",
+							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it."
+						},
+						{
+							"name": "load",
+							"type": {
+								"text": "'click'"
+							},
+							"description": "`click` requests nothing from show.fm, not even the list's code, until the facade the click loader draws is pressed. `showfm.load()` loads every facade at once."
+						},
+						{
+							"name": "theme",
+							"type": {
+								"text": "'auto' | 'light' | 'dark'"
+							},
+							"description": "Pins the theme. Absent follows the show's player theme setting."
+						},
+						{
+							"name": "accent",
+							"type": {
+								"text": "string"
+							},
+							"description": "Accent colour as a hex value. Absent follows the show's player colour."
+						},
+						{
+							"name": "api",
+							"type": {
+								"text": "string"
+							},
+							"default": "'https://api.show.fm'",
+							"description": "API origin override, for development and testing only."
+						}
+					],
+					"members": [
+						{
+							"kind": "field",
+							"name": "strings",
+							"type": {
+								"text": "Partial<Record<string, string>>"
+							},
+							"description": "Overrides for visible strings, by key, usually set as a property. `window.showfmStrings` sets them for every element."
+						}
+					],
+					"cssProperties": [
+						{
+							"name": "--showfm-height",
+							"description": "The height to reserve before the list loads. The list keeps it as its minimum height.",
+							"default": "0"
+						}
+					],
+					"cssParts": [
+						{
+							"name": "card",
+							"description": "One episode: a row, a grid card or a compact row."
+						},
+						{
+							"name": "error",
+							"description": "The message shown when the list cannot load or the show is suspended."
+						},
+						{
+							"name": "footer",
+							"description": "The \"Powered by\" row."
+						},
+						{
+							"name": "play",
+							"description": "An episode's play and pause button."
+						},
+						{
+							"name": "title",
+							"description": "An episode's title link."
+						}
+					]
 				}
 			],
 			"exports": [
@@ -554,6 +707,14 @@
 					"name": "podcasterplus-player",
 					"declaration": {
 						"name": "PodcasterPlusPlayer",
+						"module": "dist/index.js"
+					}
+				},
+				{
+					"kind": "custom-element-definition",
+					"name": "showfm-episodes",
+					"declaration": {
+						"name": "ShowfmEpisodes",
 						"module": "dist/index.js"
 					}
 				}

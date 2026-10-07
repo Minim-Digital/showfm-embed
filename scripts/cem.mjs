@@ -87,6 +87,68 @@ const PART_DESCRIPTIONS = {
 };
 
 /**
+ * <showfm-episodes>. `style` (an undocumented alias for `variant`) and `lang`
+ * (a global attribute) are read too but not listed.
+ * @type {Record<string, { type: string, default?: string, description: string }>}
+ */
+const LIST_ATTRIBUTES = {
+	podcast: {
+		type: 'string',
+		description: 'Podcast UUID (preferred, it survives a slug change) or slug.'
+	},
+	variant: {
+		type: "'card' | 'minimal'",
+		default: "'card'",
+		description: 'Card shows artwork and descriptions; Minimal is a quieter text list.'
+	},
+	layout: {
+		type: "'auto' | 'list' | 'grid' | 'compact'",
+		default: "'auto'",
+		description:
+			'`auto` is a grid from 900px wide (for Card, when at least half the episodes have their own artwork), else a list. A grid under 480px wide shows as a list.'
+	},
+	count: {
+		type: 'number',
+		default: '10',
+		description: 'Episodes per page, 1 to 50. "Load more" fetches the next page.'
+	},
+	season: { type: 'number', description: 'Only this season.' },
+	hide: {
+		type: 'string',
+		description: 'Episode types to leave out: `trailer`, `bonus` or `trailer,bonus`.'
+	},
+	descriptions: {
+		type: "'on' | 'off'",
+		default: "'on'",
+		description: 'Episode descriptions, two lines with "More" in the list layout.'
+	},
+	'mini-player': {
+		type: "'on' | 'off'",
+		default: "'off'",
+		description: "`on`: playing a row opens the page's mini-player."
+	},
+	'heading-level': ATTRIBUTES['heading-level'],
+	credit: ATTRIBUTES.credit,
+	load: {
+		type: "'click'",
+		description:
+			"`click` requests nothing from show.fm, not even the list's code, until the facade the click loader draws is pressed. `showfm.load()` loads every facade at once."
+	},
+	theme: ATTRIBUTES.theme,
+	accent: ATTRIBUTES.accent,
+	api: ATTRIBUTES.api
+};
+
+/** @type {Record<string, string>} */
+const LIST_PART_DESCRIPTIONS = {
+	card: 'One episode: a row, a grid card or a compact row.',
+	error: 'The message shown when the list cannot load or the show is suspended.',
+	footer: 'The "Powered by" row.',
+	play: "An episode's play and pause button.",
+	title: "An episode's title link."
+};
+
+/**
  * Attribute names from the <svelte:options customElement> props block.
  * @param {string} source
  */
@@ -104,21 +166,47 @@ export function readParts(source) {
 	return [...new Set([...source.matchAll(/\bpart="([a-z-]+)"/g)].map((m) => m[1]))].sort();
 }
 
+/**
+ * Attribute names from EPISODE_LIST_ATTRIBUTES in episodes.svelte.ts.
+ * @param {string} source
+ */
+export function readListAttributes(source) {
+	const list = /EPISODE_LIST_ATTRIBUTES = \[([\s\S]*?)\]/.exec(source);
+	if (!list) throw new Error('No EPISODE_LIST_ATTRIBUTES in episodes.svelte.ts');
+	return [...list[1].matchAll(/'([a-z-]+)'/g)]
+		.map((match) => match[1])
+		.filter((name) => name !== 'style' && name !== 'lang');
+}
+
+/**
+ * The manifest entry for one element, checked against its source.
+ * @param {string[]} names
+ * @param {string[]} parts
+ * @param {Record<string, { type: string, default?: string, field?: string, description: string }>} described
+ * @param {Record<string, string>} partDescriptions
+ */
+function checkDescribed(names, parts, described, partDescriptions) {
+	for (const name of names) {
+		if (!described[name]) throw new Error(`Attribute "${name}" has no description in cem.mjs`);
+	}
+	for (const name of Object.keys(described)) {
+		if (!names.includes(name)) throw new Error(`cem.mjs describes "${name}", which is not a prop`);
+	}
+	for (const part of parts) {
+		if (!partDescriptions[part]) throw new Error(`Part "${part}" has no description in cem.mjs`);
+	}
+}
+
 export function buildManifest() {
 	const player = readFileSync('src/lib/ShowfmPlayer.svelte', 'utf-8');
 	const core = readFileSync('src/lib/PlayerCore.svelte', 'utf-8');
 
 	const names = readAttributes(player);
 	const parts = readParts(core);
-	for (const name of names) {
-		if (!ATTRIBUTES[name]) throw new Error(`Attribute "${name}" has no description in cem.mjs`);
-	}
-	for (const name of Object.keys(ATTRIBUTES)) {
-		if (!names.includes(name)) throw new Error(`cem.mjs describes "${name}", which is not a prop`);
-	}
-	for (const part of parts) {
-		if (!PART_DESCRIPTIONS[part]) throw new Error(`Part "${part}" has no description in cem.mjs`);
-	}
+	checkDescribed(names, parts, ATTRIBUTES, PART_DESCRIPTIONS);
+	const listNames = readListAttributes(readFileSync('src/lib/episodes.svelte.ts', 'utf-8'));
+	const listParts = readParts(readFileSync('src/lib/EpisodeList.svelte', 'utf-8'));
+	checkDescribed(listNames, listParts, LIST_ATTRIBUTES, LIST_PART_DESCRIPTIONS);
 
 	const attributes = names.map((name) => ({
 		name,
@@ -175,6 +263,37 @@ export function buildManifest() {
 						deprecated: 'Use `showfm-player`.',
 						superclass: { name: 'ShowfmPlayer', module: MODULE_PATH },
 						...shared
+					},
+					{
+						kind: 'class',
+						name: 'ShowfmEpisodes',
+						tagName: 'showfm-episodes',
+						customElement: true,
+						description:
+							"A podcast's episodes as a list or grid, each one playable. The list's code loads the first time one is on the page. Its fallback is a list of title links (renderEpisodeListHTML), which shows until the list mounts and without JavaScript. Set --showfm-height to the height to reserve; the list keeps it as its minimum and grows downwards only.",
+						attributes: listNames.map((name) => ({
+							name,
+							type: { text: LIST_ATTRIBUTES[name].type },
+							...(LIST_ATTRIBUTES[name].default ? { default: LIST_ATTRIBUTES[name].default } : {}),
+							description: LIST_ATTRIBUTES[name].description
+						})),
+						members: [
+							{
+								kind: 'field',
+								name: 'strings',
+								type: { text: ATTRIBUTES.strings.type },
+								description: ATTRIBUTES.strings.description
+							}
+						],
+						cssProperties: [
+							{
+								name: '--showfm-height',
+								description:
+									'The height to reserve before the list loads. The list keeps it as its minimum height.',
+								default: '0'
+							}
+						],
+						cssParts: listParts.map((name) => ({ name, description: LIST_PART_DESCRIPTIONS[name] }))
 					}
 				],
 				exports: [
@@ -187,6 +306,11 @@ export function buildManifest() {
 						kind: 'custom-element-definition',
 						name: 'podcasterplus-player',
 						declaration: { name: 'PodcasterPlusPlayer', module: MODULE_PATH }
+					},
+					{
+						kind: 'custom-element-definition',
+						name: 'showfm-episodes',
+						declaration: { name: 'ShowfmEpisodes', module: MODULE_PATH }
 					}
 				]
 			}

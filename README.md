@@ -1,6 +1,6 @@
 # @showfm/embed
 
-The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm).
+The show.fm podcast player as a web component. Drop `<showfm-player>` into any page and it plays an episode from [show.fm](https://show.fm). `<showfm-episodes>` lists a show's episodes, each one playable (see [The episode list](#the-episode-list)).
 
 It is the same player that show.fm serves as `/player/v1.js` today. This package is where that player is built and released.
 
@@ -80,13 +80,13 @@ The root entry types `document.querySelector('showfm-player')`. For JSX, load th
 import type {} from '@showfm/embed/jsx-react'; // or jsx-preact, jsx-solid
 ```
 
-Then `<showfm-player episode="..." size="compact" />` type-checks, including the attribute values.
+Then `<showfm-player episode="..." size="compact" />` and `<showfm-episodes podcast="..." layout="grid" />` type-check, including the attribute values.
 
 The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools.
 
 ### The classic script
 
-`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` next to it: `v1.js` loads its German and French strings from there.
+`@showfm/embed/cdn/v1.js` is the same file the CDN serves, if you want to host it yourself. Put `@showfm/embed/cdn/locales/` and `@showfm/embed/cdn/chunks/` next to it: `v1.js` loads its German and French strings and the episode list's code from there.
 
 ## Attributes
 
@@ -123,6 +123,53 @@ When an episode's audio is not on a show.fm media host (`m.cdn.media`, `media.po
 
 The player's parts can be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `footer` and `error`.
 
+## The episode list
+
+`<showfm-episodes>` shows a podcast's episodes as a list or a grid. Each episode plays in place, through the same page audio as the players.
+
+```html
+<script async src="https://embed.cdn.media/player/v1.js"></script>
+
+<showfm-episodes
+	podcast="99999999-8888-4777-8666-555555555555"
+	style="display:block;--showfm-height:640px;min-height:var(--showfm-height)"
+>
+	<ul>
+		<li><a href="https://show.fm/your-show/e/latest">The latest episode</a></li>
+		<li><a href="https://show.fm/your-show/e/one-before">The one before</a></li>
+	</ul>
+</showfm-episodes>
+```
+
+- The list of links is the fallback (`renderEpisodeListHTML`). It shows until the list loads and without JavaScript, and search engines follow its links.
+- `--showfm-height` reserves the list's height. The list keeps it as its minimum height and grows downwards only, so nothing below it moves when it loads. The embed code builder measures the list and writes the value.
+- The list's code is a separate file that `v1.js` adds from `chunks/` next to itself the first time a list is on the page, with the page's CSP nonce. A page without a list never downloads it. From npm it is bundled.
+
+| Attribute       | Values                              | Default               | What it does                                                                                                                               |
+| --------------- | ----------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `podcast`       | podcast UUID or slug                |                       | The show. Prefer the UUID: it survives a slug change.                                                                                      |
+| `variant`       | `card`, `minimal`                   | `card`                | Card shows artwork and descriptions. Minimal is a quieter text list.                                                                       |
+| `layout`        | `auto`, `list`, `grid`, `compact`   | `auto`                | `auto` is a grid from 900px wide, else a list. For Card, only when at least half the episodes have their own artwork.                      |
+| `count`         | `1` to `50`                         | `10`                  | Episodes per page. "Load more episodes" fetches the next page.                                                                             |
+| `season`        | season number                       | every season          | Only this season.                                                                                                                          |
+| `hide`          | `trailer`, `bonus`, `trailer,bonus` | none                  | Leaves those episode types out.                                                                                                            |
+| `descriptions`  | `on`, `off`                         | `on`                  | Episode descriptions. In a list they show two lines, with "More" when they are longer.                                                     |
+| `mini-player`   | `on`, `off`                         | `off`                 | Playing a row opens the page's mini-player. The mini-player ships later; until then the list only dispatches a `showfm:mini-player` event. |
+| `heading-level` | `2` to `6`                          | none                  | Wraps each episode title in a heading of that level. Without it no headings are emitted.                                                   |
+| `credit`        | `auto`, `on`, `off`                 | `auto`                | The "Powered by show.fm" footer, as on the player. Once per page.                                                                          |
+| `load`          | `click`                             |                       | Requests nothing, not even the list's code, until the facade is pressed. See [Load on click](#load-on-click).                              |
+| `theme`         | `auto`, `light`, `dark`             | the show's setting    | Pins the theme.                                                                                                                            |
+| `accent`        | hex colour                          | the show's colour     | Pins the accent.                                                                                                                           |
+| `api`           | URL                                 | `https://api.show.fm` | API origin. For development and testing only.                                                                                              |
+| `lang`          | language tag                        | `<html lang>`         | The language of the list's own strings.                                                                                                    |
+
+- A grid narrower than 480px shows as a list. Card and Minimal both have list, grid and compact layouts.
+- After "Load more episodes", focus moves to the first new episode. After the last page the list says so.
+- One episode plays at a time across the page's lists and players.
+- A show with no episodes yet says so. A list that cannot load shows "Episodes can’t be loaded right now." with Retry. A suspended show (403) shows "This show isn’t available right now." with no actions. An unknown or unpublished show (404) renders nothing and gives back the reserved height.
+- An episode that cannot be played shows its message in its row, with Retry and a link to show.fm. The rest of the list keeps working.
+- The parts are `card` (each episode), `title`, `play`, `footer` and `error`.
+
 ## Load on click
 
 For sites that need consent before any third-party request, `load="click"` makes the element request nothing from show.fm until the visitor presses it. Paste the loader inline after the elements instead of loading `v1.js`:
@@ -145,6 +192,7 @@ For sites that need consent before any third-party request, `load="click"` makes
 - The first press adds `v1.js` once. A player loads and plays; focus stays on its play button. If the browser no longer treats the press as permission to play, the player shows its blocked message with Play ready.
 - Other facades stay facades until they are pressed.
 - `showfm.load()` loads every facade at once, for consent tools.
+- A list's facade loads the list and moves focus to its first episode. Without the loader, a `load="click"` list shows its fallback links until `showfm.load()` runs.
 - Set `data-src` on the loader's `<script>` to load a self-hosted copy of `v1.js`.
 - The loader is about 4.3 kB as written (2.1 kB gzipped). iframes cannot be facades.
 
@@ -162,7 +210,7 @@ Each element upgrades the markup inside it. That markup is what shows before the
 
 The shared test cases are in the package at `@showfm/embed/fixtures/fallback/*.json`, so ports to other languages (the WordPress plugin's PHP) can prove they produce the same bytes.
 
-`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.5 kB gzipped) for that markup. It styles only elements that are not defined yet, so it never touches an upgraded element.
+`@showfm/embed/cdn/v1-fallback.css` is an optional stylesheet (under 0.6 kB gzipped) for that markup. It styles players only until they are defined, so it never touches an upgraded player. A list is defined as soon as `v1.js` runs but mounts when its code arrives, so its fallback stays styled until then; it also makes the list a block that keeps `--showfm-height`.
 
 ## Strings and languages
 
@@ -186,7 +234,7 @@ The constants are exported as `PLAYER_MIN_HEIGHTS` and `IFRAME_HEIGHTS`. CI meas
 
 ## Privacy
 
-The player sets no cookies and uses no storage. It requests episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` it requests nothing at all until the visitor presses it.
+The player and the list set no cookies and use no storage. They request episode data from the show.fm API, and the audio only loads when the listener presses play (`preload="none"`). With `load="click"` an element requests nothing at all until the visitor presses it.
 
 ## Origin
 
