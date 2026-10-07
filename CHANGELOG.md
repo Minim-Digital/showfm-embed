@@ -1,5 +1,11 @@
 # @showfm/embed
 
+## 1.4.1
+
+### Patch Changes
+
+- [#13](https://github.com/Minim-Digital/showfm-embed/pull/13) [`ebcb704`](https://github.com/Minim-Digital/showfm-embed/commit/ebcb7043279db4ac7d45e73a7ec3c948876c8e2f) Thanks [@danmaby](https://github.com/danmaby)! - Fix catastrophic backtracking in the VTT parser
+
 ## 1.4.0
 
 ### Minor Changes
