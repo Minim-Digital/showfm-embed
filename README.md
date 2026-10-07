@@ -336,7 +336,7 @@ Colours stay readable whatever is set:
 
 Fonts and sizes:
 
-- Since 1.4 the player takes the page's font, as the other elements always have. No font is downloaded. Before 1.4 it asked for Geist and fell back to the system font.
+- Since 1.5 the player takes the page's font, as the other elements always have. No font is downloaded. Before 1.5 it asked for Geist and fell back to the system font.
 - The [height contract](#the-height-contract) holds in any font: CI measures the four heights in the platform's UI font, Geist, a wide serif (Merriweather) and a narrow sans (Oswald), set on the page and through `--showfm-font`. Type sizes in the player, the play button and the mini-player are fixed for the same reason, so `--showfm-font-scale` does not reach them.
 - Fonts without tabular figures make times jitter as they count.
 - The iframe embeds always use Geist: an iframe cannot see the page's font.
