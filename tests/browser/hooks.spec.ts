@@ -29,6 +29,12 @@ import { fontsLoaded, hostFontHead, type HostFont } from './fonts';
 import { sampleEpisodes } from '../fixtures/episodes';
 import { TRANSCRIPT_EPISODE_ID } from '../fixtures/transcript';
 
+// The audit reads settled colours. A hook applied as an element mounts can
+// start a control's 150ms background transition, so nothing animates here.
+test.beforeEach(async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+});
+
 const EPISODE = sampleEpisodes()[0];
 const PODCAST = '99999999-8888-4777-8666-555555555555';
 const DARK_PAGE = '#0e0d13';
@@ -335,8 +341,6 @@ test('a dark surface with a pale accent: dark text derivations stay AA', async (
 });
 
 test("a site's own dark mode (a class on <html>) restyles the elements", async ({ page }) => {
-	// No transitions, so the audit reads the colours they settle on.
-	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await serveList(
 		page,
 		player('auto') + list('auto', 'id="card"'),
