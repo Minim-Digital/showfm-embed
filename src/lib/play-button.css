@@ -177,18 +177,28 @@ svg {
  * on its line: the line never wraps, so the host keeps its height. One line
  * tall and clipped, the link wraps its two words in reverse, so when
  * "Powered by show.fm" does not fit, "Powered by" moves to the hidden line
- * and "show.fm" stays; with less room still, "show.fm" ends in an ellipsis.
- * The link keeps its full name either way (aria-label).
+ * and "show.fm" stays. It never gets narrower than "show.fm" (4.6em holds
+ * it in wide fonts too): the button's label gives way instead, ending in an
+ * ellipsis ("Pause · 52 min left" is long). The button keeps its full
+ * name, and the link its own (aria-label).
  */
 .credited {
 	flex-wrap: nowrap;
+}
+.credited:not(.v-icon) .btn {
+	flex-shrink: 1;
+	min-width: 0;
+}
+.credited .btn span {
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .credit {
 	display: inline-flex;
 	flex-wrap: wrap-reverse;
 	align-content: flex-end;
 	column-gap: 0.3em;
-	min-width: 0;
+	min-width: 4.6em;
 	height: 1.3em;
 	overflow: hidden;
 	font-size: 11px;
@@ -196,11 +206,6 @@ svg {
 	color: var(--pp-muted);
 	text-decoration: none;
 	white-space: nowrap;
-}
-.credit b {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 .msg svg {
 	width: 1.1em;

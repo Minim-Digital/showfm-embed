@@ -1,19 +1,34 @@
 /** @vitest-environment node */
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
-import { describe, expect, it } from 'vitest';
+import { transformWithEsbuild } from 'vite';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { parseVtt } from '../vtt';
 
 /** How long a parse may run before it counts as hung. */
 const HANG_MS = 5_000;
 
 /**
+ * vtt.ts as JavaScript, for the worker: Vitest does not transform a worker's
+ * code, and Node strips types by default only from 22.18, while the dev
+ * toolchain runs from 22.12 (CI runs these tests there too). vtt.ts has no
+ * imports, so it loads alone, as a data: module.
+ */
+let vttModule = '';
+beforeAll(async () => {
+	const source = resolve(__dirname, '../vtt.ts');
+	const { code } = await transformWithEsbuild(readFileSync(source, 'utf-8'), source, {
+		format: 'esm'
+	});
+	vttModule = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+});
+
+/**
  * The fastest of three parses of `input`, in a worker that is stopped after
  * HANG_MS. A synchronous parse cannot be interrupted in this thread, so a
  * regression that never finishes (the pre-1.4.1 parser on 200 KB of voice
- * classes) would hang the run; here it fails in five seconds. vtt.ts has no
- * imports, so the worker loads it as it is (Node strips its types).
+ * classes) would hang the run; here it fails in five seconds.
  */
 function fastestParse(input: string): Promise<number> {
 	const source = `
@@ -27,9 +42,8 @@ function fastestParse(input: string): Promise<number> {
 			}
 			parentPort.postMessage(fastest);
 		});`;
-	const url = pathToFileURL(resolve(__dirname, '../vtt.ts')).href;
 	return new Promise((done, fail) => {
-		const worker = new Worker(source, { eval: true, workerData: { url, input } });
+		const worker = new Worker(source, { eval: true, workerData: { url: vttModule, input } });
 		const timer = setTimeout(() => {
 			void worker.terminate();
 			fail(new Error(`parseVtt was still running after ${HANG_MS} ms`));

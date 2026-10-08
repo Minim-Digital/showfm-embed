@@ -419,47 +419,74 @@ test('mini-player="off": the first button shows the credit beside it, in its 40p
 	expect(line!.y + line!.height).toBeLessThanOrEqual(button!.y + button!.height + 1);
 });
 
-// EMB-7 re-review R1: in narrow containers the credit keeps the button's
-// line (40px, or 48px for the large label). It shortens to "show.fm", then
-// cuts that short, but stays present, focusable and named in full.
+// EMB-7 re-review R1 and Codex at e70d8ed: in narrow containers the
+// credit keeps the button's line (40px, or 48px for the large label), at
+// rest, playing ("Pause · 52 min left") and paused ("Resume · …"). It
+// shortens to "show.fm" but never further: the button's label gives way,
+// ending in an ellipsis, and keeps its full name. It stays focusable and
+// named in full, and nothing leaves the cell.
 for (const [name, attributes, width, contract] of [
 	['the icon in a 120px table cell', 'variant="icon"', 120, 40],
+	['the small label in a 120px table cell', '', 120, 40],
 	['the small label at 160px', '', 160, 40],
 	['the large label at 320px', 'size="lg"', 320, 48]
 ] as const) {
-	test(`mini-player="off", ${name}: the credit keeps the ${contract}px line`, async ({ page }) => {
+	test(`mini-player="off", ${name}: the credit keeps the ${contract}px line, playing too`, async ({
+		page
+	}) => {
 		await serveList(
 			page,
 			`<table style="table-layout:fixed;width:${width}px;border-collapse:collapse"><tr><td style="padding:0">${play(`mini-player="off" ${attributes}`)}</td></tr></table>`
 		);
 		await buttonsReady(page);
 		const credit = page.getByRole('link', { name: 'Powered by show.fm' });
+		const button = page.locator('showfm-play [data-play]');
 		await expect(credit).toHaveCount(1);
-		const at = await page.locator('showfm-play').evaluate((host) => {
-			const link = host.shadowRoot!.querySelector<HTMLElement>('.credit')!;
-			const box = link.getBoundingClientRect();
-			const mark = link.querySelector('b')!.getBoundingClientRect();
-			const words = link.querySelector('span')!.getBoundingClientRect();
-			return {
-				height: host.getBoundingClientRect().height,
-				hostRight: host.getBoundingClientRect().right,
-				cell: host.parentElement!.getBoundingClientRect().right,
-				credit: { width: box.width, right: box.right },
-				// "show.fm" is on the link's one visible line; "Powered by" is
-				// on it too, or on the hidden one.
-				markShown: mark.top >= box.top - 0.5 && mark.bottom <= box.bottom + 0.5 && mark.width > 0,
-				wordsShown: words.top >= box.top - 0.5 && words.bottom <= box.bottom + 0.5
-			};
-		});
-		expect(at.height).toBe(contract);
-		expect(at.markShown).toBe(true);
-		expect(at.credit.width).toBeGreaterThan(0);
-		// Nothing leaves the cell.
-		expect(at.credit.right).toBeLessThanOrEqual(at.cell + 0.5);
-		expect(at.hostRight).toBeLessThanOrEqual(at.cell + 0.5);
+
+		const measure = () =>
+			page.locator('showfm-play').evaluate((host) => {
+				const link = host.shadowRoot!.querySelector<HTMLElement>('.credit')!;
+				const box = link.getBoundingClientRect();
+				const mark = link.querySelector('b')!;
+				const markBox = mark.getBoundingClientRect();
+				const words = link.querySelector('span')!.getBoundingClientRect();
+				const cell = host.parentElement!.getBoundingClientRect();
+				const within = (rect: DOMRect) =>
+					rect.left >= cell.left - 0.5 && rect.right <= cell.right + 0.5;
+				return {
+					height: host.getBoundingClientRect().height,
+					// "show.fm" whole, on the link's one visible line, inside it.
+					markShown:
+						mark.scrollWidth <= mark.clientWidth + 0.5 &&
+						markBox.width > 20 &&
+						markBox.top >= box.top - 0.5 &&
+						markBox.bottom <= box.bottom + 0.5 &&
+						markBox.right <= box.right + 0.5,
+					wordsShown: words.top >= box.top - 0.5 && words.bottom <= box.bottom + 0.5,
+					inside: [host, ...host.shadowRoot!.querySelectorAll('.btn, .credit')].every((element) =>
+						within(element.getBoundingClientRect())
+					)
+				};
+			});
+		const check = async (state: string) => {
+			const at = await measure();
+			expect(at.height, state).toBe(contract);
+			expect(at.markShown, state).toBe(true);
+			expect(at.inside, state).toBe(true);
+			return at;
+		};
+
+		const rest = await check('at rest');
+		if (width === 120) expect(rest.wordsShown).toBe(false);
 		// Focusable, as a link is.
 		await credit.focus();
 		await expect(credit).toBeFocused();
-		if (width === 120) expect(at.wordsShown).toBe(false);
+
+		await button.click();
+		await expect(button).toHaveAccessibleName(/^Pause/);
+		await check('playing');
+		await button.click();
+		await expect(button).toHaveAccessibleName(/^(Play|Resume)/);
+		await check('paused');
 	});
 }

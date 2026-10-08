@@ -79,3 +79,28 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # The unit tests on the oldest Node the dev toolchain supports (Vite 7 and
+  # its Svelte plugin need 22.12). Node strips TypeScript types by default
+  # only from 22.18, so a test that needed that (the VTT timing worker did)
+  # fails here.
+  unit-oldest-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test

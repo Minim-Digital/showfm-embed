@@ -4,7 +4,7 @@ Thanks for helping. This file covers how to work on the package and how releases
 
 ## Set up
 
-You need Node 22 or later and pnpm (the version is pinned in `package.json`; `corepack enable` picks it up).
+You need Node 22.12 or later (the oldest the build and test tools run on; CI runs the unit tests on 22.12.0 as well as current Node 22) and pnpm (the version is pinned in `package.json`; `corepack enable` picks it up).
 
 ```sh
 pnpm install --frozen-lockfile
