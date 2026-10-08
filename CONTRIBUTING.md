@@ -23,7 +23,8 @@ pnpm install --frozen-lockfile
 | `tests/contract/`    | Tests against the built files in `dist/`.                                                     |
 | `tests/browser/`     | Playwright tests in Chromium: heights, the list, the play button, mini-player and transcript. |
 | `fixtures/jsx/`      | Compile-only fixtures that prove the JSX typings work.                                        |
-| `scripts/`           | Build, manifest, publish and security-review tooling.                                         |
+| `scripts/`           | Build, manifest, element reference, publish and security-review tooling.                      |
+| `docs/elements.md`   | The element reference, generated from `custom-elements.json` by `scripts/elements-md.mjs`.    |
 
 ## Checks
 
@@ -35,6 +36,7 @@ pnpm check           # svelte-check, warnings fail
 pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
+pnpm elements:check  # docs/elements.md matches custom-elements.json
 pnpm test:contract   # tests against dist/
 pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loaders and fallback CSS within theirs
 pnpm publint
@@ -43,7 +45,7 @@ pnpm jsx:check
 pnpm test:browser    # needs `pnpm exec playwright install chromium` once
 ```
 
-If you change an attribute or a `part`, run `pnpm cem` and commit `custom-elements.json`. The script fails if an attribute or part has no description.
+If you change an attribute or a `part`, run `pnpm cem` and then `pnpm elements`, and commit `custom-elements.json` and `docs/elements.md`. The manifest script fails if an attribute or part has no description, and CI fails if either file is stale (`pnpm cem:check`, `pnpm elements:check`).
 
 When you change what an element does or which attributes it takes, update the README's tables and `llms.txt` in the same pull request.
 

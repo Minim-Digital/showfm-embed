@@ -82,7 +82,7 @@ import type {} from '@showfm/embed/jsx-react'; // or jsx-preact, jsx-solid
 
 Then `<showfm-player episode="..." size="compact" />`, `<showfm-episodes podcast="..." layout="grid" />`, `<showfm-play episode="..." variant="icon" />` and `<showfm-transcript for="..." />` type-check, including the attribute values.
 
-The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools. The repository's [`llms.txt`](llms.txt) sums up the elements for AI assistants.
+The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools. [docs/elements.md](docs/elements.md) is the same reference as Markdown, generated from it: every element's attributes, events, slots, CSS custom properties and parts. The repository's [`llms.txt`](llms.txt) sums up the elements for AI assistants.
 
 ### The classic script
 
