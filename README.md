@@ -82,7 +82,7 @@ import type {} from '@showfm/embed/jsx-react'; // or jsx-preact, jsx-solid
 
 Then `<showfm-player episode="..." size="compact" />`, `<showfm-episodes podcast="..." layout="grid" />`, `<showfm-play episode="..." variant="icon" />` and `<showfm-transcript for="..." />` type-check, including the attribute values.
 
-The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools.
+The package also ships a [Custom Elements Manifest](https://custom-elements-manifest.open-wc.org/) (`custom-elements.json`) for editors and tools. The repository's [`llms.txt`](llms.txt) sums up the elements for AI assistants.
 
 ### The classic script
 
@@ -90,23 +90,24 @@ The package also ships a [Custom Elements Manifest](https://custom-elements-mani
 
 ## Attributes
 
-| Attribute              | Values                        | Default               | What it does                                                                                                                  |
-| ---------------------- | ----------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `episode`              | episode UUID                  |                       | Plays that episode. Wins over `podcast`.                                                                                      |
-| `podcast`              | podcast slug or UUID          |                       | Plays the show's latest released episode.                                                                                     |
-| `theme`                | `auto`, `light`, `dark`       | the show's setting    | Pins the theme. `auto` follows the visitor's colour scheme.                                                                   |
-| `size`                 | `standard`, `compact`         | `standard`            | Player size.                                                                                                                  |
-| `accent`               | hex colour, such as `#0ea5e9` | the show's colour     | Pins the accent. It is adjusted, if needed, to meet contrast rules.                                                           |
-| `wave`                 | `true`, `false`               | the show's setting    | Pins the waveform on or off. Off shows a plain progress bar.                                                                  |
-| `api`                  | URL                           | `https://api.show.fm` | API origin. For development and testing only.                                                                                 |
-| `heading-level`        | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted.                 |
-| `credit`               | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. See [The credit](#the-credit).                                                               |
-| `load`                 | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                                 |
-| `transcript`           | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.                         |
-| `mini-player`          | `on`, `off`                   | `off`                 | The page's mini-player takes over when the player scrolls out of view. See [The mini-player option](#the-mini-player-option). |
-| `mini-player-position` | `left`, `right`               | `right`               | The corner the collapsed mini-player sits in, when this player opens it.                                                      |
-| `platform`             | `wordpress`                   | none                  | For the show.fm WordPress plugin only. See [The credit](#the-credit).                                                         |
-| `lang`                 | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                                |
+| Attribute              | Values                        | Default               | What it does                                                                                                                                |
+| ---------------------- | ----------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `episode`              | episode UUID                  |                       | Plays that episode. Wins over `podcast`.                                                                                                    |
+| `podcast`              | podcast slug or UUID          |                       | Plays the show's latest released episode.                                                                                                   |
+| `theme`                | `auto`, `light`, `dark`       | the show's setting    | Pins the theme. `auto` follows the visitor's colour scheme.                                                                                 |
+| `size`                 | `standard`, `compact`         | `standard`            | Player size.                                                                                                                                |
+| `accent`               | hex colour, such as `#0ea5e9` | the show's colour     | Pins the accent. It is adjusted, if needed, to meet contrast rules.                                                                         |
+| `wave`                 | `true`, `false`               | the show's setting    | Pins the waveform on or off. Off shows a plain progress bar.                                                                                |
+| `api`                  | URL                           | `https://api.show.fm` | API origin. For development and testing only.                                                                                               |
+| `heading-level`        | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted.                               |
+| `credit`               | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. See [The credit](#the-credit).                                                                             |
+| `load`                 | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                                               |
+| `transcript`           | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.                                       |
+| `mini-player`          | `on`, `off`                   | `off`                 | The page's mini-player takes over when the player scrolls out of view. See [The mini-player option](#the-mini-player-option).               |
+| `mini-player-position` | `left`, `right`               | `right`               | The corner the collapsed mini-player sits in, when this player opens it.                                                                    |
+| `platform`             | `wordpress`                   | none                  | For the show.fm WordPress plugin only. See [The credit](#the-credit).                                                                       |
+| `lang`                 | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                                              |
+| `strings`              | JSON object                   | none                  | Overrides for the player's own strings, by key. Usually set as the `strings` property. See [Strings and languages](#strings-and-languages). |
 
 Set `episode` or `podcast`. With neither, the player shows its fallback.
 
@@ -373,7 +374,7 @@ Fonts and sizes:
 - Since 1.5 the player takes the page's font, as the other elements always have. No font is downloaded. Before 1.5 it asked for Geist and fell back to the system font.
 - The [height contract](#the-height-contract) holds in any font: CI measures the four heights in the platform's UI font, Geist, a wide serif (Merriweather) and a narrow sans (Oswald), set on the page and through `--showfm-font`. Type sizes in the player, the play button and the mini-player are fixed for the same reason, so `--showfm-font-scale` does not reach them.
 - Fonts without tabular figures make times jitter as they count.
-- The iframe embeds always use Geist: an iframe cannot see the page's font.
+- The iframe pages show.fm serves on embed.cdn.media use the system font (`system-ui`): an iframe cannot see the page's font.
 
 The click loader's `load="click"` facade draws before any code is here, so it takes only the `accent` attribute and `--showfm-font`; once `v1.js` is on the page, a facade follows every hook. The parts (`::part()`) remain an unsupported escape hatch for anything the hooks do not cover.
 
