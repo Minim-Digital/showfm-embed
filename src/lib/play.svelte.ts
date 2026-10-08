@@ -27,6 +27,7 @@ const PLAY_ATTRIBUTES = [
 	'size',
 	'mini-player',
 	'credit',
+	'platform',
 	'load',
 	'theme',
 	'accent',

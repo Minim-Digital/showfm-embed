@@ -27,7 +27,12 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { elementGet, episodeEndpoint } from './api';
-	import { pageController, type CreditClaim, type PlaybackSnapshot } from './controller';
+	import {
+		creditWanted,
+		pageController,
+		type CreditClaim,
+		type PlaybackSnapshot
+	} from './controller';
 	import {
 		MARKETING_APEX_URL,
 		PLAYER_DEFAULT_API_URL,
@@ -165,13 +170,16 @@
 	const palette = $derived(look.palette);
 	const showTitle = $derived(podcastData?.title ?? '');
 
+	// Only the show's branding can allow hiding the credit (creditWanted):
+	// with no payload (the show couldn't load) it shows. Null while loading, so a
+	// later embed does not take it meanwhile; suspended and collapsed show
+	// nothing.
 	const wantsCredit = $derived<boolean | null>(
-		status === 'ready' || status === 'empty'
-			? attr('credit') === 'on' ||
-					(attr('credit') !== 'off' && !!podcastData?.branding.show_powered_by)
-			: status === 'loading'
-				? null
-				: false
+		status === 'loading'
+			? null
+			: status !== 'unavailable' &&
+					status !== 'collapsed' &&
+					creditWanted(attr('credit'), podcastData?.branding, attr('platform'))
 	);
 
 	// ── data ───────────────────────────────────────────────────────────
@@ -186,6 +194,7 @@
 		// A new first page: no row keeps a message from the last one.
 		messages = {};
 		if (!podcast) {
+			podcastData = null;
 			status = 'error';
 			return;
 		}
@@ -201,6 +210,8 @@
 			} else if (show.status === 'not-found' || page.status === 'not-found') {
 				status = 'collapsed';
 			} else if (show.status !== 'ok' || page.status !== 'ok') {
+				// The show's own payload, when it came, still decides the credit.
+				podcastData = show.status === 'ok' ? readPodcast(show.data) : null;
 				status = 'error';
 			} else {
 				podcastData = readPodcast(show.data);
@@ -876,6 +887,8 @@
 				{/if}
 			{/if}
 		</div>
+		<!-- Outside the alert: not read out with the message. -->
+		{#if status === 'error'}{@render footer()}{/if}
 	{:else if status === 'ready'}
 		<div class="frame">
 			<div class="rows" bind:this={rowsEl}>

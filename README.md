@@ -100,11 +100,12 @@ The package also ships a [Custom Elements Manifest](https://custom-elements-mani
 | `wave`                 | `true`, `false`               | the show's setting    | Pins the waveform on or off. Off shows a plain progress bar.                                                                  |
 | `api`                  | URL                           | `https://api.show.fm` | API origin. For development and testing only.                                                                                 |
 | `heading-level`        | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted.                 |
-| `credit`               | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. `auto` follows the show's plan.                                                              |
+| `credit`               | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. See [The credit](#the-credit).                                                               |
 | `load`                 | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                                 |
 | `transcript`           | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.                         |
 | `mini-player`          | `on`, `off`                   | `off`                 | The page's mini-player takes over when the player scrolls out of view. See [The mini-player option](#the-mini-player-option). |
 | `mini-player-position` | `left`, `right`               | `right`               | The corner the collapsed mini-player sits in, when this player opens it.                                                      |
+| `platform`             | `wordpress`                   | none                  | For the show.fm WordPress plugin only. See [The credit](#the-credit).                                                         |
 | `lang`                 | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                                |
 
 Set `episode` or `podcast`. With neither, the player shows its fallback.
@@ -119,6 +120,16 @@ Set `episode` or `podcast`. With neither, the player shows its fallback.
 
 - Only one plays at a time. Pressing play on one pauses the others.
 - "Powered by show.fm" shows once per page, on the first embed (in page order) that shows it. The others render at their unbranded height, inside the space their snippet reserved, so the page does not move.
+
+### The credit
+
+"Powered by show.fm" follows the show's plan, as the public API resolves it: `branding.show_powered_by` is `false` only for a show whose plan includes branding removal and that has turned the credit off. Every element follows the same rule:
+
+- `auto` (the default) and `off` hide the credit only when the payload allows it. `credit="off"` on a show without branding removal still shows it.
+- With no payload (the episode or list could not load) the credit shows. While an element is loading it holds the decision, so the credit does not jump to a later embed and back.
+- `on` always shows it.
+- `platform="wordpress"` is for the show.fm WordPress plugin only. The plugin passes `credit="off"` unless the site owner opts in, because a credit that ships in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit="off"` hides the credit for any show.
+- It still shows once per page: on the first embed that shows it, or in the mini-player when the page has only play buttons.
 
 ### Audio hosted elsewhere
 
@@ -178,7 +189,8 @@ With `mini-player="on"`, when the visitor scrolls the player out of view while i
 | `mini-player`          | `on`, `off`                         | `off`                 | Playing a row opens the page's mini-player (see [The mini-player](#the-mini-player)).                                 |
 | `mini-player-position` | `left`, `right`                     | `right`               | The corner the collapsed mini-player sits in, when this list opens it.                                                |
 | `heading-level`        | `2` to `6`                          | none                  | Wraps each episode title in a heading of that level. Without it no headings are emitted.                              |
-| `credit`               | `auto`, `on`, `off`                 | `auto`                | The "Powered by show.fm" footer, as on the player. Once per page.                                                     |
+| `credit`               | `auto`, `on`, `off`                 | `auto`                | The "Powered by show.fm" footer. See [The credit](#the-credit). Once per page.                                        |
+| `platform`             | `wordpress`                         | none                  | For the show.fm WordPress plugin only. See [The credit](#the-credit).                                                 |
 | `load`                 | `click`                             |                       | Requests nothing, not even the list's code, until the facade is pressed. See [Load on click](#load-on-click).         |
 | `theme`                | `auto`, `light`, `dark`             | the show's setting    | Pins the theme.                                                                                                       |
 | `accent`               | hex colour                          | the show's colour     | Pins the accent.                                                                                                      |
@@ -227,7 +239,8 @@ The playing or paused row has a Transcript button when the episode has a transcr
 | `size`                 | `sm`, `lg`              | `sm`                  | `sm` is a 32px icon or a 36px label in a 40px line. `lg` is a 56px icon or a 48px label. The link takes the text around it.   |
 | `mini-player`          | `on`, `off`             | `on`                  | The first play opens the page's mini-player. With `off`, visitors can only play and pause.                                    |
 | `mini-player-position` | `left`, `right`         | `right`               | The corner the collapsed mini-player sits in.                                                                                 |
-| `credit`               | `auto`, `on`, `off`     | `auto`                | "Powered by show.fm" in the mini-player. `auto` follows the show's plan. Once per page.                                       |
+| `credit`               | `auto`, `on`, `off`     | `auto`                | "Powered by show.fm" in the mini-player. See [The credit](#the-credit). Once per page.                                        |
+| `platform`             | `wordpress`             | none                  | For the show.fm WordPress plugin only. See [The credit](#the-credit).                                                         |
 | `load`                 | `click`                 |                       | Requests nothing, not even the button's code, until the facade is pressed. See [Load on click](#load-on-click).               |
 | `theme`                | `auto`, `light`, `dark` | the show's setting    | Pins the theme of the button and the mini-player it opens.                                                                    |
 | `accent`               | hex colour              | the show's colour     | Pins the accent.                                                                                                              |

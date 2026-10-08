@@ -361,7 +361,8 @@
 		};
 	});
 	$effect(() => {
-		creditClaim?.set(open && episode?.credit === true);
+		// Shown unless the element that started the episode said it need not be.
+		creditClaim?.set(open && !!episode && episode.credit !== false);
 	});
 
 	// ── waveform ───────────────────────────────────────────────────────

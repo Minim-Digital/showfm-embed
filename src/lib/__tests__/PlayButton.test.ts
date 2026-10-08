@@ -505,15 +505,29 @@ describe('the mini-player (on by default)', () => {
 		document.removeEventListener('showfm:mini-player', opened);
 	});
 
-	it('mini-player="off": no mini-player; credit="off" or an unbranded show: no credit', async () => {
+	it('mini-player="off": no mini-player; credit="off" on a show that may hide it: no credit', async () => {
 		const opened = vi.fn();
 		document.addEventListener('showfm:mini-player', opened);
+		api.branded = false;
 		const { button } = await mountButton({ 'mini-player': 'off', credit: 'off' });
 		await press(button());
 		expect(opened).not.toHaveBeenCalled();
 		expect(pageController().sharedState()!.episode!.credit).toBe(false);
 		document.removeEventListener('showfm:mini-player', opened);
 	});
+
+	it.each([
+		[{ credit: 'off' }, true],
+		[{ credit: 'off', platform: 'wordpress' }, false],
+		[{ platform: 'wordpress' }, true]
+	])(
+		'%o on a show that cannot hide it hands on credit %s',
+		async (attributes: Record<string, string>, credit) => {
+			const { button } = await mountButton(attributes);
+			await press(button());
+			expect(pageController().sharedState()!.episode!.credit).toBe(credit);
+		}
+	);
 });
 
 describe('load="click" (design page 6)', () => {

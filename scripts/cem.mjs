@@ -55,7 +55,7 @@ const ATTRIBUTES = {
 		type: "'auto' | 'on' | 'off'",
 		default: "'auto'",
 		description:
-			'The "Powered by show.fm" footer. `auto` follows the show\'s plan. It shows once per page, on the first embed that shows it.'
+			'The "Powered by show.fm" footer. `auto` and `off` hide it only when the show\'s plan includes branding removal and the show has turned it off (the API\'s `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform="wordpress"`, `off` hides it for any show. It shows once per page, on the first embed that shows it.'
 	},
 	load: {
 		type: "'click'",
@@ -159,9 +159,21 @@ const MINI_PLAYER_POSITION_ATTRIBUTE = {
 LIST_ATTRIBUTES[MINI_PLAYER_POSITION] = MINI_PLAYER_POSITION_ATTRIBUTE;
 
 /**
+ * Set by the WordPress plugin; read by every element that can show the credit.
+ * @type {{ type: string, default?: string, description: string }}
+ */
+const PLATFORM_ATTRIBUTE = {
+	type: "'wordpress'",
+	description:
+		'For the show.fm WordPress plugin only, which passes `credit="off"` unless the site owner opts in: a credit in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit="off"` hides "Powered by show.fm" for any show. Other sites should not set it.'
+};
+LIST_ATTRIBUTES.platform = PLATFORM_ATTRIBUTE;
+
+/**
  * The player's attributes read from its host rather than declared as props
- * (each prop costs v1.js its accessors): `mini-player` by play-element.ts and
- * `mini-player-position` by the mini-player. They have no property. Each must still appear in those sources.
+ * (each prop costs v1.js its accessors): `mini-player` by play-element.ts,
+ * `mini-player-position` by the mini-player, `platform` by the player. They
+ * have no property. Each must still appear in those sources.
  */
 /** @type {Record<string, { type: string, default?: string, description: string }>} */
 const PLAYER_HOST_ATTRIBUTES = {
@@ -171,9 +183,14 @@ const PLAYER_HOST_ATTRIBUTES = {
 		description:
 			"`on`: when the visitor scrolls the player out of view while it plays, the page's mini-player takes over its audio, so playback carries on with seek, skip, speed and the time left. Off by default."
 	},
-	[MINI_PLAYER_POSITION]: MINI_PLAYER_POSITION_ATTRIBUTE
+	[MINI_PLAYER_POSITION]: MINI_PLAYER_POSITION_ATTRIBUTE,
+	platform: PLATFORM_ATTRIBUTE
 };
-const PLAYER_HOST_SOURCES = ['src/lib/play-element.ts', 'src/lib/MiniPlayer.svelte'];
+const PLAYER_HOST_SOURCES = [
+	'src/lib/play-element.ts',
+	'src/lib/MiniPlayer.svelte',
+	'src/lib/ShowfmPlayer.svelte'
+];
 
 /**
  * <showfm-play>. `lang` (a global attribute) is read too but not listed.
@@ -205,8 +222,9 @@ const PLAY_ATTRIBUTES = {
 		type: "'auto' | 'on' | 'off'",
 		default: "'auto'",
 		description:
-			'"Powered by show.fm" in the mini-player. `auto` follows the show\'s plan. It shows once per page, so an embed above it that shows it wins.'
+			'"Powered by show.fm" in the mini-player. `auto` and `off` hide it only when the show\'s plan includes branding removal and the show has turned it off; `on` always shows it. With `platform="wordpress"`, `off` hides it for any show. It shows once per page, so an embed above it that shows it wins.'
 	},
+	platform: PLATFORM_ATTRIBUTE,
 	load: {
 		type: "'click'",
 		description:

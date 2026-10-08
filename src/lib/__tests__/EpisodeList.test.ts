@@ -39,6 +39,8 @@ interface MockApi {
 	moreStatus: number;
 	pending: boolean;
 	branded: boolean;
+	/** Status of the first page of episodes alone (the show still answers). */
+	firstPage: number;
 }
 let api: MockApi;
 let requests: string[];
@@ -61,6 +63,7 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
 	const cursor = url.searchParams.get('cursor');
 	if (cursor && api.moreStatus !== 200) return respond(api.moreStatus, {});
 	if (api.podcast !== 200) return respond(api.podcast, {});
+	if (!cursor && api.firstPage !== 200) return respond(api.firstPage, {});
 	const limit = api.pageSize ?? Number(url.searchParams.get('limit'));
 	const start = cursor ? Number(cursor.slice(1)) : 0;
 	const next = start + limit < api.episodes.length ? `c${start + limit}` : null;
@@ -118,7 +121,8 @@ beforeEach(() => {
 		episodeStatus: 200,
 		moreStatus: 200,
 		pending: false,
-		branded: true
+		branded: true,
+		firstPage: 200
 	};
 	requests = [];
 	playOutcome = 'ok';
@@ -1011,8 +1015,51 @@ describe('"Powered by show.fm"', () => {
 		expect(credited((await mountList({ credit: 'on' })).root)).toBe(true);
 	});
 
-	it('credit="off" hides it', async () => {
+	it('credit="off" hides it only when the show may hide it (show_powered_by false)', async () => {
+		// A show without branding removal: the attribute alone does not hide it.
+		expect(credited((await mountList({ credit: 'off' })).root)).toBe(true);
+		document.body.innerHTML = '';
+		api.branded = false;
 		expect(credited((await mountList({ credit: 'off' })).root)).toBe(false);
+	});
+
+	it('platform="wordpress": credit="off" hides it for any show (guideline 10)', async () => {
+		const { root } = await mountList({ credit: 'off', platform: 'wordpress' });
+		expect(credited(root)).toBe(false);
+		document.body.innerHTML = '';
+		// The platform alone changes nothing.
+		expect(credited((await mountList({ platform: 'wordpress' })).root)).toBe(true);
+	});
+
+	it('shows it under the couldn’t-load card, where no payload can allow hiding it', async () => {
+		api.podcast = 500;
+		const { root, view, host } = await mountList({ credit: 'off' });
+		expect(view.getByRole('alert')).toHaveTextContent('Episodes can’t be loaded right now.');
+		expect(credited(root)).toBe(true);
+		// Outside the alert, so it is not read out with the message.
+		expect(view.getByRole('alert').querySelector('.powered-by')).toBeNull();
+		expect(await axe(host)).toHaveNoViolations();
+	});
+
+	it('under the card, follows the show’s payload when only the episodes failed', async () => {
+		api.firstPage = 503;
+		api.branded = false;
+		const hidden = await mountList({ credit: 'off' });
+		expect(hidden.view.getByRole('alert')).toBeInTheDocument();
+		expect(credited(hidden.root)).toBe(false);
+		document.body.innerHTML = '';
+		api.branded = true;
+		expect(credited((await mountList({ credit: 'off' })).root)).toBe(true);
+	});
+
+	it('shows nothing for a suspended show, and holds it while loading', async () => {
+		api.podcast = 403;
+		expect(credited((await mountList()).root)).toBe(false);
+		document.body.innerHTML = '';
+		api.podcast = 200;
+		api.pending = true;
+		const loading = await mountList();
+		expect(credited(loading.root)).toBe(false);
 	});
 
 	it('shows once per page, on the first embed', async () => {

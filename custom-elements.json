@@ -85,7 +85,7 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it.",
+							"description": "The \"Powered by show.fm\" footer. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off (the API's `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, on the first embed that shows it.",
 							"fieldName": "credit"
 						},
 						{
@@ -127,6 +127,13 @@
 							},
 							"default": "'right'",
 							"description": "The corner the collapsed mini-player sits in, when this element opens it. `--showfm-bottom-offset` lifts it."
+						},
+						{
+							"name": "platform",
+							"type": {
+								"text": "'wordpress'"
+							},
+							"description": "For the show.fm WordPress plugin only, which passes `credit=\"off\"` unless the site owner opts in: a credit in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit=\"off\"` hides \"Powered by show.fm\" for any show. Other sites should not set it."
 						}
 					],
 					"members": [
@@ -211,7 +218,7 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it.",
+							"description": "The \"Powered by show.fm\" footer. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off (the API's `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, on the first embed that shows it.",
 							"attribute": "credit"
 						},
 						{
@@ -460,7 +467,7 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it.",
+							"description": "The \"Powered by show.fm\" footer. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off (the API's `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, on the first embed that shows it.",
 							"fieldName": "credit"
 						},
 						{
@@ -502,6 +509,13 @@
 							},
 							"default": "'right'",
 							"description": "The corner the collapsed mini-player sits in, when this element opens it. `--showfm-bottom-offset` lifts it."
+						},
+						{
+							"name": "platform",
+							"type": {
+								"text": "'wordpress'"
+							},
+							"description": "For the show.fm WordPress plugin only, which passes `credit=\"off\"` unless the site owner opts in: a credit in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit=\"off\"` hides \"Powered by show.fm\" for any show. Other sites should not set it."
 						}
 					],
 					"members": [
@@ -586,7 +600,7 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it.",
+							"description": "The \"Powered by show.fm\" footer. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off (the API's `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, on the first embed that shows it.",
 							"attribute": "credit"
 						},
 						{
@@ -840,7 +854,14 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "The \"Powered by show.fm\" footer. `auto` follows the show's plan. It shows once per page, on the first embed that shows it."
+							"description": "The \"Powered by show.fm\" footer. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off (the API's `branding.show_powered_by` is false); with no payload it shows. `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, on the first embed that shows it."
+						},
+						{
+							"name": "platform",
+							"type": {
+								"text": "'wordpress'"
+							},
+							"description": "For the show.fm WordPress plugin only, which passes `credit=\"off\"` unless the site owner opts in: a credit in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit=\"off\"` hides \"Powered by show.fm\" for any show. Other sites should not set it."
 						},
 						{
 							"name": "load",
@@ -1063,7 +1084,14 @@
 								"text": "'auto' | 'on' | 'off'"
 							},
 							"default": "'auto'",
-							"description": "\"Powered by show.fm\" in the mini-player. `auto` follows the show's plan. It shows once per page, so an embed above it that shows it wins."
+							"description": "\"Powered by show.fm\" in the mini-player. `auto` and `off` hide it only when the show's plan includes branding removal and the show has turned it off; `on` always shows it. With `platform=\"wordpress\"`, `off` hides it for any show. It shows once per page, so an embed above it that shows it wins."
+						},
+						{
+							"name": "platform",
+							"type": {
+								"text": "'wordpress'"
+							},
+							"description": "For the show.fm WordPress plugin only, which passes `credit=\"off\"` unless the site owner opts in: a credit in plugin code must be opt-in (WordPress.org guideline 10). With it, `credit=\"off\"` hides \"Powered by show.fm\" for any show. Other sites should not set it."
 						},
 						{
 							"name": "load",

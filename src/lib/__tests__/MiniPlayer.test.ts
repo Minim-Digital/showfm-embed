@@ -486,9 +486,22 @@ describe('"Powered by show.fm" (decision 3)', () => {
 		expect(root.querySelector('.credit')).not.toBeNull();
 	});
 
-	it('is off when the button that started the episode says credit="off"', async () => {
+	it('stays on for credit="off" when the show cannot hide it', async () => {
+		const { root } = await open({ credit: 'off' });
+		expect(root.querySelector('.credit')).not.toBeNull();
+	});
+
+	it('is off for credit="off" when the show may hide it, or on the WordPress plugin', async () => {
+		api.branded = false;
 		const { root } = await open({ credit: 'off' });
 		expect(root.querySelector('.credit')).toBeNull();
+		document.body.innerHTML = '';
+		delete (globalThis as unknown as Record<symbol, unknown>)[
+			Symbol.for('showfm.page-audio-controller.v1')
+		];
+		api.branded = true;
+		const plugin = await open({ credit: 'off', platform: 'wordpress' });
+		expect(plugin.root.querySelector('.credit')).toBeNull();
 	});
 });
 

@@ -20,7 +20,12 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { elementGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
-	import { pageController, type ControllerEpisode, type SharedMessage } from './controller';
+	import {
+		creditWanted,
+		pageController,
+		type ControllerEpisode,
+		type SharedMessage
+	} from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
 	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
@@ -115,9 +120,9 @@
 
 	// The button shows no credit itself: it rides with the episode to the
 	// mini-player, which shows it when no earlier embed on the page does.
+	// Only the show's branding can allow hiding it (creditWanted).
 	const wantsCredit = $derived(
-		attr('credit') === 'on' ||
-			(attr('credit') !== 'off' && !!data?.podcast.branding?.show_powered_by)
+		creditWanted(attr('credit'), data?.podcast.branding, attr('platform'))
 	);
 
 	// ── generations ────────────────────────────────────────────────────

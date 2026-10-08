@@ -662,9 +662,14 @@ button {
 }
 .v-minimal .footer,
 .l-grid .footer,
-.notice .footer {
+.notice .footer,
+.v-card .box + .footer {
 	align-self: stretch;
 	padding: 14px 4px 0;
+}
+/* Under the couldn't-load card: the credit with no payload (creditWanted). */
+.box + .footer {
+	border: 0;
 }
 .powered-by {
 	font-weight: 500;

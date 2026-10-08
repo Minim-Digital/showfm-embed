@@ -33,8 +33,11 @@
 	                      player_waveform setting from the payload
 	  api                 endpoint override — dev/testing only
 	  heading-level="2-6" wrap the title link in a heading; absent = none
-	  credit="auto|on|off" the "Powered by" footer; auto follows the payload.
-	                      Shown once per page, on the first embed that shows it
+	  credit="auto|on|off" the "Powered by" footer. It hides only when the
+	                      payload allows it (creditWanted in controller.ts), and
+	                      shows once per page, on the first embed that shows it
+	  platform="wordpress" set by the WordPress plugin: credit="off" hides it
+	                      for any show there (read from the host: no prop)
 	  load="click"        draw a facade and request nothing until pressed
 	  transcript="on|open" a Transcript button that opens the follow-along
 	                      transcript under the player (open: at once)
@@ -65,9 +68,9 @@
 	import { untrack } from 'svelte';
 	import PlayerCore from './PlayerCore.svelte';
 	import type { PlayerEpisodeData, PlayerSize, PlayerTheme } from './types';
-	import { PLAYER_DEFAULT_API_URL } from './hosts';
+	import { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts';
 	import { elementGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
-	import { pageController, type CreditClaim } from './controller';
+	import { creditWanted, pageController, type CreditClaim } from './controller';
 	import { createLook } from './look.svelte';
 	import { languageFromTag, languageTagFor, resolveStrings, type StringOverrides } from './strings';
 	import { loadLocale } from './locales/index';
@@ -176,12 +179,17 @@
 
 	// What this element wants for the page's one credit: null while it may
 	// still want it (loading), so a later embed does not take it meanwhile.
+	// With no payload (an error) it is shown: only the payload can allow
+	// hiding it. Suspended and collapsed show nothing at all.
 	const wantsCredit = $derived<boolean | null>(
-		status === 'ready' && data
-			? credit === 'on' || (credit !== 'off' && data.podcast.branding.show_powered_by)
-			: status === 'loading'
-				? null
-				: false
+		status === 'loading'
+			? null
+			: (status === 'ready' || status === 'error') &&
+					creditWanted(
+						credit,
+						status === 'ready' ? data?.podcast.branding : null,
+						hostElement?.getAttribute('platform')
+					)
 	);
 
 	$effect(() => {
@@ -389,6 +397,11 @@
 		     children — the snippet's <a>Listen on show.fm</a> fallback link.
 		     Svelte snippets cannot render light-DOM content. -->
 		<slot></slot>
+		{#if creditGranted}
+			<a class="credit" href="{MARKETING_APEX_URL}/?ref=player" target="_blank" rel="noopener"
+				>{s.poweredBy} <b>show.fm</b></a
+			>
+		{/if}
 	</div>
 {/if}
 
@@ -566,6 +579,12 @@
 		align-items: flex-start;
 		justify-content: center;
 		gap: 4px;
+	}
+	/* With no payload the credit shows (creditWanted), in the muted colour. */
+	.credit {
+		font-size: 11px;
+		color: var(--pp-muted);
+		text-decoration: none;
 	}
 	/* The page's own link styles win over these, as they should. */
 	::slotted(a) {
