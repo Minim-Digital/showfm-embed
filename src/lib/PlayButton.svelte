@@ -457,7 +457,7 @@
 	{/if}
 	{#if credited}
 		<!-- In the button's line, whatever the room: "Powered by show.fm", else
-		     "show.fm" (cut short at worst), always named in full (the styles). -->
+		     "show.fm", always named in full (the styles). -->
 		<a
 			class="credit"
 			href="{MARKETING_APEX_URL}/?ref=player"

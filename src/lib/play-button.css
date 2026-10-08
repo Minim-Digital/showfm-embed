@@ -174,13 +174,14 @@ svg {
 }
 /*
  * With the mini-player off, the credit sits beside the button (decision 3),
- * on its line: the line never wraps, so the host keeps its height. One line
- * tall and clipped, the link wraps its two words in reverse, so when
- * "Powered by show.fm" does not fit, "Powered by" moves to the hidden line
- * and "show.fm" stays. It never gets narrower than "show.fm" (4.6em holds
- * it in wide fonts too): the button's label gives way instead, ending in an
- * ellipsis ("Pause · 52 min left" is long). The button keeps its full
- * name, and the link its own (aria-label).
+ * on its line: the line never wraps, so the host keeps its height. The link
+ * is a grid of "Powered by" (0 to its width) and "show.fm" (always its
+ * width, in any font), so the link never gets narrower than "show.fm": the
+ * button's label gives way instead, ending in an ellipsis ("Pause · 52 min
+ * left" is long). "Powered by" shows whole or not at all: it is one line
+ * tall and clipped, after an empty item one line high, so when its column
+ * is too narrow it wraps onto the hidden second line. The button keeps its full name, and the
+ * link its own (aria-label).
  */
 .credited {
 	flex-wrap: nowrap;
@@ -194,18 +195,26 @@ svg {
 	text-overflow: ellipsis;
 }
 .credit {
-	display: inline-flex;
-	flex-wrap: wrap-reverse;
-	align-content: flex-end;
+	/* It gives way first, down to "show.fm"; then the label does. */
+	flex-shrink: 9999;
+	display: inline-grid;
+	grid-template-columns: minmax(0, max-content) max-content;
 	column-gap: 0.3em;
-	min-width: 4.6em;
-	height: 1.3em;
-	overflow: hidden;
 	font-size: 11px;
 	line-height: 1.3;
 	color: var(--pp-muted);
 	text-decoration: none;
 	white-space: nowrap;
+}
+.credit span {
+	display: flex;
+	flex-wrap: wrap;
+	height: 1.3em;
+	overflow: hidden;
+}
+.credit span::before {
+	content: '';
+	height: 1.3em;
 }
 .msg svg {
 	width: 1.1em;

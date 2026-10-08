@@ -12,7 +12,7 @@ const HANG_MS = 5_000;
 /**
  * vtt.ts as JavaScript, for the worker: Vitest does not transform a worker's
  * code, and Node strips types by default only from 22.18, while the dev
- * toolchain runs from 22.12 (CI runs these tests there too). vtt.ts has no
+ * toolchain runs from 22.13 (CI runs these tests there too). vtt.ts has no
  * imports, so it loads alone, as a data: module.
  */
 let vttModule = '';
