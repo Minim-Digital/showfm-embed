@@ -5,9 +5,10 @@
  * so nothing under a show.fm development domain may be in what ships.
  * A staging page can add its media host at runtime with window.showfmMediaHosts.
  *
- * This reads every built file in dist/, plus the other files the package
- * ships (package.json "files"), so run `pnpm build` first.
+ * This reads every built file in dist/, and every file `npm pack` would
+ * publish, so run `pnpm build` first.
  */
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -25,12 +26,15 @@ function filesUnder(path: string): string[] {
 }
 
 const DIST_FILES = filesUnder(resolve(ROOT, 'dist'));
-const OTHER_SHIPPED = [
-	...filesUnder(resolve(ROOT, 'custom-elements.json')),
-	...filesUnder(resolve(ROOT, 'fixtures/fallback')),
-	resolve(ROOT, 'README.md'),
-	resolve(ROOT, 'package.json')
-];
+
+// Exactly what npm would publish, so a file added to "files" or one npm
+// always includes (README, LICENSE, package.json) is checked too.
+const PACKED: string[] = JSON.parse(
+	execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+		cwd: ROOT,
+		encoding: 'utf8'
+	})
+)[0].files.map((file: { path: string }) => resolve(ROOT, file.path));
 
 const offenders = (files: string[]) =>
 	files
@@ -47,7 +51,8 @@ describe('no development hosts in the package', () => {
 		expect(offenders(DIST_FILES)).toEqual([]);
 	});
 
-	it(`no other shipped file contains ${DEV_DOMAIN}`, () => {
-		expect(offenders(OTHER_SHIPPED)).toEqual([]);
+	it(`no file npm would publish contains ${DEV_DOMAIN}`, () => {
+		expect(PACKED.some((file) => file.endsWith('package.json'))).toBe(true);
+		expect(offenders(PACKED)).toEqual([]);
 	});
 });
