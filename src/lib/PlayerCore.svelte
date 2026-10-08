@@ -17,6 +17,7 @@
 	  + focus ring preserved). Accessibility is the point of this player.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { PlayerEpisodeData, PlayerSize, PlayerTheme } from './types';
 	import { createLook } from './look.svelte';
 	import { genPeaks, drawWave } from './waveform';
@@ -288,11 +289,14 @@
 	$effect(() => {
 		const audio = audioEl;
 		if (!audio) return;
+		// The episode as the page's mini-player shows it, should it take this
+		// audio over (<showfm-player mini-player="on">). Its looks are read
+		// once: a change of theme must not re-attach a playing audio.
 		return pageController().attach(audio, audio, {
-			id: episode.id,
-			title: episode.title,
+			...episode,
 			podcastTitle: episode.podcast.title,
-			artworkUrl
+			artworkUrl,
+			...untrack(() => ({ accent: look.accent, theme, credit: showCredit }))
 		});
 	});
 
@@ -629,7 +633,7 @@
 {/snippet}
 
 {#snippet titleLink(className: string)}
-	<a class={className} href={listenUrl} target="_blank" rel="noopener noreferrer" part="title">
+	<a class={`${className}`} href={listenUrl} target="_blank" rel="noopener noreferrer" part="title">
 		{episode.title}
 	</a>
 {/snippet}
@@ -696,6 +700,16 @@
 				if (blocked) swapFocus = true;
 				blocked = false;
 				announcement = s.playing;
+				// For <showfm-player mini-player="on">: the page's mini-player
+				// (play-element.ts) may take this audio over once the player
+				// scrolls out of view. It ignores players without the attribute.
+				rootEl!.dispatchEvent(
+					new CustomEvent('showfm:mini-player', {
+						bubbles: true,
+						composed: true,
+						detail: audioEl
+					})
+				);
 			}}
 			onpause={() => {
 				isPlaying = false;

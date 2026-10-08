@@ -106,7 +106,8 @@ const FR: Strings &
 	transcriptNone: 'Cet épisode n’a pas de transcription.',
 	jumpTo: 'Aller à {time}, {speaker}',
 	jumpToTime: 'Aller à {time}',
-	backToNow: 'Revenir à la lecture · {time}'
+	backToNow: 'Revenir à la lecture · {time}',
+	closeTranscript: 'Fermer la transcription'
 };
 
 export default FR;

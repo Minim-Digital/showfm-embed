@@ -34,7 +34,9 @@ export const TRANSCRIPT_EN = {
 	jumpTo: 'Jump to {time}, {speaker}',
 	jumpToTime: 'Jump to {time}',
 	/** Shown when the visitor scrolls away from the line being spoken (30 max, time included). */
-	backToNow: 'Back to now · {time}'
+	backToNow: 'Back to now · {time}',
+	/** The Close button of a list's grid panel (EpisodeList.svelte). */
+	closeTranscript: 'Close transcript'
 };
 
 /**

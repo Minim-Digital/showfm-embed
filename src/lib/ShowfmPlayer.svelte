@@ -38,6 +38,10 @@
 	  load="click"        draw a facade and request nothing until pressed
 	  transcript="on|open" a Transcript button that opens the follow-along
 	                      transcript under the player (open: at once)
+	  mini-player="on"    when the player scrolls out of view while it plays,
+	                      the page's mini-player takes over its audio
+	                      (mini-player-position picks its corner). Read by
+	                      play-element.ts from the host: no prop
 	  strings (property)  overrides for any visible string (strings.ts)
 
 	States: facade (load="click", nothing requested) → loading → ready, or
@@ -62,7 +66,7 @@
 	import PlayerCore from './PlayerCore.svelte';
 	import type { PlayerEpisodeData, PlayerSize, PlayerTheme } from './types';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
-	import { apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
+	import { elementGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
 	import { pageController, type CreditClaim } from './controller';
 	import { createLook } from './look.svelte';
 	import { languageFromTag, languageTagFor, resolveStrings, type StringOverrides } from './strings';
@@ -198,7 +202,7 @@
 		let cancelled = false;
 		// A re-check from the collapsed state stays collapsed until it is answered.
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
-		apiGet<PlayerEpisodeData>(endpoint).then((result) => {
+		elementGet<PlayerEpisodeData>(endpoint).then((result) => {
 			if (cancelled) return;
 			if (result.status === 'ok') {
 				data = result.data;

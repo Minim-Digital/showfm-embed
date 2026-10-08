@@ -213,6 +213,37 @@ describe('page audio controller', () => {
 	});
 });
 
+describe('the page mini-player (<showfm-player mini-player="on">, EMB-7)', () => {
+	it('asks for it on every play with its audio, attached with what the bar shows', async () => {
+		const { pageController } = await import('../controller');
+		const asked = vi.fn();
+		document.addEventListener('showfm:mini-player', asked);
+		const { container } = render(PlayerCore, {
+			props: { episode: makeEpisode(), theme: 'dark', accent: '#0ea5e9', credit: false }
+		});
+		const audio = container.querySelector('audio')!;
+		await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+		expect(asked).toHaveBeenCalledTimes(1);
+		const event = asked.mock.calls[0][0] as CustomEvent;
+		expect(event.bubbles && event.composed).toBe(true);
+		expect(event.detail).toBe(audio);
+		// play-element.ts ignores it unless the player has mini-player="on".
+		const entry = pageController()
+			.audios()
+			.find((candidate) => candidate.audio === audio)!;
+		expect(entry.episode).toMatchObject({
+			id: '11111111-2222-4333-8444-555555555555',
+			title: 'Episode One',
+			podcastTitle: 'Test Signal',
+			audio: { url: 'https://m.cdn.media/audio.mp3' },
+			accent: '#0ea5e9',
+			theme: 'dark',
+			credit: false
+		});
+		document.removeEventListener('showfm:mini-player', asked);
+	});
+});
+
 describe('play() and focusPlay()', () => {
 	it('start playback and focus the play button, for the load="click" hand-off', async () => {
 		const { component } = render(PlayerCore, { props: { episode: makeEpisode() } });

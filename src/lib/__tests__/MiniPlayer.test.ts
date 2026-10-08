@@ -26,6 +26,7 @@ import {
 	installMedia,
 	media,
 	mediaEvent,
+	payload,
 	resetPage,
 	settle,
 	sharedAudio,
@@ -488,6 +489,210 @@ describe('"Powered by show.fm" (decision 3)', () => {
 	it('is off when the button that started the episode says credit="off"', async () => {
 		const { root } = await open({ credit: 'off' });
 		expect(root.querySelector('.credit')).toBeNull();
+	});
+});
+
+// ── <showfm-player mini-player="on"> (EMB-7) ──────────────────────────
+describe('a player with mini-player="on"', () => {
+	/** IntersectionObservers the mini-player made: the tests scroll by calling them. */
+	let observers: { callback: IntersectionObserverCallback; target?: Element; live: boolean }[];
+	beforeEach(() => {
+		observers = [];
+		vi.stubGlobal(
+			'IntersectionObserver',
+			class {
+				record: (typeof observers)[number];
+				constructor(callback: IntersectionObserverCallback) {
+					this.record = { callback, live: true };
+					observers.push(this.record);
+				}
+				observe(target: Element) {
+					this.record.target = target;
+					// As a browser does: once at the start, in view.
+					this.record.callback(
+						[{ isIntersecting: true, target } as IntersectionObserverEntry],
+						this as unknown as IntersectionObserver
+					);
+				}
+				disconnect() {
+					this.record.live = false;
+				}
+			}
+		);
+	});
+	async function scroll(target: Element, inView: boolean) {
+		for (const observer of observers.filter((o) => o.live && o.target === target)) {
+			observer.callback(
+				[{ isIntersecting: inView, target } as IntersectionObserverEntry],
+				{} as IntersectionObserver
+			);
+		}
+		await settle();
+	}
+
+	/**
+	 * A stand-in for <showfm-player>: its own audio in a shadow root, attached
+	 * to the controller as PlayerCore attaches it, and the event PlayerCore
+	 * sends on every play.
+	 */
+	function addPlayer(attributes: Record<string, string> = { 'mini-player': 'on' }, wrap = false) {
+		const player = document.createElement('showfm-player');
+		player.id = 'player';
+		for (const [name, value] of Object.entries(attributes)) player.setAttribute(name, value);
+		const root = player.attachShadow({ mode: 'open' });
+		const card = document.createElement('div');
+		const audio = document.createElement('audio');
+		audio.src = HOSTED_AUDIO;
+		root.append(card, audio);
+		if (wrap) {
+			// The site's own web component around the player.
+			const site = document.createElement('site-card');
+			site.attachShadow({ mode: 'open' }).append(player);
+			document.body.prepend(site);
+		} else {
+			document.body.prepend(player);
+		}
+		const detach = pageController().attach(audio, audio, {
+			...payload(),
+			transcript: { url: 'https://m.cdn.media/test-signal/transcript.vtt' },
+			podcastTitle: 'Test Signal',
+			artworkUrl: null,
+			accent: '#0ea5e9',
+			theme: 'dark',
+			credit: false
+		});
+		const play = async () => {
+			await audio.play();
+			card.dispatchEvent(
+				new CustomEvent('showfm:mini-player', { bubbles: true, composed: true, detail: audio })
+			);
+			await settle();
+		};
+		return { player, audio, play, detach };
+	}
+	async function miniPlayer() {
+		return vi.waitFor(
+			() => {
+				const found = document.querySelector('showfm-mini-player') as Mini | null;
+				expect(found?.shadowRoot).toBeTruthy();
+				return found!;
+			},
+			{ timeout: 10_000 }
+		);
+	}
+
+	it('takes over the playing audio once the player scrolls out of view', async () => {
+		const { player, audio, play } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		// In view: watched, not opened.
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+		await scroll(player, false);
+		const root = mini.shadowRoot;
+		expect(root.querySelector('section')).not.toBeNull();
+		expect(root.querySelector('.title')!.textContent).toBe('Episode One');
+		expect(root.querySelector('.sub')!.textContent).toContain('S2 · E4');
+		// The same audio, not the page's shared one: nothing restarts.
+		expect(pageController().sharedState()).toBeNull();
+		expect(
+			(mini as Mini & { showfmFollowing?: { audio: HTMLAudioElement } }).showfmFollowing?.audio
+		).toBe(audio);
+		expect(audio.paused).toBe(false);
+		// Its controls drive the player's audio.
+		root.querySelector<HTMLButtonElement>('[aria-label="Pause: Episode One"]')!.click();
+		await settle();
+		expect(audio.paused).toBe(true);
+		// The transcript toggle, since the audio and VTT are on show.fm.
+		expect(root.querySelector('.tr')).not.toBeNull();
+		expect(await axe(mini, AXE)).toHaveNoViolations();
+	});
+
+	it('does not open for a paused player, nor while it is in view', async () => {
+		const { player, audio, play } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, true);
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+		audio.pause();
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+	});
+
+	it('is off by default: no mini-player for a player without the attribute', async () => {
+		const { player, play } = addPlayer({});
+		await play();
+		await scroll(player, false);
+		expect(document.querySelector('showfm-mini-player')).toBeNull();
+	});
+
+	it('takes mini-player-position and the hooks from the player', async () => {
+		const { player, play } = addPlayer({ 'mini-player': 'on', 'mini-player-position': 'left' });
+		player.style.setProperty('--showfm-bottom-offset', '24px');
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('.mini')).toHaveClass('pos-left');
+		expect(mini.style.getPropertyValue('--showfm-bottom-offset')).toBe('24px');
+	});
+
+	it('one audio at a time: a play button starting takes the mini-player back', async () => {
+		const { player, audio, play } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, false);
+		const { play: button } = await addButton();
+		await press(button());
+		// The page's controller paused the player when the button started.
+		expect(audio.paused).toBe(true);
+		expect(sharedAudio().paused).toBe(false);
+		await vi.waitFor(() =>
+			expect((mini as Mini & { showfmFollowing?: unknown }).showfmFollowing).toBeNull()
+		);
+		// The button's episode, on the shared audio.
+		expect(pageController().sharedState()!.owner).not.toBe(audio);
+		mini.shadowRoot.querySelector<HTMLButtonElement>('[aria-label="Pause: Episode One"]')!.click();
+		await settle();
+		expect(sharedAudio().paused).toBe(true);
+	});
+
+	it('finds the player inside a site’s own shadow root', async () => {
+		const { player, audio, play } = addPlayer({ 'mini-player': 'on' }, true);
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).not.toBeNull();
+		expect(
+			(mini as Mini & { showfmFollowing?: { audio: HTMLAudioElement } }).showfmFollowing?.audio
+		).toBe(audio);
+	});
+
+	it('closes when the player it took over goes, and stops watching it', async () => {
+		const { player, play, detach } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).not.toBeNull();
+		// The player leaves the page (its audio detaches from the controller).
+		player.remove();
+		detach();
+		await settle();
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+		expect(observers.every((observer) => !observer.live)).toBe(true);
+	});
+
+	it('Close stops the player’s audio, and a later play and scroll open it again', async () => {
+		const { player, audio, play } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		await scroll(player, false);
+		mini.shadowRoot.querySelector<HTMLButtonElement>('.close')!.click();
+		await settle();
+		expect(audio.paused).toBe(true);
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+		await scroll(player, true);
+		await play();
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).not.toBeNull();
 	});
 });
 

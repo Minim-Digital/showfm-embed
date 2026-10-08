@@ -90,20 +90,22 @@ The package also ships a [Custom Elements Manifest](https://custom-elements-mani
 
 ## Attributes
 
-| Attribute       | Values                        | Default               | What it does                                                                                                  |
-| --------------- | ----------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `episode`       | episode UUID                  |                       | Plays that episode. Wins over `podcast`.                                                                      |
-| `podcast`       | podcast slug or UUID          |                       | Plays the show's latest released episode.                                                                     |
-| `theme`         | `auto`, `light`, `dark`       | the show's setting    | Pins the theme. `auto` follows the visitor's colour scheme.                                                   |
-| `size`          | `standard`, `compact`         | `standard`            | Player size.                                                                                                  |
-| `accent`        | hex colour, such as `#0ea5e9` | the show's colour     | Pins the accent. It is adjusted, if needed, to meet contrast rules.                                           |
-| `wave`          | `true`, `false`               | the show's setting    | Pins the waveform on or off. Off shows a plain progress bar.                                                  |
-| `api`           | URL                           | `https://api.show.fm` | API origin. For development and testing only.                                                                 |
-| `heading-level` | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted. |
-| `credit`        | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. `auto` follows the show's plan.                                              |
-| `load`          | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                 |
-| `transcript`    | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.         |
-| `lang`          | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                |
+| Attribute              | Values                        | Default               | What it does                                                                                                                  |
+| ---------------------- | ----------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `episode`              | episode UUID                  |                       | Plays that episode. Wins over `podcast`.                                                                                      |
+| `podcast`              | podcast slug or UUID          |                       | Plays the show's latest released episode.                                                                                     |
+| `theme`                | `auto`, `light`, `dark`       | the show's setting    | Pins the theme. `auto` follows the visitor's colour scheme.                                                                   |
+| `size`                 | `standard`, `compact`         | `standard`            | Player size.                                                                                                                  |
+| `accent`               | hex colour, such as `#0ea5e9` | the show's colour     | Pins the accent. It is adjusted, if needed, to meet contrast rules.                                                           |
+| `wave`                 | `true`, `false`               | the show's setting    | Pins the waveform on or off. Off shows a plain progress bar.                                                                  |
+| `api`                  | URL                           | `https://api.show.fm` | API origin. For development and testing only.                                                                                 |
+| `heading-level`        | `2` to `6`                    | none                  | Wraps the episode title in a heading of that level. Without it the title is a link and no heading is emitted.                 |
+| `credit`               | `auto`, `on`, `off`           | `auto`                | The "Powered by show.fm" footer. `auto` follows the show's plan.                                                              |
+| `load`                 | `click`                       |                       | Draws a facade and requests nothing until it is pressed. See [Load on click](#load-on-click).                                 |
+| `transcript`           | `on`, `open`                  | none                  | A Transcript button that opens the follow-along transcript under the player. `open` opens it at once.                         |
+| `mini-player`          | `on`, `off`                   | `off`                 | The page's mini-player takes over when the player scrolls out of view. See [The mini-player option](#the-mini-player-option). |
+| `mini-player-position` | `left`, `right`               | `right`               | The corner the collapsed mini-player sits in, when this player opens it.                                                      |
+| `lang`                 | language tag                  | `<html lang>`         | The language of the player's own strings. See [Strings and languages](#strings-and-languages).                                |
 
 Set `episode` or `podcast`. With neither, the player shows its fallback.
 
@@ -132,6 +134,15 @@ With `transcript="on"`, the standard player has a Transcript button next to the 
 - The transcript's code loads when it is first opened, not before. The player mounts it itself, so it works from `@showfm/embed/svelte` too (`<PlayerCore transcript="on" />`), where no elements are registered; there the code is a dynamic import.
 - The transcript follows the element it is in, and takes its colours from it.
 - Embed snippets reserve the closed player's height; an open transcript adds to it. For a fixed height, use the iframe's transcript variant.
+
+### The mini-player option
+
+With `mini-player="on"`, when the visitor scrolls the player out of view while it plays, the page's [mini-player](#the-mini-player) takes over. It drives the player's own audio, so nothing restarts or loads again, and the visitor keeps seek, skip, speed, the time left and the Transcript button. It is off by default.
+
+- It opens only while the player plays: a paused player that scrolls away stays where it is. Scrolling back to the player leaves the mini-player open; both control the same audio. Close stops it.
+- One audio plays at a time, as always: a list or a play button starting takes the mini-player over, and pauses the player.
+- `mini-player-position` and the [styling hooks](#styling-hooks) set on the player reach the mini-player, as they do from a list.
+- The iframe pages leave it off: a mini-player cannot leave a frame.
 
 ## The episode list
 
@@ -181,6 +192,16 @@ With `transcript="on"`, the standard player has a Transcript button next to the 
 - An episode that cannot be played shows its message in its row, with Retry and a link to show.fm. The rest of the list keeps working.
 - The parts are `card` (each episode), `title`, `play`, `footer` and `error`.
 
+### The list's transcript
+
+The playing or paused row has a Transcript button when the episode has a transcript and both its audio and the transcript are on a show.fm media host. External audio gets none. It is on by default, with no attribute: the design names none.
+
+- In a list it opens the follow-along [transcript](#the-transcript) inside the row, under the waveform (300px of text). Pressing the button again closes it.
+- In a grid a card cannot grow, so it opens as a full-width panel under the playing card's row, and the rows below move down. Its header names the episode and has a Close button, which returns focus to the card's Transcript button.
+- The compact layout has no room for it: there the mini-player's Transcript button is the way to it.
+- It follows what the list plays and takes the list's colours. It closes when its row stops playing; if focus was inside it, focus moves to the row's play button.
+- The transcript's code loads when one is first opened.
+
 ## The play button
 
 `<showfm-play>` plays one episode from a button. Every button on the page plays through the same page audio as the players and lists, so pressing one pauses the rest.
@@ -221,7 +242,7 @@ With `transcript="on"`, the standard player has a Transcript button next to the 
 
 ### The mini-player
 
-The page has one mini-player. It appears after the first play from a play button (or a list with `mini-player="on"`), at the end of the page's body, and shows whatever the page's shared audio is doing, whoever started it. Players with their own audio pause it as they always have.
+The page has one mini-player. It appears after the first play from a play button (or a list with `mini-player="on"`), at the end of the page's body, and shows whatever the page's shared audio is doing, whoever started it. Players with their own audio pause it as they always have. A player with `mini-player="on"` hands its own audio to it when it scrolls out of view while it plays (see [The mini-player option](#the-mini-player-option)).
 
 - **Desktop:** a bar along the bottom of the window with the artwork, the title, the show and episode number, back 15 seconds, play, forward 30 seconds, the waveform to seek, the speed, Collapse and Close.
 - **Collapsed:** a pill in the bottom right corner (or left, with `mini-player-position="left"`) with play, the title and the time left, and Expand. Collapse keeps playing.

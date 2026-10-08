@@ -6,9 +6,9 @@
 		"gzip": true
 	},
 	{
-		"name": "dist/cdn/chunks/episodes-*.js (the episode list, loaded by v1.js when a <showfm-episodes> appears, gzipped)",
+		"name": "dist/cdn/chunks/episodes-*.js (the episode list with its Transcript button, loaded by v1.js when a <showfm-episodes> appears, gzipped)",
 		"path": "dist/cdn/chunks/episodes-*.js",
-		"limit": "12 KB",
+		"limit": "12.7 KB",
 		"gzip": true
 	},
 	{

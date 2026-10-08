@@ -36,11 +36,21 @@ export interface ShowfmPlayerAttributes {
 	 * the player. `open`: open at once. Standard size and show.fm media only.
 	 */
 	transcript?: 'on' | 'open';
+	/**
+	 * `on`: when the player scrolls out of view while it plays, the page's
+	 * mini-player takes over its audio. Absent is `off`.
+	 */
+	'mini-player'?: 'on' | 'off';
+	/** The corner the collapsed mini-player sits in. Absent is `right`. */
+	'mini-player-position'?: 'left' | 'right';
 	/** The element's language for its strings. Absent follows `<html lang>`. */
 	lang?: string;
 }
 
-/** A <showfm-player> element. Each attribute is also a property. */
+/**
+ * A <showfm-player> element. Each attribute is also a property, except
+ * `mini-player` and `mini-player-position`, which are read from the element.
+ */
 export interface ShowfmPlayerElement extends HTMLElement {
 	episode: string;
 	podcast: string;

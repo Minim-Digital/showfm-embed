@@ -159,6 +159,23 @@ const MINI_PLAYER_POSITION_ATTRIBUTE = {
 LIST_ATTRIBUTES[MINI_PLAYER_POSITION] = MINI_PLAYER_POSITION_ATTRIBUTE;
 
 /**
+ * The player's attributes read from its host rather than declared as props
+ * (each prop costs v1.js its accessors): `mini-player` by play-element.ts and
+ * `mini-player-position` by the mini-player. They have no property. Each must still appear in those sources.
+ */
+/** @type {Record<string, { type: string, default?: string, description: string }>} */
+const PLAYER_HOST_ATTRIBUTES = {
+	'mini-player': {
+		type: "'on' | 'off'",
+		default: "'off'",
+		description:
+			"`on`: when the visitor scrolls the player out of view while it plays, the page's mini-player takes over its audio, so playback carries on with seek, skip, speed and the time left. Off by default."
+	},
+	[MINI_PLAYER_POSITION]: MINI_PLAYER_POSITION_ATTRIBUTE
+};
+const PLAYER_HOST_SOURCES = ['src/lib/play-element.ts', 'src/lib/MiniPlayer.svelte'];
+
+/**
  * <showfm-play>. `lang` (a global attribute) is read too but not listed.
  * @type {Record<string, { type: string, default?: string, description: string }>}
  */
@@ -502,13 +519,25 @@ export function buildManifest() {
 		TRANSCRIPT_PART_DESCRIPTIONS
 	);
 
-	const attributes = names.map((name) => ({
-		name,
-		type: { text: ATTRIBUTES[name].type },
-		...(ATTRIBUTES[name].default ? { default: ATTRIBUTES[name].default } : {}),
-		description: ATTRIBUTES[name].description,
-		fieldName: ATTRIBUTES[name].field ?? name
-	}));
+	const hostSources = PLAYER_HOST_SOURCES.map((path) => readFileSync(path, 'utf-8')).join('\n');
+	for (const name of Object.keys(PLAYER_HOST_ATTRIBUTES)) {
+		if (!hostSources.includes(`'${name}'`)) throw new Error(`No source reads "${name}"`);
+	}
+	const attributes = [
+		...names.map((name) => ({
+			name,
+			type: { text: ATTRIBUTES[name].type },
+			...(ATTRIBUTES[name].default ? { default: ATTRIBUTES[name].default } : {}),
+			description: ATTRIBUTES[name].description,
+			fieldName: ATTRIBUTES[name].field ?? name
+		})),
+		...Object.entries(PLAYER_HOST_ATTRIBUTES).map(([name, described]) => ({
+			name,
+			type: { text: described.type },
+			...(described.default ? { default: described.default } : {}),
+			description: described.description
+		}))
+	];
 	const members = names.map((name) => ({
 		kind: 'field',
 		name: ATTRIBUTES[name].field ?? name,

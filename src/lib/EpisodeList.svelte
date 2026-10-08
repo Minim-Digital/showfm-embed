@@ -16,12 +16,24 @@
 	goes, so a schedule cannot leak). The load="click" facade is the inline
 	loader's (click-loader.ts); the list mounts once it is pressed. Row states: playing,
 	paused, loading, can't be played, blocked by the browser, suspended.
+
+	Transcript (design pages 2 and 3.2): the playing or paused row offers a
+	Transcript button when its audio and VTT are on show.fm (none for external
+	audio, page 9). It opens the follow-along transcript (<showfm-transcript>,
+	its own lazy chunk) inside the row, or in a grid as a full-width panel
+	under the playing episode's row (decision 10). Not in the compact layout,
+	which has no room for it (the mini-player offers it there).
 -->
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { apiGet, episodeEndpoint } from './api';
+	import { elementGet, episodeEndpoint } from './api';
 	import { pageController, type CreditClaim, type PlaybackSnapshot } from './controller';
-	import { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts';
+	import {
+		MARKETING_APEX_URL,
+		PLAYER_DEFAULT_API_URL,
+		isShowfmMediaUrl,
+		mediaHosts
+	} from './hosts';
 	import { createLook } from './look.svelte';
 	import { drawWave, genPeaks } from './waveform';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
@@ -102,6 +114,8 @@
 	let creditClaim = $state<CreditClaim | null>(null);
 	let creditGranted = $state(false);
 	let container = $state<HTMLElement | null>(null);
+	/** The episode whose transcript the visitor opened. */
+	let transcriptFor = $state<string | null>(null);
 
 	const attr = (name: string) => attrs[name] ?? '';
 	const variant = $derived(parseVariant(attr('variant') || attr('style')));
@@ -178,8 +192,8 @@
 		let cancelled = false;
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
 		Promise.all([
-			apiGet<ListPodcast>(podcastEndpoint(api, podcast)),
-			apiGet<ListEpisode[]>(episodesEndpoint(api, podcast, { limit, season, types }))
+			elementGet<ListPodcast>(podcastEndpoint(api, podcast)),
+			elementGet<ListEpisode[]>(episodesEndpoint(api, podcast, { limit, season, types }))
 		]).then(([show, page]) => {
 			if (cancelled) return;
 			if (show.status === 'unavailable' || page.status === 'unavailable') {
@@ -208,7 +222,7 @@
 		const { podcast, api, limit, season, types } = query;
 		const asked = generation;
 		const firstNew = episodes.length;
-		const page = await apiGet<ListEpisode[]>(
+		const page = await elementGet<ListEpisode[]>(
 			episodesEndpoint(api, podcast, { limit, season, types, cursor })
 		);
 		if (asked !== generation) return;
@@ -398,7 +412,7 @@
 		const play = plays;
 		const page = generation;
 		const applies = controller.failure(host, id);
-		const result = await apiGet(episodeEndpoint(query.api, id));
+		const result = await elementGet(episodeEndpoint(query.api, id));
 		// Stale if, since: a row was pressed, the list loaded a new first
 		// page, or the episode started anywhere on the page.
 		if (play !== plays || page !== generation || !applies()) return;
@@ -520,6 +534,60 @@
 	const rowMessage = (episode: ListEpisode): RowMessage | null =>
 		messages[episode.id] ?? (episode.audio?.url ? null : 'error');
 
+	// ── transcript ─────────────────────────────────────────────────────
+	// Offered by the playing or paused row (and while it buffers, so a seek
+	// from the transcript does not close it), only for audio and a VTT on
+	// show.fm's media hosts, and not in the compact layout.
+	const offersTranscript = (episode: ListEpisode, state: RowState) =>
+		layout !== 'compact' &&
+		state !== 'idle' &&
+		!rowMessage(episode) &&
+		// canOfferTranscript, written out: v1.js has the host check already.
+		isShowfmMediaUrl(episode.audio?.url, mediaHosts()) &&
+		isShowfmMediaUrl(episode.transcript?.url, mediaHosts());
+	// The open transcript's episode: it closes when that row stops playing.
+	const transcriptEpisode = $derived(
+		episodes.find(
+			(episode) =>
+				episode.id === transcriptFor &&
+				episode.id === playback.id &&
+				offersTranscript(episode, playback.state)
+		)
+	);
+
+	// When the open transcript goes (its row stopped playing) it stays
+	// closed, and with focus in it, focus moves to the row's own controls
+	// instead of the page.
+	let shownTranscript: string | null = null;
+	$effect.pre(() => {
+		const id = transcriptEpisode?.id ?? null;
+		untrack(() => {
+			const was = shownTranscript;
+			shownTranscript = id;
+			if (!was || id) return;
+			transcriptFor = null;
+			if (container?.querySelector('.trp:focus-within')) {
+				void focusIn(was, '[data-transcript]', '[data-play]', 'a');
+			}
+		});
+	});
+
+	// A grid shows it after the last card of the playing card's row, so the
+	// reading and tab order match the page: the row, then the panel.
+	let rowsEl = $state<HTMLElement | null>(null);
+	const panelAfter = $derived.by(() => {
+		if (!transcriptEpisode || layout !== 'grid' || !rowsEl) return null;
+		// The columns as laid out, read again when the width changes.
+		const columns = (void width, getComputedStyle(rowsEl).gridTemplateColumns.split(' ').length);
+		const index = episodes.indexOf(transcriptEpisode);
+		return episodes[Math.min(episodes.length, (Math.floor(index / columns) + 1) * columns) - 1];
+	});
+
+	function closeTranscript(id: string) {
+		transcriptFor = null;
+		void focusIn(id, '[data-transcript]');
+	}
+
 	// ── waveform ───────────────────────────────────────────────────────
 	// Bar count from the real width, 3.5px bars with 2.5px gaps, never
 	// stretched (drawWave). One canvas at most: the row that is playing.
@@ -584,6 +652,45 @@
 	{/if}
 {/snippet}
 
+<!-- The playing or paused row's Transcript button: it opens and closes the
+     transcript under the row (in a grid, under the row of cards). -->
+{#snippet transcriptButton(episode: ListEpisode, state: RowState)}
+	{#if offersTranscript(episode, state)}
+		{@const open = transcriptEpisode === episode}
+		<button
+			type="button"
+			class="trb"
+			data-transcript
+			aria-expanded={open ? 'true' : 'false'}
+			aria-controls={open ? `tr-${episode.id}` : undefined}
+			onclick={() => (transcriptFor = open ? null : episode.id)}
+			><svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.9"
+				stroke-linecap="round"
+				aria-hidden="true"><path d="M17 6.1H3M21 12.1H3M15.1 18H3"></path></svg
+			>{s.transcript}</button
+		>
+	{/if}
+{/snippet}
+
+<!-- The transcript itself: inside the list, it follows what the list plays
+     (pinned to this episode) and takes the list's colours. -->
+{#snippet transcriptText(episode: ListEpisode, grid = false)}
+	<showfm-transcript
+		class="trp"
+		class:grid
+		id="tr-{episode.id}"
+		episode={episode.id}
+		height="300"
+		lang={languageTag ?? undefined}
+		data-showfm-close={grid ? '' : undefined}
+		onclose={() => closeTranscript(episode.id)}
+	></showfm-transcript>
+{/snippet}
+
 <!-- One row markup for every style and layout; the grid areas in the
      styles place its parts (artwork, number column, text, play, length). -->
 {#snippet row(episode: ListEpisode)}
@@ -605,7 +712,7 @@
 		{#if minimal}
 			<!-- The spoken season and number are in the meta line. -->
 			<div class="idx" aria-hidden="true">
-				{#each indexItems(episode) as [className, text], index (index)}<span class={className}
+				{#each indexItems(episode) as [className, text], index (index)}<span class={`${className}`}
 						>{text}</span
 					>{/each}
 			</div>
@@ -613,7 +720,7 @@
 		<div class="main">
 			<div class="meta">
 				{#each metaItems(episode, state, live) as [className, text, hidden], index (index)}<span
-						class={className}
+						class={`${className}`}
 						aria-hidden={hidden ? 'true' : undefined}>{text}</span
 					>{/each}
 			</div>
@@ -660,27 +767,35 @@
 			{/if}
 			{#if live && layout === 'list'}
 				<div class="progress">
-					<span class="status" class:now={state === 'playing'}>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							aria-hidden="true"
-							><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"></path></svg
-						>{statusText(episode, state)}
-					</span>
+					<div class="prog-head">
+						<span class="status" class:now={state === 'playing'}>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								aria-hidden="true"
+								><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"></path></svg
+							>{statusText(episode, state)}
+						</span>
+						{@render transcriptButton(episode, state)}
+					</div>
 					<canvas class="wave" bind:this={waveCanvas} aria-hidden="true"></canvas>
 				</div>
 			{/if}
-			{#if gridCard}<div class="date">{dateLabel(episode.published_at, languageTag)}</div>{/if}
+			{#if layout === 'grid' && (gridCard || offersTranscript(episode, state))}
+				<div class="date">
+					{#if gridCard}<span>{dateLabel(episode.published_at, languageTag)}</span>{/if}
+					{@render transcriptButton(episode, state)}
+				</div>
+			{/if}
 		</div>
 		{#if !kind}
 			{@const pill = minimal && layout !== 'compact'}
 			<button
 				type="button"
-				class={pill ? 'pill' : 'play'}
+				class={`${pill ? 'pill' : 'play'}`}
 				class:on={state === 'playing'}
 				class:busy={state === 'loading'}
 				data-play
@@ -714,6 +829,8 @@
 			>{/if}
 		<!-- Grid cards and Minimal's list show the length in the meta line. -->
 		{#if duration && !live}<span class="dur">{duration}</span>{/if}
+		<!-- In a list it opens inside the row. -->
+		{#if layout === 'list' && transcriptEpisode === episode}{@render transcriptText(episode)}{/if}
 	</article>
 {/snippet}
 
@@ -761,9 +878,14 @@
 		</div>
 	{:else if status === 'ready'}
 		<div class="frame">
-			<div class="rows">
+			<div class="rows" bind:this={rowsEl}>
 				{#each episodes as episode (episode.id)}
 					{@render row(episode)}
+					<!-- A grid cell cannot grow: a full-width panel under the playing
+					     card's row, which moves the rows below down (decision 10). -->
+					{#if episode === panelAfter && transcriptEpisode}
+						{@render transcriptText(transcriptEpisode, true)}
+					{/if}
 				{/each}
 			</div>
 			{#if cursor}

@@ -479,6 +479,63 @@ button {
 	height: 22px;
 }
 
+/* ── transcript (design pages 2 and 3.2) ── */
+.prog-head,
+.date {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 12px;
+}
+.l-grid .date {
+	justify-content: space-between;
+}
+.trb {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 28px;
+	padding: 0 10px;
+	border: 1px solid var(--pp-ctrl-border);
+	border-radius: 7px;
+	background: var(--pp-bg);
+	color: var(--pp-fg);
+	font-size: calc(0.78125rem * var(--f));
+	font-weight: 600;
+}
+.trb[aria-expanded='true'] {
+	border-color: var(--pp-accent);
+	color: var(--pp-accent-text);
+}
+/* Minimal: a text link beside the pill. */
+.v-minimal .trb {
+	padding: 0 4px;
+	border: 0;
+	background: none;
+	color: var(--pp-accent-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.trb svg {
+	width: 14px;
+	height: 14px;
+}
+.trp {
+	grid-column: 1 / -1;
+	min-width: 0;
+	border: 1px solid var(--pp-border);
+	border-radius: calc(var(--r) * 0.7);
+	overflow: hidden;
+}
+.trp.grid {
+	border-color: var(--pp-accent);
+	border-radius: var(--r);
+	background: var(--pp-bg);
+}
+.v-minimal .trp.grid {
+	margin: 4px 0 20px;
+}
+
 /* ── play ───────────────────────────── */
 /* Round, in the accent (design page 2). The rule's body was lost when the
    list was added, so the buttons drew as the browser's own until 1.4. */

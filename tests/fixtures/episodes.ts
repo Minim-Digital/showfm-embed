@@ -9,6 +9,8 @@ export const PODCAST_ID = '99999999-8888-4777-8666-555555555555';
 export const HOSTED_AUDIO = 'https://m.cdn.media/test-signal/audio.mp3';
 export const EXTERNAL_AUDIO = 'https://media.example.test/audio.mp3';
 export const ARTWORK = 'https://media.example.test/cover.png';
+/** A published WebVTT on show.fm's media host. */
+export const TRANSCRIPT = 'https://m.cdn.media/test-signal/transcript.vtt';
 
 export function podcastPayload({ branded = true, theme = null as string | null } = {}) {
 	return {
@@ -35,6 +37,8 @@ export interface EpisodeOptions {
 	audio?: string | null;
 	explicit?: boolean;
 	duration?: number | null;
+	/** The episode's WebVTT, or none (the default). */
+	transcript?: string | null;
 }
 
 /** One list item; the id is a UUID made from the index. */
@@ -67,7 +71,10 @@ export function episodeItem(options: EpisodeOptions) {
 			embed: `https://embed.cdn.media/ep/${id}`
 		},
 		people: [],
-		transcript: null
+		transcript: (options.transcript ? { url: options.transcript, type: 'text/vtt' } : null) as {
+			url: string;
+			type?: string;
+		} | null
 	};
 }
 

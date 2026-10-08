@@ -1,6 +1,12 @@
 /** The shared API client classifies every answer into one typed status. */
 import { describe, expect, it, vi } from 'vitest';
-import { apiGet, episodeEndpoint, latestEpisodeEndpoint, DEFAULT_RETRY_AFTER } from '../api';
+import {
+	apiGet,
+	elementGet,
+	episodeEndpoint,
+	latestEpisodeEndpoint,
+	DEFAULT_RETRY_AFTER
+} from '../api';
 
 const respond = (body: BodyInit | null, init: ResponseInit = {}) =>
 	vi.fn(() => Promise.resolve(new Response(body, init)));
@@ -89,5 +95,40 @@ describe('apiGet', () => {
 		expect(latestEpisodeEndpoint('https://api.show.fm', 'test-signal')).toBe(
 			'https://api.show.fm/v1/podcasts/test-signal/episodes/latest'
 		);
+	});
+});
+
+// What the elements call: the same classification, with the global fetch,
+// and no Retry-After parsing (no element waits on it; it keeps v1.js small).
+describe('elementGet', () => {
+	it('classifies as apiGet does, with one fetch argument', async () => {
+		const fetch = respond(JSON.stringify({ data: { id: 'x' }, pagination: { next_cursor: 'c' } }));
+		vi.stubGlobal('fetch', fetch);
+		expect(await elementGet('https://api.test/v1/episodes/x')).toEqual({
+			status: 'ok',
+			data: { id: 'x' },
+			etag: null,
+			nextCursor: 'c'
+		});
+		expect(fetch).toHaveBeenCalledWith('https://api.test/v1/episodes/x');
+		for (const [status, expected] of [
+			[404, 'not-found'],
+			[403, 'unavailable']
+		] as const) {
+			vi.stubGlobal('fetch', respond('{}', { status }));
+			expect(await elementGet('https://api.test/x')).toEqual({ status: expected });
+		}
+		vi.stubGlobal('fetch', respond('', { status: 503 }));
+		expect(await elementGet('https://api.test/x')).toEqual({ status: 'error', httpStatus: 503 });
+		vi.unstubAllGlobals();
+	});
+
+	it('a 429 is rate-limited with the default wait, whatever Retry-After says', async () => {
+		vi.stubGlobal('fetch', respond('', { status: 429, headers: { 'Retry-After': '12' } }));
+		expect(await elementGet('https://api.test/x')).toEqual({
+			status: 'rate-limited',
+			retryAfter: DEFAULT_RETRY_AFTER
+		});
+		vi.unstubAllGlobals();
 	});
 });

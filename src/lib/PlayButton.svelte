@@ -19,7 +19,7 @@
 -->
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
+	import { elementGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
 	import { pageController, type ControllerEpisode, type SharedMessage } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
 	import { createLook } from './look.svelte';
@@ -155,7 +155,7 @@
 		}
 		const load = generation;
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
-		apiGet<PlayerEpisodeData>(url).then((result) => {
+		elementGet<PlayerEpisodeData>(url).then((result) => {
 			if (load !== generation) return;
 			if (result.status === 'ok') {
 				data = readPlayEpisode(result.data);
@@ -304,7 +304,7 @@
 		const { id } = data;
 		const failedIn = generation;
 		const applies = controller.failure(host, id);
-		const result = await apiGet(episodeEndpoint(api, id));
+		const result = await elementGet(episodeEndpoint(api, id));
 		// Not news if, since: this button loaded or pressed again, or the
 		// episode started anywhere on the page, or another element took over.
 		if (failedIn !== generation || !applies()) return;
@@ -394,7 +394,7 @@
 		<!-- The message in the button's place: a status line in the host's
 		     font and colour, or for the icon a quiet mark that is not a tab stop. -->
 		<span
-			class={variant === 'icon' ? 'btn quiet' : 'msg'}
+			class={`${variant === 'icon' ? 'btn quiet' : 'msg'}`}
 			role={variant === 'icon' ? 'img' : 'status'}
 			aria-label={variant === 'icon' ? messageText(shown) : undefined}
 			tabindex="-1"
@@ -431,7 +431,7 @@
 				>{/if}{#if label}<span>{label}</span>{/if}
 		</button>
 		{#if shown}
-			<span class={variant === 'icon' ? 'vh' : 'note'} id="message">{messageText(shown)}</span>
+			<span class={`${variant === 'icon' ? 'vh' : 'note'}`} id="message">{messageText(shown)}</span>
 		{/if}
 	{/if}
 	<span class="vh" role="status" aria-live="polite">{announcement}</span>
