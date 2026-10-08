@@ -14,20 +14,17 @@ export const PLAYER_DEFAULT_API_URL = 'https://api.show.fm';
 export const MARKETING_APEX_URL = 'https://show.fm';
 
 /**
- * Hosts that serve show.fm media: production (`m.cdn.media` and the older
- * `media.podcasterplus.com`) and staging (`m.showfm.dev`). Audio anywhere
- * else is external: it streams as usual, but Download is hidden (the `?dl=`
- * attachment parameter only works on show.fm's media worker) and the
- * transcript is never offered (no CORS, and its timings may be stale).
+ * Hosts that serve show.fm media: `m.cdn.media` and the older
+ * `media.podcasterplus.com`. Audio anywhere else is external: it streams as
+ * usual, but Download is hidden (the `?dl=` attachment parameter only works
+ * on show.fm's media worker) and the transcript is never offered (no CORS,
+ * and its timings may be stale).
  *
- * A page can add hosts with `window.showfmMediaHosts = ['media.example']`,
- * for development and testing.
+ * No other environment's host is built in. A page can add hosts with
+ * `window.showfmMediaHosts = ['media.example.test']`, which is how staging
+ * and development pages name their own media host.
  */
-export const SHOWFM_MEDIA_HOSTS: readonly string[] = [
-	'm.cdn.media',
-	'media.podcasterplus.com',
-	'm.showfm.dev'
-];
+export const SHOWFM_MEDIA_HOSTS: readonly string[] = ['m.cdn.media', 'media.podcasterplus.com'];
 
 /** The default hosts plus any the page added with `window.showfmMediaHosts`. */
 export function mediaHosts(): readonly string[] {

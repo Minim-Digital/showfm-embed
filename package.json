@@ -4,13 +4,13 @@
 	"description": "show.fm web components: the embeddable podcast player.",
 	"license": "MIT",
 	"author": "show.fm Ltd",
-	"homepage": "https://github.com/Minim-Digital/showfm-embed#readme",
+	"homepage": "https://github.com/ShowDotFM/showfm-embed#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Minim-Digital/showfm-embed.git"
+		"url": "git+https://github.com/ShowDotFM/showfm-embed.git"
 	},
 	"bugs": {
-		"url": "https://github.com/Minim-Digital/showfm-embed/issues"
+		"url": "https://github.com/ShowDotFM/showfm-embed/issues"
 	},
 	"keywords": [
 		"show.fm",
