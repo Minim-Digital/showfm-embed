@@ -1,5 +1,11 @@
 # @showfm/embed
 
+## 1.6.2
+
+### Patch Changes
+
+- [#21](https://github.com/ShowDotFM/showfm-embed/pull/21) [`8647f35`](https://github.com/ShowDotFM/showfm-embed/commit/8647f350eec7da45249d66b151c067d7554d4ec6) Thanks [@danmaby](https://github.com/danmaby)! - No development hostnames in the bundle. The built-in media hosts are production only, so `isShowfmMediaUrl()` without a `hosts` argument no longer accepts staging media URLs. A staging or development page can add its media host at runtime with `window.showfmMediaHosts`, set before the elements load.
+
 ## 1.6.1
 
 ### Patch Changes
