@@ -86,6 +86,8 @@
 		"test:browser": "playwright test",
 		"cem": "node scripts/cem.mjs",
 		"cem:check": "node scripts/cem.mjs --check",
+		"elements": "node scripts/elements-md.mjs",
+		"elements:check": "node scripts/elements-md.mjs --check",
 		"size": "size-limit",
 		"publint": "publint --strict",
 		"attw": "attw --pack . --profile esm-only --exclude-entrypoints ./svelte ./cdn/v1.js ./cdn/chunks/* ./cdn/click-loader.js ./cdn/click-loader-local.js ./cdn/v1-fallback.css ./cdn/locales/* ./fixtures/fallback/* ./custom-elements.json ./package.json",

@@ -1,0 +1,32 @@
+# @showfm/embed
+
+> Web components that put show.fm podcasts on any web page: `<showfm-player>` (one episode, or a show's latest), `<showfm-episodes>` (a show's episodes as a list or grid), `<showfm-play>` (a play button with a page mini-player) and `<showfm-transcript>` (a follow-along transcript). MIT licensed. The same code is served by show.fm as `https://embed.cdn.media/player/v1.js`.
+
+Key facts for writing embed code:
+
+- Load the script once per page: `<script async src="https://embed.cdn.media/player/v1.js"></script>`. From npm, `import '@showfm/embed'` registers the elements; it is safe to import during server rendering. `@showfm/embed/server` has the side-effect-free helpers.
+- `episode` takes an episode UUID. `podcast` takes a show's UUID or slug (UUIDs survive renames). Set one of them.
+- Put a link to the episode on show.fm inside each element as fallback content, and reserve the height: `min-height: 291px` for the standard player (252px when the show hides "Powered by show.fm"), 101px (83px) for `size="compact"`, and `--showfm-height` as `min-height` for the list and the transcript (the transcript's default is 377px).
+- Shared attributes: `theme` (`auto`, `light`, `dark`), `accent` (hex), `lang`, `load="click"`, and `credit` (`auto`, `on`, `off`) on every element except the transcript. `heading-level` (2 to 6) on the player, the list and the transcript.
+- Player: `size` (`standard`, `compact`), `wave`, `transcript` (`on`, `open`), `mini-player` (`on`, `off`, default `off`), `mini-player-position` (`left`, `right`).
+- List: `variant` (`card`, `minimal`), `layout` (`auto`, `list`, `grid`, `compact`), `count` (1 to 50), `season`, `hide` (`trailer`, `bonus`), `descriptions`, `mini-player`, `mini-player-position`.
+- Play button: `variant` (`icon`, `label`, `link`), `size` (`sm`, `lg`), `mini-player` (default `on`), `mini-player-position`.
+- Transcript: `for` (the id of a player or list on the page) or `episode`, and `height` (120 to 2000, default 320).
+- The "Powered by show.fm" credit follows the show's own setting (show.fm Distribution settings, Creator plans and up). `credit="on"` always shows it; `credit="off"` hides it only where the show's setting already does. `platform="wordpress"` is reserved for the show.fm WordPress plugin.
+- Load on click: add `load="click"` to each element and paste the contents of `@showfm/embed/cdn/click-loader.js` inline after them instead of the script tag. Nothing is requested until a visitor presses an element. `click-loader-local.js` is the same loader for self-hosted copies of `v1.js` (set `window.showfmEmbedSrc`). `showfm.load()` loads every element at once, for consent tools.
+- Style with `--showfm-*` custom properties such as `--showfm-accent`, `--showfm-font`, `--showfm-radius` and `--showfm-bottom-offset`. Colours are adjusted to meet WCAG AA.
+- iframes, for sites that strip scripts: `https://embed.cdn.media/ep/{episode}` and `/latest/{podcast slug}` (300px high, or 110px with `?size=compact`), `/ep/{episode}?transcript=open` (640px) and `/episodes/{podcast}` (560px).
+
+## Docs
+
+- [README](https://github.com/Minim-Digital/showfm-embed/blob/main/README.md): every element, attribute, styling hook, state and the height contract.
+- [Custom Elements Manifest](https://github.com/Minim-Digital/showfm-embed/blob/main/custom-elements.json): the machine-readable element reference (attributes, types, defaults, parts and CSS properties), generated from the components.
+- [Element reference](https://github.com/Minim-Digital/showfm-embed/blob/main/docs/elements.md): every element's attributes with type, default and description, events, slots, CSS custom properties and parts, generated from the manifest.
+- [Changelog](https://github.com/Minim-Digital/showfm-embed/blob/main/CHANGELOG.md)
+- [Embedded player on show.fm](https://show.fm/docs/developers/embedded-player): the player, iframes and oEmbed.
+- [Embeds builder on show.fm](https://show.fm/docs/distribution/embeds): show owners build this code in the show.fm dashboard.
+
+## Optional
+
+- [Contributing](https://github.com/Minim-Digital/showfm-embed/blob/main/CONTRIBUTING.md): checks, the v1 contract and the release process.
+- [npm package](https://www.npmjs.com/package/@showfm/embed)

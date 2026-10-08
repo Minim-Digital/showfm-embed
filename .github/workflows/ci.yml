@@ -47,6 +47,9 @@ jobs:
       - name: Custom Elements Manifest is up to date
         run: pnpm cem:check
 
+      - name: Element reference is up to date
+        run: pnpm elements:check
+
       - name: Contract tests (built files)
         run: pnpm test:contract
 

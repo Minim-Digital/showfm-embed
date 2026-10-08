@@ -23,7 +23,8 @@ pnpm install --frozen-lockfile
 | `tests/contract/`    | Tests against the built files in `dist/`.                                                     |
 | `tests/browser/`     | Playwright tests in Chromium: heights, the list, the play button, mini-player and transcript. |
 | `fixtures/jsx/`      | Compile-only fixtures that prove the JSX typings work.                                        |
-| `scripts/`           | Build, manifest, publish and security-review tooling.                                         |
+| `scripts/`           | Build, manifest, element reference, publish and security-review tooling.                      |
+| `docs/elements.md`   | The element reference, generated from `custom-elements.json` by `scripts/elements-md.mjs`.    |
 
 ## Checks
 
@@ -35,6 +36,7 @@ pnpm check           # svelte-check, warnings fail
 pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
+pnpm elements:check  # docs/elements.md matches custom-elements.json
 pnpm test:contract   # tests against dist/
 pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loaders and fallback CSS within theirs
 pnpm publint
@@ -43,7 +45,9 @@ pnpm jsx:check
 pnpm test:browser    # needs `pnpm exec playwright install chromium` once
 ```
 
-If you change an attribute or a `part`, run `pnpm cem` and commit `custom-elements.json`. The script fails if an attribute or part has no description.
+If you change an attribute or a `part`, run `pnpm cem` and then `pnpm elements`, and commit `custom-elements.json` and `docs/elements.md`. The manifest script fails if an attribute or part has no description, and CI fails if either file is stale (`pnpm cem:check`, `pnpm elements:check`).
+
+When you change what an element does or which attributes it takes, update the README's tables and `llms.txt` in the same pull request.
 
 ## Rules for the player
 
@@ -68,12 +72,12 @@ pnpm changeset
 
 Pick the bump (patch, minor or major) and write one or two sentences for the changelog. Changes to tests, CI or docs alone do not need one.
 
-Releases are automatic and use no npm token:
+Releases use no npm token. One step is manual: the organisation does not let GitHub Actions open pull requests, so you open the version pull request yourself.
 
-1. When changesets reach `main`, the release workflow (`.github/workflows/release.yml`) opens or updates a "Version packages" pull request with the version bump and the changelog.
-2. Merging that pull request publishes to npm with trusted publishing (OIDC) and provenance, then tags the release and creates the GitHub release.
-
-Pull requests opened by the workflow do not trigger CI on their own. Close and reopen the "Version packages" pull request to run CI before merging it.
+1. When changesets reach `main`, the release workflow (`.github/workflows/release.yml`) applies them, commits "Version packages" (the version bump and the changelog) and pushes the `changeset-release/main` branch.
+2. The workflow then tries to open the pull request and fails with "GitHub Actions is not permitted to create or approve pull requests". That red run is expected: the branch is already pushed.
+3. Open the pull request from that branch by hand, for example `gh pr create --base main --head changeset-release/main --title "Release @showfm/embed X.Y.Z"`. Because a person opens it, CI runs on it as usual.
+4. Merging it runs the release workflow again, which publishes to npm with trusted publishing (OIDC) and provenance, then tags the release and creates the GitHub release.
 
 Trusted publishing on npmjs.com is set up for the workflow file name `release.yml`. Do not rename it.
 
