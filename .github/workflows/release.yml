@@ -6,9 +6,12 @@ name: Release
 #
 # How a release happens:
 #   1. Pull requests add changesets (`pnpm changeset`).
-#   2. On each push to main, changesets/action opens or updates a
-#      "Version packages" pull request that applies them: the version bump
-#      and the CHANGELOG entry.
+#   2. On each push to main with changesets, changesets/action commits
+#      "Version packages" (the version bump and the CHANGELOG entry) and
+#      pushes it to the changeset-release/main branch. It then tries to open
+#      the pull request and fails: the organisation does not let GitHub
+#      Actions open pull requests. That failed run is expected. Open the
+#      pull request from changeset-release/main by hand (CONTRIBUTING.md).
 #   3. Merging that pull request pushes to main with no changesets left, so
 #      the action runs `pnpm release` (scripts/publish.mjs), which publishes
 #      to npm over OIDC with provenance and tags the release.

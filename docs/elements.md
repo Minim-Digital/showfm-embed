@@ -6,6 +6,8 @@ Every element, attribute, event, slot, CSS custom property and part that `@showf
 
 `lang` is the global HTML attribute, so it is not listed per element: every element reads its own `lang`, else the page's `<html lang>`, for its strings.
 
+The events are how the elements work with the page's mini-player and with each other. They are not part of the v1 contract (see [CONTRIBUTING](../CONTRIBUTING.md)), so they may change in a minor release.
+
 - [`<showfm-player>`](#showfm-player)
 - [`<podcasterplus-player>`](#podcasterplus-player)
 - [`<showfm-episodes>`](#showfm-episodes)
@@ -38,7 +40,9 @@ The show.fm podcast player. Set `episode` to play one episode, or `podcast` to p
 
 ### Events
 
-None in the manifest.
+| Event | Type | Description |
+| --- | --- | --- |
+| `showfm:mini-player` | `CustomEvent<HTMLAudioElement>` | Fired each time the player starts playing; bubbles and is composed. `detail` is its audio element. The page's mini-player listens for it to take that audio over when the player has `mini-player="on"` and scrolls out of view. |
 
 ### Slots
 
@@ -110,7 +114,9 @@ The pre-rebrand name of `showfm-player`. It stays registered so embeds already o
 
 ### Events
 
-None in the manifest.
+| Event | Type | Description |
+| --- | --- | --- |
+| `showfm:mini-player` | `CustomEvent<HTMLAudioElement>` | Fired each time the player starts playing; bubbles and is composed. `detail` is its audio element. The page's mini-player listens for it to take that audio over when the player has `mini-player="on"` and scrolls out of view. |
 
 ### Slots
 
@@ -187,7 +193,9 @@ A podcast's episodes as a list or grid, each one playable. The list's code loads
 
 ### Events
 
-None in the manifest.
+| Event | Type | Description |
+| --- | --- | --- |
+| `showfm:mini-player` | `CustomEvent` | Fired when a row starts playing and the list has `mini-player="on"`; bubbles and is composed. It opens the page's mini-player. |
 
 ### Slots
 
@@ -254,7 +262,9 @@ A play button for one episode, as an icon, a labelled button or a link in a sent
 
 ### Events
 
-None in the manifest.
+| Event | Type | Description |
+| --- | --- | --- |
+| `showfm:mini-player` | `CustomEvent` | Fired when the button starts playing with `mini-player` on (the default); bubbles and is composed. It opens the page's mini-player. |
 
 ### Slots
 
@@ -311,7 +321,9 @@ The follow-along transcript: the line being spoken is highlighted (word by word 
 
 ### Events
 
-None in the manifest.
+| Event | Type | Description |
+| --- | --- | --- |
+| `close` | `Event` | Fired when its Close button is pressed. The button shows only with `data-showfm-close`, which the episode list sets on the transcript panel it opens under a grid row. |
 
 ### Slots
 
@@ -338,3 +350,9 @@ None.
 | Part | Description |
 | --- | --- |
 | `card` | The transcript panel. |
+
+## Page events
+
+| Event | Type | Description |
+| --- | --- | --- |
+| `showfm:load` | `Event` | Dispatched on `document` by `showfm.load()` (from `v1.js` or the click loader). Every `load="click"` element that has not loaded yet loads. |

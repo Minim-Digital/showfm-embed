@@ -2,9 +2,10 @@
  * The element reference (docs/elements.md) against the manifest it is generated from.
  * @vitest-environment node
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { renderElements } from '../elements-md.mjs';
+import { EVENTS, PAGE_EVENTS, renderElements } from '../elements-md.mjs';
 
 interface Declaration {
 	tagName?: string;
@@ -60,5 +61,31 @@ describe('element reference', () => {
 
 	it('marks the deprecated alias', () => {
 		expect(sectionFor('podcasterplus-player')).toContain('**Deprecated.**');
+	});
+
+	it('lists exactly the events src/ dispatches', () => {
+		const files = (readdirSync('src', { recursive: true }) as string[])
+			.filter((file) => /\.(ts|svelte)$/.test(file))
+			.filter((file) => !file.includes('__tests__') && !file.endsWith('test-setup.ts'));
+		const dispatched = new Set<string>();
+		for (const file of files) {
+			const source = readFileSync(join('src', file), 'utf-8');
+			for (const match of source.matchAll(/new (?:Custom)?Event\(\s*['"]([^'"]+)['"]/g)) {
+				dispatched.add(match[1]);
+			}
+		}
+		const documented = new Set(
+			[...Object.values(EVENTS).flat(), ...PAGE_EVENTS].map((event) => event.name)
+		);
+		expect([...documented].sort()).toEqual([...dispatched].sort());
+		for (const [tag, events] of Object.entries(EVENTS)) {
+			for (const event of events) {
+				expect(sectionFor(tag), `<${tag}> is missing ${event.name}`).toContain(
+					`| \`${event.name}\` |`
+				);
+			}
+		}
+		expect(markdown).toContain('## Page events');
+		expect(markdown).not.toContain('None in the manifest');
 	});
 });

@@ -9,6 +9,7 @@
  * description, so the manifest cannot drift from the code.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const OUTPUT = 'custom-elements.json';
 const MODULE_PATH = 'dist/index.js';
@@ -699,7 +700,8 @@ export function buildManifest() {
 	};
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL encodes the path, so a checkout under a path with spaces still runs.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const output = JSON.stringify(buildManifest(), null, '\t') + '\n';
 	if (process.argv.includes('--check')) {
 		if (readFileSync(OUTPUT, 'utf-8') !== output) {

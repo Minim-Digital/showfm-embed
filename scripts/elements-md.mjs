@@ -10,9 +10,66 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const MANIFEST = 'custom-elements.json';
 const OUTPUT = 'docs/elements.md';
+
+const MINI_PLAYER_EVENT = 'showfm:mini-player';
+
+/**
+ * Events the elements dispatch. The manifest declares none, so this list is the source:
+ * scripts/__tests__/elements-md.test.ts fails if src/ dispatches an event that is not here,
+ * or this names one src/ no longer dispatches. Events are not part of the v1 contract
+ * (CONTRIBUTING), so the reference says they may change.
+ * @type {Record<string, { name: string, type: string, description: string }[]>}
+ */
+export const EVENTS = {
+	'showfm-player': [
+		{
+			name: MINI_PLAYER_EVENT,
+			type: 'CustomEvent<HTMLAudioElement>',
+			description:
+				'Fired each time the player starts playing; bubbles and is composed. `detail` is its audio element. The page\'s mini-player listens for it to take that audio over when the player has `mini-player="on"` and scrolls out of view.'
+		}
+	],
+	'showfm-episodes': [
+		{
+			name: MINI_PLAYER_EVENT,
+			type: 'CustomEvent',
+			description:
+				'Fired when a row starts playing and the list has `mini-player="on"`; bubbles and is composed. It opens the page\'s mini-player.'
+		}
+	],
+	'showfm-play': [
+		{
+			name: MINI_PLAYER_EVENT,
+			type: 'CustomEvent',
+			description:
+				"Fired when the button starts playing with `mini-player` on (the default); bubbles and is composed. It opens the page's mini-player."
+		}
+	],
+	'showfm-transcript': [
+		{
+			name: 'close',
+			type: 'Event',
+			description:
+				'Fired when its Close button is pressed. The button shows only with `data-showfm-close`, which the episode list sets on the transcript panel it opens under a grid row.'
+		}
+	]
+};
+// The deprecated alias is the player.
+EVENTS['podcasterplus-player'] = EVENTS['showfm-player'];
+
+/** Events dispatched on `document` rather than by an element. */
+export const PAGE_EVENTS = [
+	{
+		name: 'showfm:load',
+		type: 'Event',
+		description:
+			'Dispatched on `document` by `showfm.load()` (from `v1.js` or the click loader). Every `load="click"` element that has not loaded yet loads.'
+	}
+];
 
 /**
  * The parts of a Custom Elements Manifest 2.1.0 declaration this renders.
@@ -110,13 +167,20 @@ function renderElement(declaration) {
 	parts.push(
 		section(
 			'Events',
-			(declaration.events ?? []).map((event) => [
-				code(event.name),
-				code(event.type?.text),
-				cell(event.description)
-			]),
+			[
+				...(declaration.events ?? []).map((event) => [
+					code(event.name),
+					code(event.type?.text),
+					cell(event.description)
+				]),
+				...(EVENTS[declaration.tagName ?? ''] ?? []).map((event) => [
+					code(event.name),
+					code(event.type),
+					cell(event.description)
+				])
+			],
 			['Event', 'Type', 'Description'],
-			'None in the manifest.'
+			'None.'
 		),
 		'',
 		section(
@@ -169,16 +233,26 @@ export function renderElements(manifest) {
 			'',
 			"`lang` is the global HTML attribute, so it is not listed per element: every element reads its own `lang`, else the page's `<html lang>`, for its strings.",
 			'',
+			"The events are how the elements work with the page's mini-player and with each other. They are not part of the v1 contract (see [CONTRIBUTING](../CONTRIBUTING.md)), so they may change in a minor release.",
+			'',
 			...declarations.map(
 				(declaration) => `- [\`<${declaration.tagName}>\`](#${declaration.tagName})`
 			),
 			'',
-			declarations.map(renderElement).join('\n\n')
+			declarations.map(renderElement).join('\n\n'),
+			'',
+			'## Page events',
+			'',
+			table(
+				['Event', 'Type', 'Description'],
+				PAGE_EVENTS.map((event) => [code(event.name), code(event.type), cell(event.description)])
+			)
 		].join('\n') + '\n'
 	);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL encodes the path, so a checkout under a path with spaces still runs.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const output = renderElements(JSON.parse(readFileSync(MANIFEST, 'utf-8')));
 	if (process.argv.includes('--check')) {
 		let committed = '';
