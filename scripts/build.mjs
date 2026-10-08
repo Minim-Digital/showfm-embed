@@ -5,6 +5,7 @@
  *   dist/cdn/v1.js  classic script that registers the elements (vite.cdn.config.ts)
  *   dist/cdn/chunks/*.js  lazy chunks v1.js loads next to itself (the episode list, the transcript)
  *   dist/cdn/click-loader.js  the inline load="click" loader (vite.loader.config.ts)
+ *   dist/cdn/click-loader-local.js  the same loader for self-hosters, with no CDN default
  *   dist/cdn/v1-fallback.css  optional styles for elements before they upgrade
  *   dist/cdn/locales/*.js  German and French strings, loaded by v1.js on demand
  *   dist/server.js  the pure modules, no side effects (vite.server.config.ts)
@@ -30,6 +31,15 @@ rmSync('dist/svelte/__tests__', { recursive: true, force: true });
 run('vite', ['build', '--config', 'vite.cdn.config.ts']);
 run('vite', ['build', '--config', 'vite.server.config.ts', '--logLevel', 'warn']);
 run('vite', ['build', '--config', 'vite.loader.config.ts', '--logLevel', 'warn']);
+run('vite', [
+	'build',
+	'--config',
+	'vite.loader.config.ts',
+	'--mode',
+	'self-hosted',
+	'--logLevel',
+	'warn'
+]);
 
 // The fallback stylesheet, minified.
 const fallbackCss = await transformWithEsbuild(

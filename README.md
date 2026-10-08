@@ -404,8 +404,26 @@ For sites that need consent before any third-party request, `load="click"` makes
 - A list's facade loads the list and moves focus to its first episode. Without the loader, a `load="click"` list shows its fallback links until `showfm.load()` runs.
 - A play button's facade is its button alone, in its 40px line. One press loads and plays, and opens the mini-player; focus stays on the button. Without the loader, it shows its fallback until `showfm.load()` runs.
 - A transcript's facade, "Load transcript", keeps the height the element reserves (`--showfm-height`, else 377px) and hides the fallback text behind it. One press loads the transcript. On a page with only a transcript, `showfm.load()` adds `v1.js` too.
-- Set `data-src` on the loader's `<script>` to load a self-hosted copy of `v1.js`.
+- Set `data-src` on the loader's `<script>` to load a self-hosted copy of `v1.js`. Without it, the loader loads `v1.js` from embed.cdn.media.
 - The loader is about 4.7 kB as written (2.3 kB gzipped). iframes cannot be facades.
+
+### The self-hosting loader
+
+`@showfm/embed/cdn/click-loader-local.js` is the loader for the show.fm WordPress plugin and other self-hosters. It is the same loader with no CDN default: the file names no host at all, so no path through it can load remote code (WordPress.org guideline 8). It is about 4.8 kB as written (2.4 kB gzipped).
+
+```html
+<script>
+	window.showfmEmbedSrc = '/wp-content/plugins/showfm/assets/showfm-embed/v1.js';
+</script>
+<script data-src="/wp-content/plugins/showfm/assets/showfm-embed/v1.js">
+	/* the contents of @showfm/embed/cdn/click-loader-local.js */
+</script>
+```
+
+- It takes `v1.js` from `window.showfmEmbedSrc`, then from `data-src` on its own `<script>`. Set the global in an inline script before it: optimisers that combine or delay scripts can drop `data-src`, or run the loader where it is not its own `<script>`, but they keep inline scripts and run them in order.
+- It takes the first of the two that is a URL with an origin, as `v1.js` needs (so not `data:`, `javascript:` or `file:`). A relative URL resolves against the page. Any host is accepted: only the page's own markup or script can set either, so a host check would protect nothing, and it would break sites that serve their assets from a CDN host of their own.
+- With neither, it does nothing at all: no facade, no style, no request, and no `showfm.load()`. The elements keep their [fallback markup](#fallback-markup), so a misconfigured page shows links, never remote code.
+- Everything else (the facades, `showfm.load()`, the strings) is as above.
 
 ## Fallback markup
 

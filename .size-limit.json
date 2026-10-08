@@ -49,6 +49,19 @@
 		"gzip": true
 	},
 	{
+		"name": "dist/cdn/click-loader-local.js (the self-hosting loader, pasted inline, so measured as written)",
+		"path": "dist/cdn/click-loader-local.js",
+		"limit": "4.8 KB",
+		"gzip": false,
+		"brotli": false
+	},
+	{
+		"name": "dist/cdn/click-loader-local.js (gzipped)",
+		"path": "dist/cdn/click-loader-local.js",
+		"limit": "2.4 KB",
+		"gzip": true
+	},
+	{
 		"name": "dist/cdn/v1-fallback.css (gzipped)",
 		"path": "dist/cdn/v1-fallback.css",
 		"limit": "0.6 KB",
