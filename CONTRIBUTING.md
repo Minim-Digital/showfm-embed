@@ -17,7 +17,7 @@ pnpm install --frozen-lockfile
 | `src/lib/`           | The player: Svelte components and pure modules. Shipped as source at `/svelte`.               |
 | `src/lib/__tests__/` | Unit tests (Vitest, jsdom, Testing Library, jest-axe).                                        |
 | `src/server.ts`      | The side-effect-free entry (`/server`). The root adds the element registration.               |
-| `src/cdn/`           | The inline `load="click"` loader and the fallback stylesheet.                                 |
+| `src/cdn/`           | The inline `load="click"` loaders (CDN and self-hosting) and the fallback stylesheet.         |
 | `fixtures/fallback/` | Shared fallback markup cases, shipped for the WordPress plugin's PHP port.                    |
 | `src/jsx/`           | JSX typings for React, Preact and Solid.                                                      |
 | `tests/contract/`    | Tests against the built files in `dist/`.                                                     |
@@ -36,7 +36,7 @@ pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
 pnpm test:contract   # tests against dist/
-pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loader and fallback CSS within theirs
+pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loaders and fallback CSS within theirs
 pnpm publint
 pnpm attw
 pnpm jsx:check

@@ -1,11 +1,16 @@
 /**
  * The inline load="click" loader (design page 6): nothing is requested
  * before a press, the first press adds v1.js once, and showfm.load()
- * upgrades every facade.
+ * upgrades every facade. The last block runs the self-hosting build's
+ * branch (click-loader-local.js), which has no CDN default.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type ShowfmWindow = Window & { showfm?: { load?: () => void }; showfmStrings?: unknown };
+type ShowfmWindow = Window & {
+	showfm?: { load?: () => void };
+	showfmStrings?: unknown;
+	showfmEmbedSrc?: unknown;
+};
 
 const EPISODE = '11111111-2222-4333-8444-555555555555';
 
@@ -28,6 +33,8 @@ let fetchSpy: ReturnType<typeof vi.fn>;
 beforeEach(() => {
 	fetchSpy = vi.fn();
 	vi.stubGlobal('fetch', fetchSpy);
+	// The build sets this (vite.loader.config.ts): false for click-loader.js.
+	vi.stubGlobal('__SHOWFM_LOCAL__', false);
 	document.body.innerHTML = `
 		<showfm-player id="one" episode="${EPISODE}" load="click" accent="#0ea5e9" style="display:block;min-height:291px">
 			<a href="https://show.fm/x/e/one">Episode One</a><audio controls preload="none"></audio>
@@ -50,6 +57,7 @@ afterEach(() => {
 	document.documentElement.removeAttribute('lang');
 	delete (window as ShowfmWindow).showfm;
 	delete (window as ShowfmWindow).showfmStrings;
+	delete (window as ShowfmWindow).showfmEmbedSrc;
 });
 
 describe('before the press', () => {
@@ -328,5 +336,105 @@ describe('showfm.load()', () => {
 		(window as ShowfmWindow).showfm!.load!();
 		expect(late.getAttribute('data-showfm-activated')).toBe('load');
 		expect(scripts()).toHaveLength(1);
+	});
+});
+
+describe('the self-hosting build (click-loader-local.js)', () => {
+	const SELF_HOSTED = 'https://site.example/wp-content/plugins/showfm/v1.js';
+	const loaderScript = (dataSrc?: string) => {
+		const script = document.createElement('script');
+		if (dataSrc !== undefined) script.setAttribute('data-src', dataSrc);
+		return script;
+	};
+	const pressedSources = () => {
+		facadeButton(document.getElementById('one')!).click();
+		return scripts().map((s) => s.src);
+	};
+	/** Nothing at all: no facade, no style, no showfm.load(), no request. */
+	const expectNothing = () => {
+		expect(document.querySelectorAll('[data-showfm-facade], [data-showfm-facade-ui]')).toHaveLength(
+			0
+		);
+		expect(document.head.children).toHaveLength(0);
+		expect((window as ShowfmWindow).showfm).toBeUndefined();
+		expect(fetchSpy).not.toHaveBeenCalled();
+		// The fallback stays as the page sent it.
+		expect(document.querySelector('#one a')?.textContent).toBe('Episode One');
+	};
+
+	beforeEach(() => {
+		vi.stubGlobal('__SHOWFM_LOCAL__', true);
+	});
+
+	it('loads v1.js from window.showfmEmbedSrc, ahead of data-src', async () => {
+		(window as ShowfmWindow).showfmEmbedSrc = SELF_HOSTED;
+		await runLoader(loaderScript('https://site.example/other/v1.js'));
+		expect(scripts()).toHaveLength(0);
+		expect(pressedSources()).toEqual([SELF_HOSTED]);
+	});
+
+	it('loads v1.js from data-src when the global is not set', async () => {
+		await runLoader(loaderScript(SELF_HOSTED));
+		expect(pressedSources()).toEqual([SELF_HOSTED]);
+	});
+
+	it('does nothing when neither is set', async () => {
+		await runLoader(loaderScript());
+		expectNothing();
+	});
+
+	it('loads from the global without a currentScript (a combined or delayed bundle)', async () => {
+		(window as ShowfmWindow).showfmEmbedSrc = SELF_HOSTED;
+		await runLoader(null);
+		expect(pressedSources()).toEqual([SELF_HOSTED]);
+		(window as ShowfmWindow).showfm!.load!();
+		expect(scripts()).toHaveLength(1);
+	});
+
+	it('does nothing without a currentScript and with no global', async () => {
+		await runLoader(null);
+		expectNothing();
+	});
+
+	it('resolves a relative URL against the page', async () => {
+		(window as ShowfmWindow).showfmEmbedSrc = '/wp-content/plugins/showfm/v1.js';
+		await runLoader(null);
+		expect(pressedSources()).toEqual([`${location.origin}/wp-content/plugins/showfm/v1.js`]);
+	});
+
+	it.each([
+		['an empty string', ''],
+		['a data: URL', 'data:text/javascript,alert(1)'],
+		['a javascript: URL', 'javascript:alert(1)'],
+		['a file: URL', 'file:///srv/www/v1.js'],
+		['not a URL', 'https://'],
+		['not a string', { toString: (): string => SELF_HOSTED }]
+	])('skips a global that is %s, for data-src or nothing', async (_name, value) => {
+		(window as ShowfmWindow).showfmEmbedSrc = value;
+		await runLoader(loaderScript(SELF_HOSTED));
+		expect(pressedSources()).toEqual([SELF_HOSTED]);
+		document.head.innerHTML = '';
+		document.querySelectorAll('[data-showfm-facade-ui]').forEach((ui) => ui.remove());
+		document
+			.querySelectorAll('[data-showfm-facade], [data-showfm-activated], [data-showfm-focus]')
+			.forEach((el) => {
+				el.removeAttribute('data-showfm-facade');
+				el.removeAttribute('data-showfm-activated');
+				el.removeAttribute('data-showfm-focus');
+			});
+		delete (window as ShowfmWindow).showfm;
+		await runLoader(loaderScript('data:text/javascript,alert(1)'));
+		expectNothing();
+	});
+
+	it('takes a URL on another host: only the page sets it', async () => {
+		(window as ShowfmWindow).showfmEmbedSrc = 'https://cdn.site.example/showfm/v1.js';
+		await runLoader(null);
+		expect(pressedSources()).toEqual(['https://cdn.site.example/showfm/v1.js']);
+	});
+
+	it('keeps the CDN default out of the self-hosting branch', async () => {
+		await runLoader(loaderScript(''));
+		expectNothing();
 	});
 });

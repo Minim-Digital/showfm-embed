@@ -13,15 +13,29 @@
  *
  *   <script data-src="https://embed.cdn.media/player/v1.js">…this file…</script>
  *
- * `data-src` points at a self-hosted copy of v1.js (the WordPress plugin
- * bundles one). The facade is drawn in the light DOM because the element
- * creates its shadow root when it upgrades; the upgraded element removes it.
+ * `data-src` points at a self-hosted copy of v1.js. The facade is drawn in
+ * the light DOM because the element creates its shadow root when it
+ * upgrades; the upgraded element removes it.
+ *
+ * The same source builds `dist/cdn/click-loader-local.js`, for self-hosters
+ * such as the show.fm WordPress plugin (vite.loader.config.ts sets
+ * __SHOWFM_LOCAL__). It names no host at all, so it can never load remote
+ * code. It takes v1.js from `window.showfmEmbedSrc`, set by an inline script
+ * before it (optimisers that combine scripts keep inline ones, and run them
+ * in order), then from `data-src`. With neither it does nothing: no facade,
+ * no style, no request, so the elements keep their server fallback.
  *
  * Kept deliberately plain: no imports, and each string once per language.
  */
+declare const __SHOWFM_LOCAL__: boolean;
+
 ((
 	d: Document,
-	w: Window & { showfm?: { load?: () => void }; showfmStrings?: Record<string, string> }
+	w: Window & {
+		showfm?: { load?: () => void };
+		showfmStrings?: Record<string, string>;
+		showfmEmbedSrc?: unknown;
+	}
 ) => {
 	const TAGS = 'showfm-player,podcasterplus-player,showfm-episodes,showfm-play,showfm-transcript';
 	// Each attribute name once: this file is pasted inline, so bytes count.
@@ -31,7 +45,23 @@
 	const FOCUS = 'data-showfm-focus';
 	const BUSY = 'aria-busy';
 	const script = d.currentScript;
-	const src = script?.getAttribute('data-src') || 'https://embed.cdn.media/player/v1.js';
+	// The local build takes the first URL the page gives that has an origin:
+	// http(s), as v1.js needs, and not data:, javascript: or file:, whose
+	// origin is "null". (Not tested by name: then the file would say "http".)
+	// It accepts any host: only the page's own markup or script can set
+	// either source, so a host check would protect nothing, and it would
+	// break sites that serve their assets from their own CDN host. The loader
+	// itself never names a host.
+	const src = __SHOWFM_LOCAL__
+		? [w.showfmEmbedSrc, script?.getAttribute('data-src')].find((url) => {
+				try {
+					return typeof url == 'string' && url && new URL(url, d.baseURI).origin != 'null';
+				} catch {
+					// Not a URL.
+				}
+			})
+		: script?.getAttribute('data-src') || 'https://embed.cdn.media/player/v1.js';
+	if (__SHOWFM_LOCAL__ && !src) return;
 	const nonce = script?.nonce;
 	// Per language, one string split at "|" (fewer bytes than an array):
 	// the player's title and meta, the list's title and meta, and the
@@ -95,7 +125,7 @@
 		if (!added && !customElements.get(el.localName)) {
 			added = true;
 			const tag = d.createElement('script');
-			tag.src = src;
+			tag.src = src as string;
 			if (nonce) tag.nonce = nonce;
 			tag.async = true;
 			// A failed load (network, CDN) must not strand the page: every
