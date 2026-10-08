@@ -6,7 +6,7 @@ name: Security Review
 # also skips forks explicitly, so the boundary is visible here rather than
 # implied. A same-repository branch needs write access, which can already reach
 # secrets through any workflow. The wider hardening for all three repositories
-# is tracked in Minim-Digital/podcaster-plus-app#734.
+# is tracked in ShowDotFM/podcaster-plus-app#734.
 
 # ⚠ A GREEN TICK HERE IS NOT ALWAYS A REAL REVIEW.
 #
@@ -203,7 +203,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Minim-Digital fork of anthropics/claude-code-security-review, pinned to
+      # ShowDotFM fork of anthropics/claude-code-security-review, pinned to
       # the OAuth-token commit. The fork is upstream 0c6a49f (the exact commit
       # this workflow ran before) plus one change: a `claude-code-oauth-token`
       # input so the scan authenticates against Dan's Claude subscription.
@@ -219,7 +219,7 @@ jobs:
       # coverage gap. The fork keeps the full-diff review.
       #
       # To sync the fork with a future upstream release: merge upstream into
-      # Minim-Digital/claude-code-security-review, keep the one credential-gate
+      # ShowDotFM/claude-code-security-review, keep the one credential-gate
       # change (action.yml + github_action_audit.py validate_claude_available,
       # both covered by test_claude_runner.py), and re-pin the sha here. Then
       # re-review/rebase scripts/security-review/action.patch and update its
@@ -229,7 +229,7 @@ jobs:
       - name: Checkout pinned security reviewer
         uses: actions/checkout@v4
         with:
-          repository: Minim-Digital/claude-code-security-review
+          repository: ShowDotFM/claude-code-security-review
           ref: e1092743ad11d9d918e00cb4e740e7b121205d98
           path: .security-review-action
           persist-credentials: false

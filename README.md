@@ -134,7 +134,7 @@ Set `episode` or `podcast`. With neither, the player shows its fallback.
 
 ### Audio hosted elsewhere
 
-When an episode's audio is not on a show.fm media host (`m.cdn.media`, `media.podcasterplus.com` or staging's `m.showfm.dev`), it still plays, but there is no Download button and no transcript is offered. For testing, a page can add hosts with `window.showfmMediaHosts = ['media.example.test']`.
+When an episode's audio is not on a show.fm media host (`m.cdn.media` or `media.podcasterplus.com`), it still plays, but there is no Download button and no transcript is offered. No other environment's host is built in: for staging or testing, a page can add hosts with `window.showfmMediaHosts = ['media.example.test']`, set before the elements load.
 
 The player's colours, font and corners follow the [styling hooks](#styling-hooks). Its parts can also be styled with `::part()`: `container`, `artwork`, `title`, `subtitle`, `controls`, `play`, `seek`, `rate`, `mute`, `share`, `download`, `transcript`, `footer` and `error`.
 
@@ -469,7 +469,7 @@ The player, the list, the play button, the mini-player and the transcript set no
 
 ## Origin
 
-This code was imported from the show.fm app (`Minim-Digital/podcaster-plus-app`) at commit `f7bf738a1674fa14cfa202f8bcc7d8eca4cf43e8`, without its history. The built `v1.js` is the same code as the app's build of that commit. The only difference is the generated names of Svelte's scoped CSS classes, which are derived from the file path and stay inside the shadow root.
+This code was imported from the show.fm app (`ShowDotFM/podcaster-plus-app`) at commit `f7bf738a1674fa14cfa202f8bcc7d8eca4cf43e8`, without its history. The built `v1.js` is the same code as the app's build of that commit. The only difference is the generated names of Svelte's scoped CSS classes, which are derived from the file path and stay inside the shadow root.
 
 ## Contributing
 

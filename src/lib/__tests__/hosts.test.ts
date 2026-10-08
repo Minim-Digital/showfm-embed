@@ -7,11 +7,24 @@ afterEach(() => {
 });
 
 describe('isShowfmMediaUrl', () => {
-	it('accepts the production and staging media hosts', () => {
-		expect(SHOWFM_MEDIA_HOSTS).toEqual(['m.cdn.media', 'media.podcasterplus.com', 'm.showfm.dev']);
+	it('accepts the show.fm media hosts, in any case', () => {
+		expect(SHOWFM_MEDIA_HOSTS).toEqual(['m.cdn.media', 'media.podcasterplus.com']);
 		expect(isShowfmMediaUrl('https://m.cdn.media/a.mp3')).toBe(true);
 		expect(isShowfmMediaUrl('https://media.podcasterplus.com/a.mp3?src=embed')).toBe(true);
-		expect(isShowfmMediaUrl('https://M.SHOWFM.DEV/a.mp3')).toBe(true);
+		expect(isShowfmMediaUrl('https://M.CDN.MEDIA/a.mp3')).toBe(true);
+	});
+
+	it('builds in no other environment, which a page adds itself', () => {
+		expect(isShowfmMediaUrl('https://media.example.test/a.mp3', mediaHosts())).toBe(false);
+		(window as unknown as { showfmMediaHosts: unknown }).showfmMediaHosts = ['media.example.test'];
+		expect(isShowfmMediaUrl('https://media.example.test/a.mp3', mediaHosts())).toBe(true);
+		expect(
+			canOfferTranscript(
+				'https://media.example.test/a.mp3',
+				'https://media.example.test/t.vtt',
+				mediaHosts()
+			)
+		).toBe(true);
 	});
 
 	it('rejects other hosts, look-alikes and junk', () => {

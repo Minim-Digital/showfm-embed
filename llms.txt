@@ -19,14 +19,14 @@ Key facts for writing embed code:
 
 ## Docs
 
-- [README](https://github.com/Minim-Digital/showfm-embed/blob/main/README.md): every element, attribute, styling hook, state and the height contract.
-- [Custom Elements Manifest](https://github.com/Minim-Digital/showfm-embed/blob/main/custom-elements.json): the machine-readable element reference (attributes, types, defaults, parts and CSS properties), generated from the components.
-- [Element reference](https://github.com/Minim-Digital/showfm-embed/blob/main/docs/elements.md): every element's attributes with type, default and description, events, slots, CSS custom properties and parts, generated from the manifest.
-- [Changelog](https://github.com/Minim-Digital/showfm-embed/blob/main/CHANGELOG.md)
+- [README](https://github.com/ShowDotFM/showfm-embed/blob/main/README.md): every element, attribute, styling hook, state and the height contract.
+- [Custom Elements Manifest](https://github.com/ShowDotFM/showfm-embed/blob/main/custom-elements.json): the machine-readable element reference (attributes, types, defaults, parts and CSS properties), generated from the components.
+- [Element reference](https://github.com/ShowDotFM/showfm-embed/blob/main/docs/elements.md): every element's attributes with type, default and description, events, slots, CSS custom properties and parts, generated from the manifest.
+- [Changelog](https://github.com/ShowDotFM/showfm-embed/blob/main/CHANGELOG.md)
 - [Embedded player on show.fm](https://show.fm/docs/developers/embedded-player): the player, iframes and oEmbed.
 - [Embeds builder on show.fm](https://show.fm/docs/distribution/embeds): show owners build this code in the show.fm dashboard.
 
 ## Optional
 
-- [Contributing](https://github.com/Minim-Digital/showfm-embed/blob/main/CONTRIBUTING.md): checks, the v1 contract and the release process.
+- [Contributing](https://github.com/ShowDotFM/showfm-embed/blob/main/CONTRIBUTING.md): checks, the v1 contract and the release process.
 - [npm package](https://www.npmjs.com/package/@showfm/embed)
