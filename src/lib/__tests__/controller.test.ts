@@ -3,7 +3,12 @@
  * see what is playing, and "Powered by show.fm" goes to one embed per page.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PageAudioController, pageController, type PlaybackSnapshot } from '../controller';
+import {
+	PageAudioController,
+	creditWanted,
+	pageController,
+	type PlaybackSnapshot
+} from '../controller';
 
 /** jsdom has no media playback: an <audio> whose play/pause fire the events. */
 function fakeAudio() {
@@ -334,5 +339,36 @@ describe('"Powered by show.fm" once per page', () => {
 				Symbol.for('showfm.page-audio-controller.v1')
 			]
 		).toBe(pageController());
+	});
+});
+
+// The credit rule every element follows (EMB-7). show_powered_by is false
+// only for a show whose plan includes branding removal and that turned the
+// credit off (the public API's resolveBranding).
+describe('creditWanted', () => {
+	const entitled = { show_powered_by: false };
+	const notEntitled = { show_powered_by: true };
+	it.each([
+		// credit, branding, platform, shown
+		['auto', notEntitled, null, true],
+		['auto', entitled, null, false],
+		['off', notEntitled, null, true],
+		['off', entitled, null, false],
+		['on', entitled, null, true],
+		['on', notEntitled, null, true],
+		[null, notEntitled, null, true],
+		['nonsense', entitled, null, false],
+		// No payload (loading, an error) or one cached before the field: shown.
+		['auto', null, null, true],
+		['off', null, null, true],
+		['off', {}, null, true],
+		// The WordPress plugin: credit="off" is the site owner's to set.
+		['off', notEntitled, 'wordpress', false],
+		['off', null, 'wordpress', false],
+		['auto', notEntitled, 'wordpress', true],
+		['on', entitled, 'wordpress', true],
+		['off', notEntitled, 'other', true]
+	] as const)('credit=%s, branding %o, platform %s: %s', (credit, branding, platform, shown) => {
+		expect(creditWanted(credit, branding, platform)).toBe(shown);
 	});
 });

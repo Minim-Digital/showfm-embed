@@ -226,10 +226,13 @@ describe('attributes', () => {
 		expect(screen.queryByRole('heading')).toBeNull();
 	});
 
+	// show_powered_by is false only for a show whose plan includes branding
+	// removal and that turned the credit off: only then can it hide.
 	it.each([
 		['auto', true, true],
 		['auto', false, false],
-		['off', true, false],
+		['off', true, true],
+		['off', false, false],
 		['on', false, true],
 		['nonsense', false, false]
 	])('credit="%s" with show_powered_by %s shows the credit: %s', async (credit, branded, shown) => {
@@ -238,6 +241,18 @@ describe('attributes', () => {
 		await screen.findByRole('group');
 		expect(screen.queryByRole('link', { name: /powered by show\.fm/i }) !== null).toBe(shown);
 	});
+
+	it.each(['auto', 'off'])(
+		'credit="%s" shows the credit when the payload has no branding (cached before it)',
+		async (credit) => {
+			const payload = episodePayload();
+			delete (payload.podcast as { branding?: unknown }).branding;
+			stubFetch(ok(payload));
+			render(ShowfmPlayer, { props: { episode: EPISODE_ID, api: API, credit } });
+			await screen.findByRole('group');
+			expect(screen.getByRole('link', { name: /powered by show\.fm/i })).toBeInTheDocument();
+		}
+	);
 
 	it('French strings with an override from window.showfmStrings', async () => {
 		stubFetch(status(500));

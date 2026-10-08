@@ -105,7 +105,8 @@ const DE: Strings &
 	transcriptNone: 'Für diese Folge gibt es kein Transkript.',
 	jumpTo: 'Zu {time} springen, {speaker}',
 	jumpToTime: 'Zu {time} springen',
-	backToNow: 'Zur aktuellen Stelle · {time}'
+	backToNow: 'Zur aktuellen Stelle · {time}',
+	closeTranscript: 'Transkript schließen'
 };
 
 export default DE;

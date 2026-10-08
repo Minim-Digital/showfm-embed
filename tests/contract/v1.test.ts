@@ -317,13 +317,57 @@ describe('"Powered by show.fm" once per page', () => {
 		expect(second.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
 	});
 
-	it('credit="off" on the first passes it to the next embed', async () => {
+	it('credit="off" does not hide it on a show without branding removal', async () => {
 		stubFetch(okResponse(episodePayload({ branded: true })));
 		const first = mount('showfm-player', { episode: EPISODE_ID, credit: 'off' });
 		const second = mount('showfm-player', { episode: EPISODE_ID });
 		await settle();
+		expect(first.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+		expect(second.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
+	});
+
+	it('hides it when the payload allows it, for auto and off alike', async () => {
+		stubFetch(okResponse(episodePayload({ branded: false })));
+		const first = mount('showfm-player', { episode: EPISODE_ID, credit: 'off' });
+		const second = mount('showfm-player', { episode: EPISODE_ID });
+		const third = mount('showfm-player', { episode: EPISODE_ID, credit: 'on' });
+		await settle();
+		expect(first.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
+		expect(second.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
+		expect(third.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+	});
+
+	it('platform="wordpress" with credit="off" passes it to the next embed, for any show', async () => {
+		stubFetch(okResponse(episodePayload({ branded: true })));
+		const first = mount('showfm-player', {
+			episode: EPISODE_ID,
+			credit: 'off',
+			platform: 'wordpress'
+		});
+		const second = mount('showfm-player', { episode: EPISODE_ID });
+		await settle();
 		expect(first.shadowRoot!.querySelector('[part="footer"]')).toBeNull();
 		expect(second.shadowRoot!.querySelector('[part="footer"]')).not.toBeNull();
+	});
+
+	it('shows it on the error card when no payload loaded, even with credit="off"', async () => {
+		stubFetch(() => Promise.resolve(new Response('{}', { status: 500 })));
+		const element = mount(
+			'showfm-player',
+			{ episode: EPISODE_ID, credit: 'off' },
+			'<a href="https://show.fm/x">Listen on show.fm</a>'
+		);
+		await settle();
+		const credit = element.shadowRoot!.querySelector<HTMLAnchorElement>('.credit')!;
+		expect(credit.textContent).toBe('Powered by show.fm');
+		expect(credit.href).toBe('https://show.fm/?ref=player');
+	});
+
+	it('shows nothing for a suspended show, and it goes to the next embed', async () => {
+		stubFetch(() => Promise.resolve(new Response('{}', { status: 403 })));
+		const element = mount('showfm-player', { episode: EPISODE_ID });
+		await settle();
+		expect(element.shadowRoot!.querySelector('.credit, [part="footer"]')).toBeNull();
 	});
 
 	it('passes to the next embed when the first is removed', async () => {

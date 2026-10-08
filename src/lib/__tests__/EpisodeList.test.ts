@@ -17,6 +17,7 @@ import { contrastRatio, mixHex } from '../contrast';
 import {
 	EXTERNAL_AUDIO,
 	HOSTED_AUDIO,
+	TRANSCRIPT,
 	episodeItem,
 	listPage,
 	podcastPayload,
@@ -38,6 +39,8 @@ interface MockApi {
 	moreStatus: number;
 	pending: boolean;
 	branded: boolean;
+	/** Status of the first page of episodes alone (the show still answers). */
+	firstPage: number;
 }
 let api: MockApi;
 let requests: string[];
@@ -60,6 +63,7 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
 	const cursor = url.searchParams.get('cursor');
 	if (cursor && api.moreStatus !== 200) return respond(api.moreStatus, {});
 	if (api.podcast !== 200) return respond(api.podcast, {});
+	if (!cursor && api.firstPage !== 200) return respond(api.firstPage, {});
 	const limit = api.pageSize ?? Number(url.searchParams.get('limit'));
 	const start = cursor ? Number(cursor.slice(1)) : 0;
 	const next = start + limit < api.episodes.length ? `c${start + limit}` : null;
@@ -117,7 +121,8 @@ beforeEach(() => {
 		episodeStatus: 200,
 		moreStatus: 200,
 		pending: false,
-		branded: true
+		branded: true,
+		firstPage: 200
 	};
 	requests = [];
 	playOutcome = 'ok';
@@ -865,6 +870,140 @@ describe('the page audio controller', () => {
 	});
 });
 
+// ── the transcript (design pages 2 and 3.2, decision 10) ─────────────
+describe('transcript', () => {
+	/** Gives the sample's Sourdough (hosted) and Leftovers (external) a VTT. */
+	function withTranscripts() {
+		api.episodes = sampleEpisodes().map((episode) =>
+			episode.slug === 'episode-1' || episode.slug === 'episode-6'
+				? { ...episode, transcript: { url: TRANSCRIPT, type: 'text/vtt' } }
+				: episode
+		);
+	}
+	const button = (root: ShadowRoot, index: number) =>
+		row(root, index).querySelector<HTMLButtonElement>('[data-transcript]');
+	const panel = (root: ShadowRoot) => root.querySelector<HTMLElement>('showfm-transcript');
+
+	async function playing(attributes: Record<string, string> = {}, title = /^Play: Sourdough/) {
+		withTranscripts();
+		const list = await mountList(attributes);
+		list.view.getByRole('button', { name: title }).click();
+		await settle();
+		return list;
+	}
+
+	it('the playing row offers a Transcript button that opens it inside the row', async () => {
+		const { root, host } = await playing({ layout: 'list' });
+		const toggle = button(root, 0)!;
+		expect(toggle).toHaveTextContent('Transcript');
+		expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		expect(toggle).not.toHaveAttribute('aria-controls');
+		expect(panel(root)).toBeNull();
+
+		toggle.click();
+		await settle();
+		const opened = panel(root)!;
+		expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		expect(toggle).toHaveAttribute('aria-controls', opened.id);
+		// Inside the playing row, following the list's episode with its colours.
+		expect(row(root, 0).contains(opened)).toBe(true);
+		expect(opened).toHaveAttribute('episode', sampleEpisodes()[0].id);
+		expect(opened).toHaveAttribute('height', '300');
+		expect(opened).not.toHaveAttribute('data-showfm-close');
+		expect(await axe(host, AXE)).toHaveNoViolations();
+
+		toggle.click();
+		await settle();
+		expect(panel(root)).toBeNull();
+		expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	it('the paused row offers it too, and it stays open while the audio buffers', async () => {
+		const { root, view } = await playing({ layout: 'list' });
+		// An idle row offers nothing.
+		expect(button(root, 3)).toBeNull();
+		view.getByRole('button', { name: /^Pause: Sourdough/ }).click();
+		await settle();
+		button(root, 0)!.click();
+		await settle();
+		expect(panel(root)).not.toBeNull();
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		// A seek from the transcript buffers: the row is loading, the panel stays.
+		mediaEvent(pageController().sharedAudio(), 'waiting');
+		await settle();
+		expect(row(root, 0).querySelector('[data-play]')).toHaveClass('busy');
+		expect(panel(root)).not.toBeNull();
+	});
+
+	it('no button for an episode without a transcript', async () => {
+		const { root } = await playing({ layout: 'list' }, /^Play: Knives/);
+		expect(row(root, 3)).toHaveClass('live');
+		expect(button(root, 3)).toBeNull();
+	});
+
+	it('no button for external audio, even with a VTT (design page 9)', async () => {
+		const { root } = await playing({ layout: 'list' }, /^Play: Leftovers/);
+		expect(row(root, 5)).toHaveClass('live');
+		expect(button(root, 5)).toBeNull();
+	});
+
+	it('no button in the compact layout, which has no room for it', async () => {
+		const { root } = await playing({ layout: 'compact' });
+		expect(row(root, 0)).toHaveClass('live');
+		expect(button(root, 0)).toBeNull();
+	});
+
+	it('Minimal offers it as a link-style button beside the pill', async () => {
+		const { root } = await playing({ layout: 'list', variant: 'minimal' }, /^Play · .*: Sourdough/);
+		button(root, 0)!.click();
+		await settle();
+		expect(row(root, 0).contains(panel(root))).toBe(true);
+	});
+
+	it('closes when its row stops playing, and focus moves to the row’s controls', async () => {
+		const { root, view } = await playing({ layout: 'list' });
+		button(root, 0)!.click();
+		await settle();
+		const opened = panel(root)!;
+		opened.tabIndex = -1;
+		opened.focus();
+		// Another row takes the shared audio.
+		view.getByRole('button', { name: /^Play: Knives/ }).click();
+		await settle();
+		expect(panel(root)).toBeNull();
+		expect(root.activeElement).toBe(row(root, 0).querySelector('[data-play]'));
+		// Playing it again does not reopen it on its own.
+		view.getByRole('button', { name: /^Play: Sourdough/ }).click();
+		await settle();
+		expect(panel(root)).toBeNull();
+		expect(button(root, 0)).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	it('grid: a full-width panel after the playing card, with Close (decision 10)', async () => {
+		const { root, host } = await playing({ layout: 'grid' });
+		expect(root.querySelector('.list')).toHaveClass('l-grid');
+		const toggle = button(root, 0)!;
+		// In the card's date row.
+		expect(toggle.closest('.date')).not.toBeNull();
+		toggle.click();
+		await settle();
+		const opened = panel(root)!;
+		// Not inside the card: the next item in the grid, spanning it.
+		expect(row(root, 0).contains(opened)).toBe(false);
+		expect(row(root, 0).nextElementSibling).toBe(opened);
+		expect(opened).toHaveClass('grid');
+		expect(opened).toHaveAttribute('data-showfm-close');
+		expect(await axe(host, AXE)).toHaveNoViolations();
+
+		// The transcript's Close button sends `close`: focus goes back to the button.
+		opened.dispatchEvent(new Event('close'));
+		await settle();
+		expect(panel(root)).toBeNull();
+		expect(root.activeElement).toBe(button(root, 0));
+	});
+});
+
 // ── credit, strings, load="click", lifecycle ──────────────────────────
 describe('"Powered by show.fm"', () => {
 	const credited = (root: ShadowRoot) => !!root.querySelector('.powered-by');
@@ -876,8 +1015,51 @@ describe('"Powered by show.fm"', () => {
 		expect(credited((await mountList({ credit: 'on' })).root)).toBe(true);
 	});
 
-	it('credit="off" hides it', async () => {
+	it('credit="off" hides it only when the show may hide it (show_powered_by false)', async () => {
+		// A show without branding removal: the attribute alone does not hide it.
+		expect(credited((await mountList({ credit: 'off' })).root)).toBe(true);
+		document.body.innerHTML = '';
+		api.branded = false;
 		expect(credited((await mountList({ credit: 'off' })).root)).toBe(false);
+	});
+
+	it('platform="wordpress": credit="off" hides it for any show (guideline 10)', async () => {
+		const { root } = await mountList({ credit: 'off', platform: 'wordpress' });
+		expect(credited(root)).toBe(false);
+		document.body.innerHTML = '';
+		// The platform alone changes nothing.
+		expect(credited((await mountList({ platform: 'wordpress' })).root)).toBe(true);
+	});
+
+	it('shows it under the couldn’t-load card, where no payload can allow hiding it', async () => {
+		api.podcast = 500;
+		const { root, view, host } = await mountList({ credit: 'off' });
+		expect(view.getByRole('alert')).toHaveTextContent('Episodes can’t be loaded right now.');
+		expect(credited(root)).toBe(true);
+		// Outside the alert, so it is not read out with the message.
+		expect(view.getByRole('alert').querySelector('.powered-by')).toBeNull();
+		expect(await axe(host)).toHaveNoViolations();
+	});
+
+	it('under the card, follows the show’s payload when only the episodes failed', async () => {
+		api.firstPage = 503;
+		api.branded = false;
+		const hidden = await mountList({ credit: 'off' });
+		expect(hidden.view.getByRole('alert')).toBeInTheDocument();
+		expect(credited(hidden.root)).toBe(false);
+		document.body.innerHTML = '';
+		api.branded = true;
+		expect(credited((await mountList({ credit: 'off' })).root)).toBe(true);
+	});
+
+	it('shows nothing for a suspended show, and holds it while loading', async () => {
+		api.podcast = 403;
+		expect(credited((await mountList()).root)).toBe(false);
+		document.body.innerHTML = '';
+		api.podcast = 200;
+		api.pending = true;
+		const loading = await mountList();
+		expect(credited(loading.root)).toBe(false);
 	});
 
 	it('shows once per page, on the first embed', async () => {

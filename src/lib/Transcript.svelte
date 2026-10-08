@@ -28,7 +28,7 @@
 	import { tick, untrack } from 'svelte';
 	import { pageController, type AudioEntry, type ControllerEpisode } from './controller';
 	import { PLAYER_DEFAULT_API_URL } from './hosts';
-	import { apiGet, episodeEndpoint } from './api';
+	import { elementGet, episodeEndpoint } from './api';
 	import { parseHex } from './contrast';
 	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
@@ -83,6 +83,9 @@
 	// transcript takes its colours from the player, as inside an element.
 	const embed = untrack(() => embedProp) ?? null;
 	const inside = !!(embed || embedHost);
+	// A list's grid panel (EpisodeList.svelte): the header names the episode
+	// and has a Close button, which the list answers (a `close` event).
+	const closable = host.hasAttribute('data-showfm-close');
 
 	const attr = (name: string) => attrs[name]?.trim() || null;
 	const episodeAttr = $derived(attr('episode'));
@@ -95,8 +98,11 @@
 	let localesLoaded = $state(0);
 	const languageTag = $derived((void attrs, languageTagFor(host)));
 	const language = $derived(languageFromTag(languageTag));
-	const s = $derived((void localesLoaded, resolveStrings(language, strings)));
-	const t = $derived((void localesLoaded, resolveStrings(language, strings, TRANSCRIPT_EN)));
+	// Its own overrides, else those of the show.fm element it sits in (a
+	// list's `strings` reach the list's transcript).
+	const overrides = $derived(strings ?? (embedHost as { strings?: unknown } | null)?.strings);
+	const s = $derived((void localesLoaded, resolveStrings(language, overrides)));
+	const t = $derived((void localesLoaded, resolveStrings(language, overrides, TRANSCRIPT_EN)));
 	$effect(() => {
 		let live = true;
 		loadLocale(language).then((loaded) => {
@@ -148,8 +154,12 @@
 							(owner
 								? entry.owner === owner ||
 									(entry.audio.getRootNode() as ShadowRoot).host === owner ||
-									// The mini-player shows the page's shared audio, whoever started it.
-									(owner.localName === 'showfm-mini-player' && entry === controller.sharedState())
+									// The mini-player shows the page's shared audio, whoever started
+									// it, or a player's audio it took over (MiniPlayer.svelte).
+									(owner.localName === 'showfm-mini-player' &&
+										entry ===
+											((owner as Element & { showfmFollowing?: AudioEntry | null })
+												.showfmFollowing ?? controller.sharedState()))
 								: // Following the page: only what is current.
 									episodeAttr ||
 									(entry.owner === snapshot.owner && entry.episode === snapshot.episode))
@@ -219,7 +229,7 @@
 			// episode has been asked to play, started or resumed on the page
 			// since (the controller counts those, not every time update).
 			const asked = controller.starts[episode.id];
-			apiGet(episodeEndpoint(origin, episode.id)).then((check) => {
+			elementGet(episodeEndpoint(origin, episode.id)).then((check) => {
 				if (load !== generation) return;
 				setLoaded(
 					check.status === 'unavailable' && controller.starts[episode.id] === asked
@@ -708,7 +718,10 @@
 		<span
 			class="label"
 			role={heading ? 'heading' : undefined}
-			aria-level={heading ? level : undefined}>{s.transcript}</span
+			aria-level={heading ? level : undefined}
+			>{s.transcript}{#if closable && shown?.known?.title}<span class="of"
+					>{` · ${shown.known.title}`}</span
+				>{/if}</span
 		>
 		<div class="find">
 			<label class="field">
@@ -770,6 +783,15 @@
 				>
 			{/if}
 		</div>
+		{#if closable}
+			<button
+				type="button"
+				class="icon clear"
+				aria-label={t.closeTranscript}
+				onclick={() => host.dispatchEvent(new Event('close'))}
+				>{@render icon('M18 6 6 18M6 6l12 12')}</button
+			>
+		{/if}
 	</div>
 
 	{#if ready}

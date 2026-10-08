@@ -36,6 +36,19 @@ export const consent = (
 	/>
 );
 
+// The page's mini-player takes over when the player scrolls out of view (1.6).
+export const handOff = (
+	<showfm-player
+		episode="11111111-2222-4333-8444-555555555555"
+		mini-player="on"
+		mini-player-position="left"
+		platform="wordpress"
+	/>
+);
+
+// @ts-expect-error mini-player is 'on' or 'off'
+export const wrongMiniPlayer = <showfm-player mini-player="yes" />;
+
 // @ts-expect-error credit is 'auto', 'on' or 'off'
 export const wrongCredit = <showfm-player credit="maybe" />;
 

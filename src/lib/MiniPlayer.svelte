@@ -30,6 +30,7 @@
 	import { tick, untrack } from 'svelte';
 	import {
 		pageController,
+		type AudioEntry,
 		type ControllerEpisode,
 		type CreditClaim,
 		type PlaybackState,
@@ -50,8 +51,11 @@
 		request
 	}: {
 		host: HTMLElement;
-		/** Renewed by play.svelte.ts each time an element opens the mini-player. */
-		request: { opener: Element | null; count: number };
+		/**
+		 * Renewed by play.svelte.ts each time an element opens the mini-player.
+		 * A player's request carries its own audio (`follow`): watched, not opened.
+		 */
+		request: { opener: Element | null; follow?: HTMLAudioElement | null; count: number };
 	} = $props();
 
 	const controller = pageController();
@@ -95,34 +99,72 @@
 	// ── opening ────────────────────────────────────────────────────────
 	$effect(() => {
 		void request.count;
-		untrack(() => {
-			const from = request.opener;
-			opener = from;
-			if (!open) {
-				collapsed = false;
-				sheet = false;
-			}
-			open = true;
-			const active = deepActive();
-			if (active && !host.contains(active) && !host.shadowRoot?.contains(active)) {
-				returnTo = active;
-			}
-			// The hooks can be set on the element that opened it, not only on
-			// the page: each opener's own, or none (not the last opener's). Only
-			// where they differ from the page's, so a hook on :root that changes
-			// later (a site's dark mode) still reaches the mini-player.
-			for (const name of STYLE_HOOKS) host.style.removeProperty(name);
-			if (from) {
-				const page = getComputedStyle(host);
-				const theirs = getComputedStyle(from);
-				for (const name of STYLE_HOOKS) {
-					const value = theirs.getPropertyValue(name);
-					if (value !== page.getPropertyValue(name)) host.style.setProperty(name, value);
-				}
-			}
-			sync();
-		});
+		untrack(() => (request.follow ? watch(request.opener!, request.follow) : show(request.opener)));
 	});
+	$effect(() => () => observer?.disconnect());
+
+	/**
+	 * A player's own audio that the mini-player has taken over, or null: then
+	 * it shows the page's shared audio. The host says which, for the
+	 * transcript inside it.
+	 */
+	let followed: AudioEntry | null = null;
+	/** The player being watched, and the observer watching it. */
+	let watched: Element | null = null;
+	let observer: IntersectionObserver | undefined;
+
+	/**
+	 * <showfm-player mini-player="on"> started playing: once the player is
+	 * out of the window while its audio plays, the mini-player opens on that
+	 * same audio (nothing restarts or loads again). One player at a time.
+	 * The attribute is read again then, so taking it away stops the hand-off.
+	 */
+	function watch(player: Element, media: HTMLAudioElement) {
+		observer?.disconnect();
+		if (typeof IntersectionObserver === 'undefined') return;
+		watched = player;
+		observer = new IntersectionObserver((entries) => {
+			const entry = controller.audios().find((candidate) => candidate.audio === media);
+			if (
+				entries[entries.length - 1].isIntersecting ||
+				media.paused ||
+				!entry ||
+				player.getAttribute('mini-player') !== 'on'
+			) {
+				return;
+			}
+			followed = entry;
+			show(player);
+		});
+		observer.observe(player);
+	}
+
+	function show(from: Element | null) {
+		opener = from;
+		if (!open) {
+			collapsed = false;
+			sheet = false;
+		}
+		open = true;
+		const active = deepActive();
+		if (active && !host.contains(active) && !host.shadowRoot?.contains(active)) {
+			returnTo = active;
+		}
+		// The hooks can be set on the element that opened it, not only on
+		// the page: each opener's own, or none (not the last opener's). Only
+		// where they differ from the page's, so a hook on :root that changes
+		// later (a site's dark mode) still reaches the mini-player.
+		for (const name of STYLE_HOOKS) host.style.removeProperty(name);
+		if (from) {
+			const page = getComputedStyle(host);
+			const theirs = getComputedStyle(from);
+			for (const name of STYLE_HOOKS) {
+				const value = theirs.getPropertyValue(name);
+				if (value !== page.getPropertyValue(name)) host.style.setProperty(name, value);
+			}
+		}
+		sync();
+	}
 
 	// Spoken when the mini-player opens and when it moves to another episode
 	// (not again when a locale arrives).
@@ -142,7 +184,23 @@
 
 	// ── the shared audio ───────────────────────────────────────────────
 	function sync() {
-		const shared = controller.sharedState();
+		// The shared audio playing (a list or a play button) takes the
+		// mini-player back from a player, as does the player's audio going.
+		const page = controller.sharedState();
+		if (followed) {
+			// The player went (removed, or its audio remounted): nothing of it
+			// is left to show or drive, so the mini-player closes.
+			const gone = !controller.audios().includes(followed);
+			if (gone || page?.state === 'playing' || page?.state === 'loading') {
+				if (gone) open = false;
+				followed = null;
+				observer?.disconnect();
+			}
+		}
+		// A watched player that left the page before any hand-off: let it go.
+		if (watched && !watched.isConnected) observer?.disconnect();
+		(host as HTMLElement & { showfmFollowing?: AudioEntry | null }).showfmFollowing = followed;
+		const shared = followed ?? page;
 		if (!shared) return;
 		const audio = shared.audio;
 		episode = shared.episode;
@@ -161,7 +219,7 @@
 	}
 	$effect(() => controller.subscribe(() => untrack(sync)));
 
-	const audio = () => controller.sharedState()?.audio;
+	const audio = () => (followed ?? controller.sharedState())?.audio;
 	const playing = $derived(playback === 'playing' || playback === 'loading');
 	const total = $derived(duration || episode?.audio?.duration_seconds || 0);
 	// "38 min left", or nothing while the length is unknown.
@@ -315,7 +373,8 @@
 		};
 	});
 	$effect(() => {
-		creditClaim?.set(open && episode?.credit === true);
+		// Shown unless the element that started the episode said it need not be.
+		creditClaim?.set(open && !!episode && episode.credit !== false);
 	});
 
 	// ── waveform ───────────────────────────────────────────────────────
@@ -501,7 +560,7 @@
 					>
 					{#if transcriptOpen && !collapsed}
 						<!-- It follows the shared audio, whoever started it. -->
-						<showfm-transcript class={sheet ? 'panel in-sheet' : 'panel'} height="300"
+						<showfm-transcript class={`panel${sheet ? ' in-sheet' : ''}`} height="300"
 						></showfm-transcript>
 					{/if}
 				{/if}

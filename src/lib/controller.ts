@@ -292,6 +292,32 @@ export class PageAudioController {
 	}
 }
 
+/**
+ * Whether an element wants "Powered by show.fm", from its `credit` and
+ * `platform` attributes and the show's branding as the public API resolves
+ * it (`show_powered_by` is false only for a show whose plan includes
+ * branding removal and that has turned the credit off).
+ *
+ * - `on` always shows it.
+ * - Otherwise it shows unless the payload allows hiding it: `credit="off"`
+ *   on a show without branding removal still shows it, and so does a
+ *   missing payload (or one cached before the field shipped).
+ * - The one exception is the WordPress plugin, which passes
+ *   `platform="wordpress"`: a credit that ships in plugin code must be
+ *   opt-in (WordPress.org guideline 10), so there `credit="off"` hides it
+ *   for any show.
+ */
+export function creditWanted(
+	credit: string | null | undefined,
+	branding: { show_powered_by?: boolean } | null | undefined,
+	platform: string | null | undefined
+): boolean {
+	return (
+		credit === 'on' ||
+		(branding?.show_powered_by !== false && (credit !== 'off' || platform !== 'wordpress'))
+	);
+}
+
 const KEY = Symbol.for('showfm.page-audio-controller.v1');
 
 /** The page's controller, shared across every copy of the package on the page. */

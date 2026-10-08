@@ -27,6 +27,7 @@ const PLAY_ATTRIBUTES = [
 	'size',
 	'mini-player',
 	'credit',
+	'platform',
 	'load',
 	'theme',
 	'accent',
@@ -97,17 +98,25 @@ export function mountPlay(host: HTMLElement): (connected: boolean) => void {
 
 /**
  * Mounts the mini-player into the page's `<showfm-mini-player>`, open for
- * the element that added it. Later opens come through `showfmOpen`.
+ * the element that added it (or, for a player, watching it). Later opens
+ * come through `showfmOpen`.
  */
 export function mountMiniPlayer(host: HTMLElement): (connected: boolean) => void {
 	const mini = host as HTMLElement & {
 		showfmOpener?: Element;
-		showfmOpen?: (opener: Element) => void;
+		showfmFollow?: HTMLAudioElement | null;
+		showfmOpen?: (opener: Element, follow?: HTMLAudioElement | null) => void;
 	};
-	const request = $state({ opener: mini.showfmOpener ?? null, count: 1 });
+	const request = $state({
+		opener: mini.showfmOpener ?? null,
+		follow: mini.showfmFollow ?? null,
+		count: 1
+	});
 	delete mini.showfmOpener;
-	mini.showfmOpen = (opener) => {
+	delete mini.showfmFollow;
+	mini.showfmOpen = (opener, follow) => {
 		request.opener = opener;
+		request.follow = follow ?? null;
 		request.count += 1;
 	};
 	return attach(host, miniStyles, (target) =>

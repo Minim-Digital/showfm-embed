@@ -56,6 +56,10 @@ button:focus-visible,
 	font-weight: 700;
 	color: var(--pp-fg-strong);
 }
+.label .of {
+	font-weight: 400;
+	color: var(--pp-fg);
+}
 .find {
 	flex: 1 1 180px;
 	display: flex;

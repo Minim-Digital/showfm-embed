@@ -6,15 +6,15 @@
 		"gzip": true
 	},
 	{
-		"name": "dist/cdn/chunks/episodes-*.js (the episode list, loaded by v1.js when a <showfm-episodes> appears, gzipped)",
+		"name": "dist/cdn/chunks/episodes-*.js (the episode list with its Transcript button, loaded by v1.js when a <showfm-episodes> appears, gzipped)",
 		"path": "dist/cdn/chunks/episodes-*.js",
-		"limit": "12 KB",
+		"limit": "12.7 KB",
 		"gzip": true
 	},
 	{
 		"name": "dist/cdn/chunks/play-*.js (the play button and the page's mini-player with its transcript toggle, loaded by v1.js when a <showfm-play> or a mini-player appears, gzipped)",
 		"path": "dist/cdn/chunks/play-*.js",
-		"limit": "10.3 KB",
+		"limit": "10.6 KB",
 		"gzip": true
 	},
 	{

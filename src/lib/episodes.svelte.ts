@@ -24,6 +24,7 @@ const EPISODE_LIST_ATTRIBUTES = [
 	'mini-player',
 	'heading-level',
 	'credit',
+	'platform',
 	'load',
 	'theme',
 	'accent',

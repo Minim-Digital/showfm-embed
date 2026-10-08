@@ -170,6 +170,60 @@ async function type(host: HTMLElement, value: string) {
 	await settle();
 }
 
+// A list's grid panel (EpisodeList.svelte, decision 10) sets data-showfm-close.
+describe('in a list’s grid panel', () => {
+	it('names the episode and has a Close button that sends `close`', async () => {
+		const { at } = playerAudio();
+		const host = await transcript({ for: 'player', 'data-showfm-close': '' });
+		at(5);
+		await settle();
+		expect($(host, '.label')!.textContent).toBe(`Transcript · ${transcriptEpisode().title}`);
+		const closed = vi.fn();
+		host.addEventListener('close', closed);
+		$<HTMLButtonElement>(host, '[aria-label="Close transcript"]')!.click();
+		expect(closed).toHaveBeenCalledTimes(1);
+		expect(await axe(host)).toHaveNoViolations();
+	});
+
+	it('has neither without it', async () => {
+		const { at } = playerAudio();
+		const host = await transcript({ for: 'player' });
+		at(5);
+		await settle();
+		expect($(host, '.label')!.textContent).toBe('Transcript');
+		expect($(host, '[aria-label="Close transcript"]')).toBeNull();
+	});
+
+	it('takes the list’s own string overrides (element.strings) when it has none', async () => {
+		const { at } = playerAudio();
+		const list = document.createElement('showfm-episodes') as HTMLElement & { strings?: unknown };
+		list.strings = { closeTranscript: 'Shut it', searchTranscript: 'Find a word' };
+		document.body.append(list);
+		hosts.push(list);
+		const host = document.createElement('showfm-transcript');
+		host.setAttribute('for', 'player');
+		host.setAttribute('data-showfm-close', '');
+		list.attachShadow({ mode: 'open' }).append(host);
+		const connection = mountTranscript(host);
+		cleanups.push(() => connection(false));
+		at(5);
+		await settle();
+		expect($(host, '[aria-label="Shut it"]')).not.toBeNull();
+		expect($<HTMLInputElement>(host, 'input')!.placeholder).toBe('Find a word');
+		// Its own overrides win.
+		(host as HTMLElement & { strings?: unknown }).strings = { closeTranscript: 'Mine' };
+		await settle();
+		expect($(host, '[aria-label="Mine"]')).not.toBeNull();
+	});
+
+	it('Close is translated', async () => {
+		const { at } = playerAudio();
+		const host = await transcript({ for: 'player', 'data-showfm-close': '', lang: 'de' });
+		at(5);
+		await vi.waitFor(() => expect($(host, '[aria-label="Transkript schließen"]')).not.toBeNull());
+	});
+});
+
 describe('what it follows', () => {
 	it('episode="…": loads that episode and its VTT, and reads without audio', async () => {
 		const host = await transcript({ episode: TRANSCRIPT_EPISODE_ID });

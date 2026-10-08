@@ -1,6 +1,64 @@
 /** @vitest-environment node */
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { Worker } from 'node:worker_threads';
+import { transformWithEsbuild } from 'vite';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { parseVtt } from '../vtt';
+
+/** How long a parse may run before it counts as hung. */
+const HANG_MS = 5_000;
+
+/**
+ * vtt.ts as JavaScript, for the worker: Vitest does not transform a worker's
+ * code, and Node strips types by default only from 22.18, while the dev
+ * toolchain runs from 22.13 (CI runs these tests there too). vtt.ts has no
+ * imports, so it loads alone, as a data: module.
+ */
+let vttModule = '';
+beforeAll(async () => {
+	const source = resolve(__dirname, '../vtt.ts');
+	const { code } = await transformWithEsbuild(readFileSync(source, 'utf-8'), source, {
+		format: 'esm'
+	});
+	vttModule = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+});
+
+/**
+ * The fastest of three parses of `input`, in a worker that is stopped after
+ * HANG_MS. A synchronous parse cannot be interrupted in this thread, so a
+ * regression that never finishes (the pre-1.4.1 parser on 200 KB of voice
+ * classes) would hang the run; here it fails in five seconds.
+ */
+function fastestParse(input: string): Promise<number> {
+	const source = `
+		const { parentPort, workerData } = require('node:worker_threads');
+		import(workerData.url).then(({ parseVtt }) => {
+			let fastest = Infinity;
+			for (let run = 0; run < 3; run++) {
+				const started = performance.now();
+				parseVtt(workerData.input);
+				fastest = Math.min(fastest, performance.now() - started);
+			}
+			parentPort.postMessage(fastest);
+		});`;
+	return new Promise((done, fail) => {
+		const worker = new Worker(source, { eval: true, workerData: { url: vttModule, input } });
+		const timer = setTimeout(() => {
+			void worker.terminate();
+			fail(new Error(`parseVtt was still running after ${HANG_MS} ms`));
+		}, HANG_MS);
+		worker.once('message', (fastest: number) => {
+			clearTimeout(timer);
+			void worker.terminate();
+			done(fastest);
+		});
+		worker.once('error', (error) => {
+			clearTimeout(timer);
+			fail(error);
+		});
+	});
+}
 
 describe('parseVtt on adversarial input (200 KB, timed)', () => {
 	// Ported from podcaster-plus-app PR #740, including the original EMB-2
@@ -34,12 +92,18 @@ describe('parseVtt on adversarial input (200 KB, timed)', () => {
 		'thousands of ordinary timed cues': `WEBVTT\n\n${'00:00:00.000 --> 00:00:01.000\n<v A>hi <00:00:00.500>there</v>\n\n'.repeat(SIZE / 60)}`
 	};
 
-	it.each(Object.entries(inputs))('parses %s within the budget', (_name, input) => {
-		expect(input.length).toBeGreaterThanOrEqual(SIZE - 10);
-		const started = performance.now();
-		parseVtt(input);
-		expect(performance.now() - started).toBeLessThan(BUDGET_MS);
-	});
+	it.each(Object.entries(inputs))(
+		'parses %s within the budget',
+		async (_name, input) => {
+			expect(input.length).toBeGreaterThanOrEqual(SIZE - 10);
+			// The fastest of three parses: one run alone also times the JIT's
+			// warm-up and whatever else the machine is doing (a busy runner took
+			// 300 to 500 ms for the ordinary cues, which normally parse in about
+			// 20). A rescan costs seconds on every run, so it still fails.
+			expect(await fastestParse(input)).toBeLessThan(BUDGET_MS);
+		},
+		HANG_MS + 5_000
+	);
 
 	it.each(['\u2028', '\u2029'])('preserves cue settings with separator %s', (separator) => {
 		const timing = 'WEBVTT\n\n00:00:00.000 --> 00:00:01.000';

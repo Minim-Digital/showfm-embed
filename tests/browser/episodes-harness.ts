@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page, Route } from '@playwright/test';
 import { listPage, podcastPayload, sampleEpisodes, type EpisodeItem } from '../fixtures/episodes';
+import { conversationVtt } from '../fixtures/transcript';
 import { fontFile } from './fonts';
 
 export const PAGE_ORIGIN = 'https://host.example.test';
@@ -39,6 +40,26 @@ function silence(seconds: number) {
 	return wav;
 }
 const AUDIO = silence(30);
+
+/** The silent audio, with byte ranges so it can be seeked as on the real media host. */
+function audio(route: Route) {
+	const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers().range ?? '');
+	if (!range) {
+		return route.fulfill({
+			body: AUDIO,
+			contentType: 'audio/wav',
+			headers: { 'accept-ranges': 'bytes' }
+		});
+	}
+	const start = Number(range[1]);
+	const end = range[2] ? Number(range[2]) : AUDIO.length - 1;
+	return route.fulfill({
+		status: 206,
+		body: AUDIO.subarray(start, end + 1),
+		contentType: 'audio/wav',
+		headers: { 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${AUDIO.length}` }
+	});
+}
 
 export const CLICK_LOADER = readFileSync(dist('click-loader.js'), 'utf-8');
 
@@ -137,11 +158,21 @@ export async function serveList(
 		const next = start + limit < episodes.length ? `c${start + limit}` : null;
 		return json(route, 200, listPage(episodes.slice(start, start + limit), next));
 	});
+	// Artwork, and the external audio (EXTERNAL_AUDIO), which plays from there.
 	await page.route('https://media.example.test/**', (route) =>
-		route.fulfill({ body: PNG, contentType: 'image/png' })
+		new URL(route.request().url()).pathname.endsWith('.mp3')
+			? audio(route)
+			: route.fulfill({ body: PNG, contentType: 'image/png' })
 	);
+	// Audio, and a WebVTT for an episode that has one (the list's transcript).
 	await page.route('https://m.cdn.media/**', (route) =>
-		route.fulfill({ body: AUDIO, contentType: 'audio/wav' })
+		route.request().url().endsWith('.vtt')
+			? route.fulfill({
+					body: conversationVtt().vtt,
+					contentType: 'text/vtt',
+					headers: { 'access-control-allow-origin': '*' }
+				})
+			: audio(route)
 	);
 	// A held v1.js holds the load event too.
 	await page.goto(`${PAGE_ORIGIN}/`, { waitUntil: gate ? 'commit' : 'load' });

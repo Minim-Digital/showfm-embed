@@ -544,6 +544,59 @@ for (const [name, look] of Object.entries(LOOKS)) {
 			await expectPalette(page, ['showfm-mini-player'], 3);
 		});
 
+		test('a play button with mini-player="off" carrying the credit', async ({ page }) => {
+			await serveList(page, `<p>${play('mini-player="off"')}</p>`, {}, { head });
+			await buttonsReady(page);
+			await expect(page.locator('showfm-play .credit')).toHaveCount(1);
+			await expectPalette(page, ['showfm-play'], 2);
+		});
+
+		// EMB-7: the list's transcript, and a player handed to the mini-player.
+		test('the list’s transcript (list and grid), and a player in the mini-player', async ({
+			page
+		}) => {
+			await page.setViewportSize({ width: 1132, height: 1000 });
+			const episodes = EPISODES.map((episode) =>
+				episode.slug === 'episode-1'
+					? { ...episode, transcript: { url: TRANSCRIPT_VTT, type: 'text/vtt' } }
+					: episode
+			);
+			for (const attributes of [
+				'layout="list"',
+				'layout="grid"',
+				'variant="minimal" layout="list"',
+				'variant="minimal" layout="grid"'
+			]) {
+				await serveList(page, list(attributes), { episodes }, { width: 1100, head });
+				await rowsReady(page);
+				const button = page.locator('showfm-episodes [part="play"]').first();
+				await button.click();
+				await expect(button).toHaveAccessibleName(/^Pause/);
+				await page.locator('showfm-episodes [data-transcript]').click();
+				await page.waitForFunction(
+					() =>
+						!!document
+							.querySelector('showfm-episodes')
+							?.shadowRoot?.querySelector('showfm-transcript')
+							?.shadowRoot?.querySelector('.line')
+				);
+				await expectPalette(page, ['showfm-episodes'], 20, 1);
+			}
+
+			await serveList(
+				page,
+				`${player('mini-player="on"')}<div style="height:3000px"></div>`,
+				{},
+				{ head, width: 1100 }
+			);
+			await page.locator('showfm-player [part="play"]').click();
+			await expect(page.locator('showfm-player [part="play"]')).toHaveAccessibleName('Pause');
+			await page.evaluate(() => window.scrollTo(0, 2500));
+			const mini = page.locator('showfm-mini-player section');
+			await expect(mini).toBeVisible();
+			await expectPalette(page, ['showfm-mini-player'], 3);
+		});
+
 		test('the transcript: ready, searching, loading, error, suspended, waiting, none, in the player', async ({
 			page
 		}) => {

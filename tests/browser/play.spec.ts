@@ -17,6 +17,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { API_ORIGIN, CLICK_LOADER, serveList } from './episodes-harness';
+import { HOST_FONTS, fontsLoaded, hostFontHead } from './fonts';
 import { sampleEpisodes } from '../fixtures/episodes';
 
 const EPISODE = sampleEpisodes()[0];
@@ -35,6 +36,45 @@ const buttonsReady = (page: Page) =>
 	);
 
 const mini = (page: Page) => page.locator('showfm-mini-player section');
+
+/**
+ * Where a button's credit sits (runs in the page): the host's height,
+ * whether "show.fm" and "Powered by" show whole on the link's one visible
+ * line, and whether the host, the button and the link stay in the cell.
+ */
+function creditLayout(host: Element) {
+	const link = host.shadowRoot!.querySelector<HTMLElement>('.credit')!;
+	const box = link.getBoundingClientRect();
+	// Whole across inside its clip, and on the visible line (a glyph's box
+	// can stand a pixel proud of the line's, so its middle is what counts).
+	const shown = (rect: DOMRect, clip: DOMRect) =>
+		rect.width > 0 &&
+		rect.left >= clip.left - 0.5 &&
+		rect.right <= clip.right + 0.5 &&
+		rect.top + rect.height / 2 > clip.top &&
+		rect.top + rect.height / 2 < clip.bottom;
+	const span = link.querySelector('span')!;
+	const words = document.createRange();
+	words.selectNodeContents(span);
+	const cell = host.parentElement!.getBoundingClientRect();
+	return {
+		height: host.getBoundingClientRect().height,
+		markShown: shown(link.querySelector('b')!.getBoundingClientRect(), box),
+		// The button's label, whole (it gives way only once the credit is "show.fm").
+		labelWhole: [...host.shadowRoot!.querySelectorAll<HTMLElement>('.btn span')].every(
+			(label) => label.scrollWidth <= label.clientWidth
+		),
+		wordsShown: shown(words.getBoundingClientRect(), span.getBoundingClientRect()),
+		// Not cut in half either: out of sight on the clipped line below.
+		wordsHidden:
+			words.getBoundingClientRect().top + words.getBoundingClientRect().height / 2 >
+			span.getBoundingClientRect().bottom,
+		inside: [host, ...host.shadowRoot!.querySelectorAll('.btn, .credit')].every((element) => {
+			const rect = element.getBoundingClientRect();
+			return rect.left >= cell.left - 0.5 && rect.right <= cell.right + 0.5;
+		})
+	};
+}
 
 for (const width of [340, 720, 1100]) {
 	test(`at ${width}px: every variant and size keeps its line and fits`, async ({ page }) => {
@@ -381,3 +421,90 @@ test('reduced motion: the buffering arc stands still', async ({ page }) => {
 		'none'
 	);
 });
+
+// EMB-7 review B1: with the mini-player off, the first button carries the
+// page's credit itself, inside its line.
+test('mini-player="off": the first button shows the credit beside it, in its 40px line', async ({
+	page
+}) => {
+	await serveList(
+		page,
+		`<p>${play('mini-player="off"')}</p><p>${play('mini-player="off" variant="icon"')}</p>`
+	);
+	await buttonsReady(page);
+	const credit = page.locator('showfm-play .credit');
+	await expect(credit).toHaveCount(1);
+	await expect(credit).toHaveAccessibleName('Powered by show.fm');
+	// With room for it, the full form shows: "Powered by" and "show.fm".
+	const full = await page.locator('showfm-play').first().evaluate(creditLayout);
+	expect(full.markShown && full.wordsShown).toBe(true);
+	const heights = await page
+		.locator('showfm-play')
+		.evaluateAll((hosts) => hosts.map((host) => host.getBoundingClientRect().height));
+	expect(heights).toEqual([40, 40]);
+	// Beside the button, vertically within its line.
+	const [button, line] = await Promise.all([
+		page.locator('showfm-play [data-play]').first().boundingBox(),
+		credit.boundingBox()
+	]);
+	expect(line!.x).toBeGreaterThan(button!.x + button!.width);
+	expect(line!.y).toBeGreaterThanOrEqual(button!.y - 1);
+	expect(line!.y + line!.height).toBeLessThanOrEqual(button!.y + button!.height + 1);
+});
+
+// EMB-7 re-review R1 and Codex at e70d8ed: in narrow containers the
+// credit keeps the button's line (40px, or 48px for the large label), at
+// rest, playing ("Pause · 52 min left") and paused ("Resume · …"), in every
+// test font. It shortens to "show.fm" but never further: the button's
+// label gives way, ending in an ellipsis, and keeps its full name. It stays
+// focusable and named in full, and nothing leaves the cell.
+for (const font of HOST_FONTS) {
+	for (const [name, attributes, width, contract] of [
+		['the icon in a 120px table cell', 'variant="icon"', 120, 40],
+		['the small label in a 120px table cell', '', 120, 40],
+		['the small label at 160px', '', 160, 40],
+		['the large label at 320px', 'size="lg"', 320, 48]
+	] as const) {
+		test(`mini-player="off", ${font}, ${name}: the credit keeps the ${contract}px line, playing too`, async ({
+			page
+		}) => {
+			await serveList(
+				page,
+				`<table style="table-layout:fixed;width:${width}px;border-collapse:collapse"><tr><td style="padding:0">${play(`mini-player="off" ${attributes}`)}</td></tr></table>`,
+				{},
+				{ head: hostFontHead(font) }
+			);
+			expect(await fontsLoaded(page, font)).toBe(true);
+			await buttonsReady(page);
+			const credit = page.getByRole('link', { name: 'Powered by show.fm' });
+			const button = page.locator('showfm-play [data-play]');
+			await expect(credit).toHaveCount(1);
+
+			const check = async (state: string) => {
+				const at = await page.locator('showfm-play').evaluate(creditLayout);
+				expect(at.height, state).toBe(contract);
+				expect(at.markShown, state).toBe(true);
+				expect(at.inside, state).toBe(true);
+				expect(at.wordsShown || at.wordsHidden, state).toBe(true);
+				return at;
+			};
+
+			const rest = await check('at rest');
+			// "Powered by" shows whole, or is wholly out of sight.
+			expect(rest.wordsShown || rest.wordsHidden).toBe(true);
+			// With room for "Play" beside "show.fm", the label stays whole at rest.
+			if (width >= 160) expect(rest.labelWhole).toBe(true);
+			if (width === 120) expect(rest.wordsHidden).toBe(true);
+			// Focusable, as a link is.
+			await credit.focus();
+			await expect(credit).toBeFocused();
+
+			await button.click();
+			await expect(button).toHaveAccessibleName(/^Pause/);
+			await check('playing');
+			await button.click();
+			await expect(button).toHaveAccessibleName(/^(Play|Resume)/);
+			await check('paused');
+		});
+	}
+}

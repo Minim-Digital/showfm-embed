@@ -27,8 +27,14 @@ export interface ShowfmPlayerAttributes {
 	api?: string;
 	/** Wraps the title in a heading of this level. Absent emits no heading. */
 	'heading-level'?: '2' | '3' | '4' | '5' | '6' | 2 | 3 | 4 | 5 | 6;
-	/** "Powered by show.fm": `auto` (the default) follows the show's plan. Once per page. */
+	/**
+	 * "Powered by show.fm". `auto` (the default) and `off` hide it only when the
+	 * show's plan includes branding removal and the show has turned it off;
+	 * `on` always shows it. Once per page.
+	 */
 	credit?: 'auto' | 'on' | 'off';
+	/** For the show.fm WordPress plugin only: there `credit="off"` hides the credit for any show. */
+	platform?: 'wordpress';
 	/** `click`: draw a facade and request nothing until it is pressed. */
 	load?: 'click';
 	/**
@@ -36,11 +42,22 @@ export interface ShowfmPlayerAttributes {
 	 * the player. `open`: open at once. Standard size and show.fm media only.
 	 */
 	transcript?: 'on' | 'open';
+	/**
+	 * `on`: when the player scrolls out of view while it plays, the page's
+	 * mini-player takes over its audio. Absent is `off`.
+	 */
+	'mini-player'?: 'on' | 'off';
+	/** The corner the collapsed mini-player sits in. Absent is `right`. */
+	'mini-player-position'?: 'left' | 'right';
 	/** The element's language for its strings. Absent follows `<html lang>`. */
 	lang?: string;
 }
 
-/** A <showfm-player> element. Each attribute is also a property. */
+/**
+ * A <showfm-player> element. Each attribute is also a property, except
+ * `mini-player`, `mini-player-position` and `platform`, which are read from
+ * the element.
+ */
 export interface ShowfmPlayerElement extends HTMLElement {
 	episode: string;
 	podcast: string;
@@ -83,8 +100,14 @@ export interface ShowfmEpisodesAttributes {
 	'mini-player-position'?: 'left' | 'right';
 	/** Wraps each episode title in a heading of this level. Absent emits no headings. */
 	'heading-level'?: '2' | '3' | '4' | '5' | '6' | 2 | 3 | 4 | 5 | 6;
-	/** "Powered by show.fm": `auto` (the default) follows the show's plan. Once per page. */
+	/**
+	 * "Powered by show.fm". `auto` (the default) and `off` hide it only when the
+	 * show's plan includes branding removal and the show has turned it off;
+	 * `on` always shows it. Once per page.
+	 */
 	credit?: 'auto' | 'on' | 'off';
+	/** For the show.fm WordPress plugin only: there `credit="off"` hides the credit for any show. */
+	platform?: 'wordpress';
 	/** `click`: request nothing, not even the list's code, until the facade is pressed. */
 	load?: 'click';
 	/** Pins the theme. Absent follows the show's player theme setting. */
@@ -115,13 +138,20 @@ export interface ShowfmPlayAttributes {
 	size?: 'sm' | 'lg';
 	/**
 	 * `on` (the default): the first play opens the page's mini-player, with
-	 * seek, skip, speed and the time left. `off`: visitors can only play and pause.
+	 * seek, skip, speed and the time left. `off`: visitors can only play and
+	 * pause, and the button shows the credit itself.
 	 */
 	'mini-player'?: 'on' | 'off';
 	/** The corner the collapsed mini-player sits in. Absent is `right`. */
 	'mini-player-position'?: 'left' | 'right';
-	/** "Powered by show.fm" in the mini-player: `auto` (the default) follows the show's plan. Once per page. */
+	/**
+	 * "Powered by show.fm" in the mini-player. `auto` (the default) and `off`
+	 * hide it only when the show's plan includes branding removal and the show
+	 * has turned it off; `on` always shows it. Once per page.
+	 */
 	credit?: 'auto' | 'on' | 'off';
+	/** For the show.fm WordPress plugin only: there `credit="off"` hides the credit for any show. */
+	platform?: 'wordpress';
 	/** `click`: request nothing, not even the button's code, until the facade is pressed. */
 	load?: 'click';
 	/** Pins the theme. Absent follows the show's player theme setting. */

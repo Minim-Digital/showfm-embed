@@ -50,9 +50,23 @@ function retryAfterSeconds(header: string | null, now = Date.now()): number {
 }
 
 /** GET one public API resource and classify the answer. Never throws. */
-export async function apiGet<T>(
+export function apiGet<T>(url: string, options: ApiRequestOptions = {}): Promise<ApiResult<T>> {
+	return classify<T>(url, options, retryAfterSeconds);
+}
+
+/**
+ * apiGet for the elements: no options, and a 429's Retry-After is not read
+ * (`retryAfter` is the default), since no element waits on it. Parsing it
+ * would cost v1.js the HTTP-date handling for nothing.
+ */
+export function elementGet<T>(url: string): Promise<ApiResult<T>> {
+	return classify<T>(url, {}, () => DEFAULT_RETRY_AFTER);
+}
+
+async function classify<T>(
 	url: string,
-	options: ApiRequestOptions = {}
+	options: ApiRequestOptions,
+	retryAfter: (header: string | null) => number
 ): Promise<ApiResult<T>> {
 	const request = options.fetch ?? fetch;
 	const init: RequestInit = {};
@@ -75,7 +89,7 @@ export async function apiGet<T>(
 	if (response.status === 429) {
 		return {
 			status: 'rate-limited',
-			retryAfter: retryAfterSeconds(response.headers.get('Retry-After'))
+			retryAfter: retryAfter(response.headers.get('Retry-After'))
 		};
 	}
 	if (!response.ok) return { status: 'error', httpStatus: response.status };

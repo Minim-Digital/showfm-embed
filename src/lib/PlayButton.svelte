@@ -19,9 +19,14 @@
 -->
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { apiGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
-	import { pageController, type ControllerEpisode, type SharedMessage } from './controller';
-	import { PLAYER_DEFAULT_API_URL } from './hosts';
+	import { elementGet, episodeEndpoint, latestEpisodeEndpoint } from './api';
+	import {
+		creditWanted,
+		pageController,
+		type ControllerEpisode,
+		type SharedMessage
+	} from './controller';
+	import { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts';
 	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
@@ -113,12 +118,28 @@
 		() => true
 	);
 
-	// The button shows no credit itself: it rides with the episode to the
-	// mini-player, which shows it when no earlier embed on the page does.
+	// The credit rides with the episode to the mini-player, which shows it
+	// when no earlier embed on the page does. Only the show's branding can
+	// allow hiding it (creditWanted).
 	const wantsCredit = $derived(
-		attr('credit') === 'on' ||
-			(attr('credit') !== 'off' && !!data?.podcast.branding?.show_powered_by)
+		creditWanted(attr('credit'), data?.podcast.branding, attr('platform'))
 	);
+	// mini-player="off": no mini-player will carry it, so the button claims
+	// the page's one credit itself and shows it beside itself (decision 3:
+	// the first embed on the page that shows it). Held while loading; with
+	// no payload (an error) it is shown, as on the player.
+	let credited = $state(false);
+	$effect(() => {
+		if (miniPlayer) return;
+		const claim = controller.claimCredit(host, (granted) => (credited = granted));
+		claim.set(
+			status === 'loading' ? null : (status === 'ready' || status === 'error') && wantsCredit
+		);
+		return () => {
+			claim.release();
+			credited = false;
+		};
+	});
 
 	// ── generations ────────────────────────────────────────────────────
 	// Every async result belongs to one load of one episode, and within it
@@ -155,7 +176,7 @@
 		}
 		const load = generation;
 		if (untrack(() => status) !== 'collapsed') status = 'loading';
-		apiGet<PlayerEpisodeData>(url).then((result) => {
+		elementGet<PlayerEpisodeData>(url).then((result) => {
 			if (load !== generation) return;
 			if (result.status === 'ok') {
 				data = readPlayEpisode(result.data);
@@ -304,7 +325,7 @@
 		const { id } = data;
 		const failedIn = generation;
 		const applies = controller.failure(host, id);
-		const result = await apiGet(episodeEndpoint(api, id));
+		const result = await elementGet(episodeEndpoint(api, id));
 		// Not news if, since: this button loaded or pressed again, or the
 		// episode started anywhere on the page, or another element took over.
 		if (failedIn !== generation || !applies()) return;
@@ -389,12 +410,12 @@
 	>
 {/snippet}
 
-<span class="root v-{variant} s-{size}" style={look.vars} bind:this={root}>
+<span class="root v-{variant} s-{size}" class:credited style={look.vars} bind:this={root}>
 	{#if shown && shown !== 'blocked' && !quietRetry}
 		<!-- The message in the button's place: a status line in the host's
 		     font and colour, or for the icon a quiet mark that is not a tab stop. -->
 		<span
-			class={variant === 'icon' ? 'btn quiet' : 'msg'}
+			class={`${variant === 'icon' ? 'btn quiet' : 'msg'}`}
 			role={variant === 'icon' ? 'img' : 'status'}
 			aria-label={variant === 'icon' ? messageText(shown) : undefined}
 			tabindex="-1"
@@ -431,8 +452,19 @@
 				>{/if}{#if label}<span>{label}</span>{/if}
 		</button>
 		{#if shown}
-			<span class={variant === 'icon' ? 'vh' : 'note'} id="message">{messageText(shown)}</span>
+			<span class={`${variant === 'icon' ? 'vh' : 'note'}`} id="message">{messageText(shown)}</span>
 		{/if}
+	{/if}
+	{#if credited}
+		<!-- In the button's line, whatever the room: "Powered by show.fm", else
+		     "show.fm", always named in full (the styles). -->
+		<a
+			class="credit"
+			href="{MARKETING_APEX_URL}/?ref=player"
+			target="_blank"
+			rel="noopener"
+			aria-label="{s.poweredBy} show.fm"><span>{s.poweredBy}</span><b>show.fm</b></a
+		>
 	{/if}
 	<span class="vh" role="status" aria-live="polite">{announcement}</span>
 </span>

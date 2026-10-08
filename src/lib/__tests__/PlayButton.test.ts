@@ -505,14 +505,99 @@ describe('the mini-player (on by default)', () => {
 		document.removeEventListener('showfm:mini-player', opened);
 	});
 
-	it('mini-player="off": no mini-player; credit="off" or an unbranded show: no credit', async () => {
+	it('mini-player="off": no mini-player; credit="off" on a show that may hide it: no credit', async () => {
 		const opened = vi.fn();
 		document.addEventListener('showfm:mini-player', opened);
+		api.branded = false;
 		const { button } = await mountButton({ 'mini-player': 'off', credit: 'off' });
 		await press(button());
 		expect(opened).not.toHaveBeenCalled();
 		expect(pageController().sharedState()!.episode!.credit).toBe(false);
 		document.removeEventListener('showfm:mini-player', opened);
+	});
+
+	it.each([
+		[{ credit: 'off' }, true],
+		[{ credit: 'off', platform: 'wordpress' }, false],
+		[{ platform: 'wordpress' }, true]
+	])(
+		'%o on a show that cannot hide it hands on credit %s',
+		async (attributes: Record<string, string>, credit) => {
+			const { button } = await mountButton(attributes);
+			await press(button());
+			expect(pageController().sharedState()!.episode!.credit).toBe(credit);
+		}
+	);
+});
+
+// With the mini-player off, nothing else on the page carries the credit:
+// the button shows it itself, once per page (decision 3, EMB-7 review B1).
+describe('"Powered by show.fm" with mini-player="off"', () => {
+	const credits = () =>
+		[...document.querySelectorAll('showfm-play')].filter((host) =>
+			host.shadowRoot?.querySelector('.credit')
+		);
+
+	it('a free show: one credit, beside the first button, AA and axe-clean', async () => {
+		const first = await mountButton({ 'mini-player': 'off' });
+		await mountButton({ 'mini-player': 'off', variant: 'icon' });
+		expect(credits()).toEqual([first.host]);
+		const credit = first.root.querySelector<HTMLAnchorElement>('.credit')!;
+		// Named in full; it shortens to "show.fm" only where there is no room.
+		expect(credit.getAttribute('aria-label')).toBe('Powered by show.fm');
+		expect(credit.textContent).toBe('Powered byshow.fm');
+		expect(credit.href).toBe('https://show.fm/?ref=player');
+		// In the button's line, after the button.
+		expect(credit.previousElementSibling).toBe(first.button());
+		expect(await axe(first.host, AXE)).toHaveNoViolations();
+	});
+
+	it('credit="off" does not hide it on a show that cannot hide it', async () => {
+		await mountButton({ 'mini-player': 'off', credit: 'off' });
+		expect(credits()).toHaveLength(1);
+	});
+
+	it('none for a show that may hide it, for auto and off alike', async () => {
+		api.branded = false;
+		await mountButton({ 'mini-player': 'off' });
+		await mountButton({ 'mini-player': 'off', credit: 'off' });
+		expect(credits()).toHaveLength(0);
+	});
+
+	it('none with the WordPress signal, platform="wordpress" credit="off"', async () => {
+		await mountButton({ 'mini-player': 'off', credit: 'off', platform: 'wordpress' });
+		expect(credits()).toHaveLength(0);
+	});
+
+	it('none while loading, then shown; none for a suspended show', async () => {
+		api.episode = 'pending';
+		await mountButton({ 'mini-player': 'off' });
+		expect(credits()).toHaveLength(0);
+		document.body.innerHTML = '';
+		api.episode = 403;
+		await mountButton({ 'mini-player': 'off' });
+		expect(credits()).toHaveLength(0);
+	});
+
+	it('with the mini-player on (the default) the button shows none itself', async () => {
+		await mountButton();
+		expect(credits()).toHaveLength(0);
+	});
+
+	it('once per page with other embeds: an earlier list carries it, then the button', async () => {
+		const list = document.createElement('showfm-episodes');
+		list.setAttribute('api', API);
+		list.setAttribute('podcast', 'the-long-table');
+		document.body.append(list);
+		const connection = mountEpisodes(list);
+		await settle();
+		expect(list.shadowRoot!.querySelector('.powered-by')).not.toBeNull();
+		await mountButton({ 'mini-player': 'off' });
+		expect(credits()).toHaveLength(0);
+		connection(false);
+		list.remove();
+		await settle();
+		expect(credits()).toHaveLength(1);
 	});
 });
 

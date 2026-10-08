@@ -4,7 +4,7 @@ Thanks for helping. This file covers how to work on the package and how releases
 
 ## Set up
 
-You need Node 22 or later and pnpm (the version is pinned in `package.json`; `corepack enable` picks it up).
+You need Node 22.13 or later (the oldest the build and test tools install on; CI runs the unit tests on 22.13.0 as well as current Node 22) and pnpm (the version is pinned in `package.json`; `corepack enable` picks it up).
 
 ```sh
 pnpm install --frozen-lockfile
@@ -36,7 +36,7 @@ pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
 pnpm test:contract   # tests against dist/
-pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12 kB, the play chunk within 10.3 kB, the transcript chunk within 15 kB; the loader and fallback CSS within theirs
+pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loader and fallback CSS within theirs
 pnpm publint
 pnpm attw
 pnpm jsx:check

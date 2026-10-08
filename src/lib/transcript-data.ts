@@ -10,7 +10,7 @@
  * Ready transcripts are kept for the page's life, so a transcript that
  * follows a list does not fetch an episode again when it comes back to it.
  */
-import { apiGet, episodeEndpoint } from './api.js';
+import { elementGet, episodeEndpoint } from './api.js';
 import type { ControllerEpisode } from './controller.js';
 import { isShowfmMediaUrl, mediaHosts } from './hosts.js';
 import type { PlayerEpisodeData } from './types.js';
@@ -78,7 +78,7 @@ async function fetchTranscript(
 	let audio = known?.audio?.url;
 	let vtt = known?.transcript?.url;
 	if (payload || !known || !('transcript' in known)) {
-		const result = await apiGet<PlayerEpisodeData>(episodeEndpoint(api, id));
+		const result = await elementGet<PlayerEpisodeData>(episodeEndpoint(api, id));
 		if (result.status !== 'ok') {
 			return {
 				status:
