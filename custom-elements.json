@@ -1068,7 +1068,7 @@
 								"text": "'on' | 'off'"
 							},
 							"default": "'on'",
-							"description": "`on`: the first play opens the page's mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause."
+							"description": "`on`: the first play opens the page's mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause, and the button shows \"Powered by show.fm\" itself when the page's credit falls to it."
 						},
 						{
 							"name": "mini-player-position",

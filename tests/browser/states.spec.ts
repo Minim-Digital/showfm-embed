@@ -544,6 +544,13 @@ for (const [name, look] of Object.entries(LOOKS)) {
 			await expectPalette(page, ['showfm-mini-player'], 3);
 		});
 
+		test('a play button with mini-player="off" carrying the credit', async ({ page }) => {
+			await serveList(page, `<p>${play('mini-player="off"')}</p>`, {}, { head });
+			await buttonsReady(page);
+			await expect(page.locator('showfm-play .credit')).toHaveCount(1);
+			await expectPalette(page, ['showfm-play'], 2);
+		});
+
 		// EMB-7: the list's transcript, and a player handed to the mini-player.
 		test('the list’s transcript (list and grid), and a player in the mini-player', async ({
 			page

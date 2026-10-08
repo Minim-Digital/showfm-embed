@@ -101,7 +101,7 @@
 		void request.count;
 		untrack(() => (request.follow ? watch(request.opener!, request.follow) : show(request.opener)));
 	});
-	$effect(() => () => stopWatching?.());
+	$effect(() => () => observer?.disconnect());
 
 	/**
 	 * A player's own audio that the mini-player has taken over, or null: then
@@ -109,24 +109,34 @@
 	 * transcript inside it.
 	 */
 	let followed: AudioEntry | null = null;
-	let stopWatching: (() => void) | undefined;
+	/** The player being watched, and the observer watching it. */
+	let watched: Element | null = null;
+	let observer: IntersectionObserver | undefined;
 
 	/**
 	 * <showfm-player mini-player="on"> started playing: once the player is
 	 * out of the window while its audio plays, the mini-player opens on that
 	 * same audio (nothing restarts or loads again). One player at a time.
+	 * The attribute is read again then, so taking it away stops the hand-off.
 	 */
 	function watch(player: Element, media: HTMLAudioElement) {
-		stopWatching?.();
+		observer?.disconnect();
 		if (typeof IntersectionObserver === 'undefined') return;
-		const observer = new IntersectionObserver((entries) => {
+		watched = player;
+		observer = new IntersectionObserver((entries) => {
 			const entry = controller.audios().find((candidate) => candidate.audio === media);
-			if (entries[entries.length - 1].isIntersecting || media.paused || !entry) return;
+			if (
+				entries[entries.length - 1].isIntersecting ||
+				media.paused ||
+				!entry ||
+				player.getAttribute('mini-player') !== 'on'
+			) {
+				return;
+			}
 			followed = entry;
 			show(player);
 		});
 		observer.observe(player);
-		stopWatching = () => observer.disconnect();
 	}
 
 	function show(from: Element | null) {
@@ -184,9 +194,11 @@
 			if (gone || page?.state === 'playing' || page?.state === 'loading') {
 				if (gone) open = false;
 				followed = null;
-				stopWatching?.();
+				observer?.disconnect();
 			}
 		}
+		// A watched player that left the page before any hand-off: let it go.
+		if (watched && !watched.isConnected) observer?.disconnect();
 		(host as HTMLElement & { showfmFollowing?: AudioEntry | null }).showfmFollowing = followed;
 		const shared = followed ?? page;
 		if (!shared) return;

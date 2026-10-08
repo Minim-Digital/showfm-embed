@@ -194,6 +194,28 @@ describe('in a list’s grid panel', () => {
 		expect($(host, '[aria-label="Close transcript"]')).toBeNull();
 	});
 
+	it('takes the list’s own string overrides (element.strings) when it has none', async () => {
+		const { at } = playerAudio();
+		const list = document.createElement('showfm-episodes') as HTMLElement & { strings?: unknown };
+		list.strings = { closeTranscript: 'Shut it', searchTranscript: 'Find a word' };
+		document.body.append(list);
+		hosts.push(list);
+		const host = document.createElement('showfm-transcript');
+		host.setAttribute('for', 'player');
+		host.setAttribute('data-showfm-close', '');
+		list.attachShadow({ mode: 'open' }).append(host);
+		const connection = mountTranscript(host);
+		cleanups.push(() => connection(false));
+		at(5);
+		await settle();
+		expect($(host, '[aria-label="Shut it"]')).not.toBeNull();
+		expect($<HTMLInputElement>(host, 'input')!.placeholder).toBe('Find a word');
+		// Its own overrides win.
+		(host as HTMLElement & { strings?: unknown }).strings = { closeTranscript: 'Mine' };
+		await settle();
+		expect($(host, '[aria-label="Mine"]')).not.toBeNull();
+	});
+
 	it('Close is translated', async () => {
 		const { at } = playerAudio();
 		const host = await transcript({ for: 'player', 'data-showfm-close': '', lang: 'de' });

@@ -693,6 +693,29 @@ describe('a player with mini-player="on"', () => {
 		expect(observers.every((observer) => !observer.live)).toBe(true);
 	});
 
+	it('stops watching a player that leaves the page before any hand-off', async () => {
+		const { player, play, detach } = addPlayer();
+		await play();
+		await miniPlayer();
+		expect(observers.some((observer) => observer.live)).toBe(true);
+		player.remove();
+		detach();
+		await settle();
+		expect(observers.every((observer) => !observer.live)).toBe(true);
+	});
+
+	it('reads mini-player at hand-off: taking it away after play stops the hand-off', async () => {
+		const { player, play } = addPlayer();
+		await play();
+		const mini = await miniPlayer();
+		player.removeAttribute('mini-player');
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).toBeNull();
+		player.setAttribute('mini-player', 'on');
+		await scroll(player, false);
+		expect(mini.shadowRoot.querySelector('section')).not.toBeNull();
+	});
+
 	it('Close stops the player’s audio, and a later play and scroll open it again', async () => {
 		const { player, audio, play } = addPlayer();
 		await play();

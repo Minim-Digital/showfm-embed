@@ -215,7 +215,7 @@ const PLAY_ATTRIBUTES = {
 		type: "'on' | 'off'",
 		default: "'on'",
 		description:
-			"`on`: the first play opens the page's mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause."
+			'`on`: the first play opens the page\'s mini-player, with seek, skip, speed and the time left. `off`: visitors can only play and pause, and the button shows "Powered by show.fm" itself when the page\'s credit falls to it.'
 	},
 	[MINI_PLAYER_POSITION]: MINI_PLAYER_POSITION_ATTRIBUTE,
 	credit: {

@@ -98,8 +98,11 @@
 	let localesLoaded = $state(0);
 	const languageTag = $derived((void attrs, languageTagFor(host)));
 	const language = $derived(languageFromTag(languageTag));
-	const s = $derived((void localesLoaded, resolveStrings(language, strings)));
-	const t = $derived((void localesLoaded, resolveStrings(language, strings, TRANSCRIPT_EN)));
+	// Its own overrides, else those of the show.fm element it sits in (a
+	// list's `strings` reach the list's transcript).
+	const overrides = $derived(strings ?? (embedHost as { strings?: unknown } | null)?.strings);
+	const s = $derived((void localesLoaded, resolveStrings(language, overrides)));
+	const t = $derived((void localesLoaded, resolveStrings(language, overrides, TRANSCRIPT_EN)));
 	$effect(() => {
 		let live = true;
 		loadLocale(language).then((loaded) => {

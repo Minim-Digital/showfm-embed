@@ -138,7 +138,8 @@ export interface ShowfmPlayAttributes {
 	size?: 'sm' | 'lg';
 	/**
 	 * `on` (the default): the first play opens the page's mini-player, with
-	 * seek, skip, speed and the time left. `off`: visitors can only play and pause.
+	 * seek, skip, speed and the time left. `off`: visitors can only play and
+	 * pause, and the button shows the credit itself.
 	 */
 	'mini-player'?: 'on' | 'off';
 	/** The corner the collapsed mini-player sits in. Absent is `right`. */

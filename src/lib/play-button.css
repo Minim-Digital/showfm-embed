@@ -172,6 +172,13 @@ svg {
 .quiet svg {
 	color: var(--pp-muted);
 }
+/* With the mini-player off, the credit sits beside the button (decision 3). */
+.credit {
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--pp-muted);
+	text-decoration: none;
+}
 .msg svg {
 	width: 1.1em;
 	height: 1.1em;

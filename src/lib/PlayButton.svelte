@@ -26,7 +26,7 @@
 		type ControllerEpisode,
 		type SharedMessage
 	} from './controller';
-	import { PLAYER_DEFAULT_API_URL } from './hosts';
+	import { MARKETING_APEX_URL, PLAYER_DEFAULT_API_URL } from './hosts';
 	import { createLook } from './look.svelte';
 	import { formatString, languageFromTag, languageTagFor, resolveStrings } from './strings';
 	import { loadLocale } from './locales/index';
@@ -118,12 +118,28 @@
 		() => true
 	);
 
-	// The button shows no credit itself: it rides with the episode to the
-	// mini-player, which shows it when no earlier embed on the page does.
-	// Only the show's branding can allow hiding it (creditWanted).
+	// The credit rides with the episode to the mini-player, which shows it
+	// when no earlier embed on the page does. Only the show's branding can
+	// allow hiding it (creditWanted).
 	const wantsCredit = $derived(
 		creditWanted(attr('credit'), data?.podcast.branding, attr('platform'))
 	);
+	// mini-player="off": no mini-player will carry it, so the button claims
+	// the page's one credit itself and shows it beside itself (decision 3:
+	// the first embed on the page that shows it). Held while loading; with
+	// no payload (an error) it is shown, as on the player.
+	let credited = $state(false);
+	$effect(() => {
+		if (miniPlayer) return;
+		const claim = controller.claimCredit(host, (granted) => (credited = granted));
+		claim.set(
+			status === 'loading' ? null : (status === 'ready' || status === 'error') && wantsCredit
+		);
+		return () => {
+			claim.release();
+			credited = false;
+		};
+	});
 
 	// ── generations ────────────────────────────────────────────────────
 	// Every async result belongs to one load of one episode, and within it
@@ -438,6 +454,11 @@
 		{#if shown}
 			<span class={`${variant === 'icon' ? 'vh' : 'note'}`} id="message">{messageText(shown)}</span>
 		{/if}
+	{/if}
+	{#if credited}
+		<a class="credit" href="{MARKETING_APEX_URL}/?ref=player" target="_blank" rel="noopener"
+			>{s.poweredBy} <b>show.fm</b></a
+		>
 	{/if}
 	<span class="vh" role="status" aria-live="polite">{announcement}</span>
 </span>

@@ -381,3 +381,30 @@ test('reduced motion: the buffering arc stands still', async ({ page }) => {
 		'none'
 	);
 });
+
+// EMB-7 review B1: with the mini-player off, the first button carries the
+// page's credit itself, inside its line.
+test('mini-player="off": the first button shows the credit beside it, in its 40px line', async ({
+	page
+}) => {
+	await serveList(
+		page,
+		`<p>${play('mini-player="off"')}</p><p>${play('mini-player="off" variant="icon"')}</p>`
+	);
+	await buttonsReady(page);
+	const credit = page.locator('showfm-play .credit');
+	await expect(credit).toHaveCount(1);
+	await expect(credit).toHaveText('Powered by show.fm');
+	const heights = await page
+		.locator('showfm-play')
+		.evaluateAll((hosts) => hosts.map((host) => host.getBoundingClientRect().height));
+	expect(heights).toEqual([40, 40]);
+	// Beside the button, vertically within its line.
+	const [button, line] = await Promise.all([
+		page.locator('showfm-play [data-play]').first().boundingBox(),
+		credit.boundingBox()
+	]);
+	expect(line!.x).toBeGreaterThan(button!.x + button!.width);
+	expect(line!.y).toBeGreaterThanOrEqual(button!.y - 1);
+	expect(line!.y + line!.height).toBeLessThanOrEqual(button!.y + button!.height + 1);
+});

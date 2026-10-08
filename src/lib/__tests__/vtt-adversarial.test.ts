@@ -36,9 +36,17 @@ describe('parseVtt on adversarial input (200 KB, timed)', () => {
 
 	it.each(Object.entries(inputs))('parses %s within the budget', (_name, input) => {
 		expect(input.length).toBeGreaterThanOrEqual(SIZE - 10);
-		const started = performance.now();
-		parseVtt(input);
-		expect(performance.now() - started).toBeLessThan(BUDGET_MS);
+		// The fastest of three parses: one run alone also times the JIT's
+		// warm-up and whatever else the machine is doing (a busy runner took
+		// 300 to 500 ms for the ordinary cues, which normally parse in about
+		// 20). A rescan costs seconds on every run, so it still fails.
+		let fastest = Infinity;
+		for (let run = 0; run < 3; run++) {
+			const started = performance.now();
+			parseVtt(input);
+			fastest = Math.min(fastest, performance.now() - started);
+		}
+		expect(fastest).toBeLessThan(BUDGET_MS);
 	});
 
 	it.each(['\u2028', '\u2029'])('preserves cue settings with separator %s', (separator) => {
