@@ -172,12 +172,35 @@ svg {
 .quiet svg {
 	color: var(--pp-muted);
 }
-/* With the mini-player off, the credit sits beside the button (decision 3). */
+/*
+ * With the mini-player off, the credit sits beside the button (decision 3),
+ * on its line: the line never wraps, so the host keeps its height. One line
+ * tall and clipped, the link wraps its two words in reverse, so when
+ * "Powered by show.fm" does not fit, "Powered by" moves to the hidden line
+ * and "show.fm" stays; with less room still, "show.fm" ends in an ellipsis.
+ * The link keeps its full name either way (aria-label).
+ */
+.credited {
+	flex-wrap: nowrap;
+}
 .credit {
+	display: inline-flex;
+	flex-wrap: wrap-reverse;
+	align-content: flex-end;
+	column-gap: 0.3em;
+	min-width: 0;
+	height: 1.3em;
+	overflow: hidden;
 	font-size: 11px;
 	line-height: 1.3;
 	color: var(--pp-muted);
 	text-decoration: none;
+	white-space: nowrap;
+}
+.credit b {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .msg svg {
 	width: 1.1em;

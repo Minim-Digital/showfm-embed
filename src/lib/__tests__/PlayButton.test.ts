@@ -543,7 +543,9 @@ describe('"Powered by show.fm" with mini-player="off"', () => {
 		await mountButton({ 'mini-player': 'off', variant: 'icon' });
 		expect(credits()).toEqual([first.host]);
 		const credit = first.root.querySelector<HTMLAnchorElement>('.credit')!;
-		expect(credit.textContent).toBe('Powered by show.fm');
+		// Named in full; it shortens to "show.fm" only where there is no room.
+		expect(credit.getAttribute('aria-label')).toBe('Powered by show.fm');
+		expect(credit.textContent).toBe('Powered byshow.fm');
 		expect(credit.href).toBe('https://show.fm/?ref=player');
 		// In the button's line, after the button.
 		expect(credit.previousElementSibling).toBe(first.button());

@@ -36,7 +36,7 @@ pnpm test            # unit tests
 pnpm build           # everything in dist/
 pnpm cem:check       # custom-elements.json matches the components
 pnpm test:contract   # tests against dist/
-pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.5 kB, the transcript chunk within 15 kB; the loader and fallback CSS within theirs
+pnpm size            # v1.js within 30 kB gzipped, the list chunk within 12.7 kB, the play chunk within 10.6 kB, the transcript chunk within 15 kB; the loader and fallback CSS within theirs
 pnpm publint
 pnpm attw
 pnpm jsx:check

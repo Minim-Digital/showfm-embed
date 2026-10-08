@@ -410,7 +410,7 @@
 	>
 {/snippet}
 
-<span class="root v-{variant} s-{size}" style={look.vars} bind:this={root}>
+<span class="root v-{variant} s-{size}" class:credited style={look.vars} bind:this={root}>
 	{#if shown && shown !== 'blocked' && !quietRetry}
 		<!-- The message in the button's place: a status line in the host's
 		     font and colour, or for the icon a quiet mark that is not a tab stop. -->
@@ -456,8 +456,14 @@
 		{/if}
 	{/if}
 	{#if credited}
-		<a class="credit" href="{MARKETING_APEX_URL}/?ref=player" target="_blank" rel="noopener"
-			>{s.poweredBy} <b>show.fm</b></a
+		<!-- In the button's line, whatever the room: "Powered by show.fm", else
+		     "show.fm" (cut short at worst), always named in full (the styles). -->
+		<a
+			class="credit"
+			href="{MARKETING_APEX_URL}/?ref=player"
+			target="_blank"
+			rel="noopener"
+			aria-label="{s.poweredBy} show.fm"><span>{s.poweredBy}</span><b>show.fm</b></a
 		>
 	{/if}
 	<span class="vh" role="status" aria-live="polite">{announcement}</span>
